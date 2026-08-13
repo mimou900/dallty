@@ -11,6 +11,7 @@ import {
   Clock,
   CreditCard,
   Globe,
+  KeyRound,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
@@ -170,6 +171,12 @@ export const PLATFORM_NAV: NavItem[] = [
   },
   { to: "/admin/platform/categories", label: "Categories", labelAr: "الفئات", icon: Tags },
   { to: "/admin/platform/countries", label: "Countries", labelAr: "الدول", icon: Globe },
+  {
+    to: "/admin/platform/auth-policies",
+    label: "Auth policies",
+    labelAr: "سياسات الدخول",
+    icon: KeyRound,
+  },
 ];
 
 const QUICK_ACTIONS = [

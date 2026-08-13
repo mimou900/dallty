@@ -31,7 +31,7 @@ export const listPlatformUsers = createServerFn({ method: "POST" })
       emailConfirmed: Boolean(u.email_confirmed_at),
       suspended: Boolean(
         (u as unknown as { banned_until?: string | null }).banned_until &&
-          new Date((u as unknown as { banned_until: string }).banned_until) > new Date(),
+        new Date((u as unknown as { banned_until: string }).banned_until) > new Date(),
       ),
       fullName: profiles?.find((p) => p.id === u.id)?.full_name ?? "",
       roles: (roles ?? []).filter((r) => r.user_id === u.id).map((r) => r.role as string),
@@ -54,7 +54,13 @@ export const setUserSuspended = createServerFn({ method: "POST" })
       ban_duration: data.suspended ? "876000h" : "none",
     });
     if (error) throw new Error(error.message);
-    await logAdminAction(supabaseAdmin, context.userId, data.suspended ? "user.suspend" : "user.restore", "user", data.userId);
+    await logAdminAction(
+      supabaseAdmin,
+      context.userId,
+      data.suspended ? "user.suspend" : "user.restore",
+      "user",
+      data.userId,
+    );
     return { ok: true };
   });
 
@@ -182,9 +188,16 @@ export const setBusinessStatus = createServerFn({ method: "POST" })
       salonId: data.salonId,
     });
 
-    await logAdminAction(supabaseAdmin, context.userId, `business.${data.status}`, "salon", data.salonId, {
-      note: data.note ?? "",
-    });
+    await logAdminAction(
+      supabaseAdmin,
+      context.userId,
+      `business.${data.status}`,
+      "salon",
+      data.salonId,
+      {
+        note: data.note ?? "",
+      },
+    );
     return { ok: true };
   });
 
@@ -199,7 +212,9 @@ export const platformOverview = createServerFn({ method: "POST" })
     const [salons, services, staff, bookings, reviews, users] = await Promise.all([
       supabaseAdmin
         .from("salons")
-        .select("id, name, city, country, status, plan, is_listed, is_active, rating, review_count, created_at"),
+        .select(
+          "id, name, city, country, status, plan, is_listed, is_active, rating, review_count, created_at",
+        ),
       supabaseAdmin.from("services").select("id, salon_id, is_active, price, discount_price"),
       supabaseAdmin.from("staff").select("id, salon_id, is_active"),
       supabaseAdmin
@@ -255,6 +270,109 @@ export const platformOverview = createServerFn({ method: "POST" })
       roleCounts,
       shops: rows.sort((a, b) => b.revenue - a.revenue),
     };
+  });
+
+/** Reads the global OTP settings singleton. Super Admin only. */
+export const getAuthSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
+    await assertSuperAdmin(context.supabase, context.userId);
+    const supabaseAdmin = await adminClient();
+
+    const { data, error } = await supabaseAdmin
+      .from("auth_settings")
+      .select(
+        "otp_master_enabled, otp_expiry_minutes, otp_resend_cooldown_seconds, otp_max_attempts",
+      )
+      .eq("id", true)
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  });
+
+const authSettingsInput = z.object({
+  otpMasterEnabled: z.boolean(),
+  otpExpiryMinutes: z.number().int().min(1).max(60),
+  otpResendCooldownSeconds: z.number().int().min(10).max(600),
+  otpMaxAttempts: z.number().int().min(1).max(20),
+});
+
+/** Updates the global OTP settings singleton. Super Admin only. */
+export const updateAuthSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: z.infer<typeof authSettingsInput>) => authSettingsInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
+    await assertSuperAdmin(context.supabase, context.userId);
+    const supabaseAdmin = await adminClient();
+
+    const { error } = await supabaseAdmin
+      .from("auth_settings")
+      .update({
+        otp_master_enabled: data.otpMasterEnabled,
+        otp_expiry_minutes: data.otpExpiryMinutes,
+        otp_resend_cooldown_seconds: data.otpResendCooldownSeconds,
+        otp_max_attempts: data.otpMaxAttempts,
+      })
+      .eq("id", true);
+    if (error) throw new Error(error.message);
+    await logAdminAction(supabaseAdmin, context.userId, "auth_settings.update", "auth_settings");
+    return { ok: true };
+  });
+
+/** Lists the per-role login OTP policy. Super Admin only. */
+export const getAuthRolePolicies = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
+    await assertSuperAdmin(context.supabase, context.userId);
+    const supabaseAdmin = await adminClient();
+
+    const { data, error } = await supabaseAdmin
+      .from("auth_role_policies")
+      .select("role, otp_enabled, is_locked")
+      .order("role");
+    if (error) throw new Error(error.message);
+    return data;
+  });
+
+const authRolePolicyInput = z.object({
+  role: z.enum(["client", "specialist", "salon_owner", "admin", "super_admin"]),
+  otpEnabled: z.boolean(),
+});
+
+/** Toggles one role's login OTP requirement. Locked roles reject the change. Super Admin only. */
+export const updateAuthRolePolicy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: z.infer<typeof authRolePolicyInput>) => authRolePolicyInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
+    await assertSuperAdmin(context.supabase, context.userId);
+    const supabaseAdmin = await adminClient();
+
+    const { data: existing, error: readError } = await supabaseAdmin
+      .from("auth_role_policies")
+      .select("is_locked")
+      .eq("role", data.role)
+      .single();
+    if (readError) throw new Error(readError.message);
+    if (existing.is_locked) throw new Error(`${data.role} requires OTP and cannot be changed`);
+
+    const { error } = await supabaseAdmin
+      .from("auth_role_policies")
+      .update({ otp_enabled: data.otpEnabled })
+      .eq("role", data.role);
+    if (error) throw new Error(error.message);
+    await logAdminAction(
+      supabaseAdmin,
+      context.userId,
+      data.otpEnabled ? "auth_role_policy.enable" : "auth_role_policy.disable",
+      "auth_role_policies",
+      null,
+      { role: data.role },
+    );
+    return { ok: true };
   });
 
 /** Paginated directory of every shop, specialist, service or appointment. */

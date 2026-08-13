@@ -38,6 +38,105 @@ export type Database = {
         };
         Relationships: [];
       };
+      auth_otp_codes: {
+        Row: {
+          attempts_used: number;
+          code_hash: string;
+          consumed_at: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          last_sent_at: string;
+          max_attempts: number;
+          metadata: Json;
+          purpose: string;
+          resend_count: number;
+          target: string | null;
+          user_agent: string | null;
+          user_id: string;
+        };
+        Insert: {
+          attempts_used?: number;
+          code_hash: string;
+          consumed_at?: string | null;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          last_sent_at?: string;
+          max_attempts?: number;
+          metadata?: Json;
+          purpose: string;
+          resend_count?: number;
+          target?: string | null;
+          user_agent?: string | null;
+          user_id: string;
+        };
+        Update: {
+          attempts_used?: number;
+          code_hash?: string;
+          consumed_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          last_sent_at?: string;
+          max_attempts?: number;
+          metadata?: Json;
+          purpose?: string;
+          resend_count?: number;
+          target?: string | null;
+          user_agent?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      auth_settings: {
+        Row: {
+          id: boolean;
+          otp_expiry_minutes: number;
+          otp_master_enabled: boolean;
+          otp_max_attempts: number;
+          otp_resend_cooldown_seconds: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: boolean;
+          otp_expiry_minutes?: number;
+          otp_master_enabled?: boolean;
+          otp_max_attempts?: number;
+          otp_resend_cooldown_seconds?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: boolean;
+          otp_expiry_minutes?: number;
+          otp_master_enabled?: boolean;
+          otp_max_attempts?: number;
+          otp_resend_cooldown_seconds?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      auth_role_policies: {
+        Row: {
+          is_locked: boolean;
+          otp_enabled: boolean;
+          role: Database["public"]["Enums"]["app_role"];
+          updated_at: string;
+        };
+        Insert: {
+          is_locked?: boolean;
+          otp_enabled?: boolean;
+          role: Database["public"]["Enums"]["app_role"];
+          updated_at?: string;
+        };
+        Update: {
+          is_locked?: boolean;
+          otp_enabled?: boolean;
+          role?: Database["public"]["Enums"]["app_role"];
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       bookings: {
         Row: {
           created_at: string;

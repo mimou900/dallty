@@ -40,6 +40,7 @@ import { Route as AuthenticatedAdminServicesRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedRescheduleBookingIdRouteImport } from './routes/_authenticated/reschedule.$bookingId'
+import { Route as AuthenticatedAdminPlatformAuthPoliciesRouteImport } from './routes/_authenticated/admin/platform/auth-policies'
 import { Route as AuthenticatedAdminPlatformBusinessesRouteImport } from './routes/_authenticated/admin/platform/businesses'
 import { Route as AuthenticatedAdminPlatformCategoriesRouteImport } from './routes/_authenticated/admin/platform/categories'
 import { Route as AuthenticatedAdminPlatformCountriesRouteImport } from './routes/_authenticated/admin/platform/countries'
@@ -219,6 +220,12 @@ const AuthenticatedRescheduleBookingIdRoute =
     path: '/reschedule/$bookingId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminPlatformAuthPoliciesRoute =
+  AuthenticatedAdminPlatformAuthPoliciesRouteImport.update({
+    id: '/platform/auth-policies',
+    path: '/platform/auth-policies',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminPlatformBusinessesRoute =
   AuthenticatedAdminPlatformBusinessesRouteImport.update({
     id: '/platform/businesses',
@@ -309,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
   '/reschedule/$bookingId': typeof AuthenticatedRescheduleBookingIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/platform/auth-policies': typeof AuthenticatedAdminPlatformAuthPoliciesRoute
   '/admin/platform/businesses': typeof AuthenticatedAdminPlatformBusinessesRoute
   '/admin/platform/categories': typeof AuthenticatedAdminPlatformCategoriesRoute
   '/admin/platform/countries': typeof AuthenticatedAdminPlatformCountriesRoute
@@ -350,6 +358,7 @@ export interface FileRoutesByTo {
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
   '/reschedule/$bookingId': typeof AuthenticatedRescheduleBookingIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/platform/auth-policies': typeof AuthenticatedAdminPlatformAuthPoliciesRoute
   '/admin/platform/businesses': typeof AuthenticatedAdminPlatformBusinessesRoute
   '/admin/platform/categories': typeof AuthenticatedAdminPlatformCategoriesRoute
   '/admin/platform/countries': typeof AuthenticatedAdminPlatformCountriesRoute
@@ -394,6 +403,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRoute
   '/_authenticated/reschedule/$bookingId': typeof AuthenticatedRescheduleBookingIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/platform/auth-policies': typeof AuthenticatedAdminPlatformAuthPoliciesRoute
   '/_authenticated/admin/platform/businesses': typeof AuthenticatedAdminPlatformBusinessesRoute
   '/_authenticated/admin/platform/categories': typeof AuthenticatedAdminPlatformCategoriesRoute
   '/_authenticated/admin/platform/countries': typeof AuthenticatedAdminPlatformCountriesRoute
@@ -438,6 +448,7 @@ export interface FileRouteTypes {
     | '/admin/staff'
     | '/reschedule/$bookingId'
     | '/admin/'
+    | '/admin/platform/auth-policies'
     | '/admin/platform/businesses'
     | '/admin/platform/categories'
     | '/admin/platform/countries'
@@ -479,6 +490,7 @@ export interface FileRouteTypes {
     | '/admin/staff'
     | '/reschedule/$bookingId'
     | '/admin'
+    | '/admin/platform/auth-policies'
     | '/admin/platform/businesses'
     | '/admin/platform/categories'
     | '/admin/platform/countries'
@@ -522,6 +534,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/staff'
     | '/_authenticated/reschedule/$bookingId'
     | '/_authenticated/admin/'
+    | '/_authenticated/admin/platform/auth-policies'
     | '/_authenticated/admin/platform/businesses'
     | '/_authenticated/admin/platform/categories'
     | '/_authenticated/admin/platform/countries'
@@ -768,6 +781,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRescheduleBookingIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/platform/auth-policies': {
+      id: '/_authenticated/admin/platform/auth-policies'
+      path: '/platform/auth-policies'
+      fullPath: '/admin/platform/auth-policies'
+      preLoaderRoute: typeof AuthenticatedAdminPlatformAuthPoliciesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/platform/businesses': {
       id: '/_authenticated/admin/platform/businesses'
       path: '/platform/businesses'
@@ -856,6 +876,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminPlatformAuthPoliciesRoute: typeof AuthenticatedAdminPlatformAuthPoliciesRoute
   AuthenticatedAdminPlatformBusinessesRoute: typeof AuthenticatedAdminPlatformBusinessesRoute
   AuthenticatedAdminPlatformCategoriesRoute: typeof AuthenticatedAdminPlatformCategoriesRoute
   AuthenticatedAdminPlatformCountriesRoute: typeof AuthenticatedAdminPlatformCountriesRoute
@@ -882,6 +903,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
     AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+    AuthenticatedAdminPlatformAuthPoliciesRoute:
+      AuthenticatedAdminPlatformAuthPoliciesRoute,
     AuthenticatedAdminPlatformBusinessesRoute:
       AuthenticatedAdminPlatformBusinessesRoute,
     AuthenticatedAdminPlatformCategoriesRoute:
