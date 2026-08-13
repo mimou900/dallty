@@ -29,8 +29,8 @@ import { MapPinPicker } from "@/components/admin/map-pin-picker";
 import { PlacesAutocomplete } from "@/components/dallty/places-autocomplete";
 import { uploadAndSign } from "@/lib/storage";
 import { getSalonSettings, saveSalonSettings } from "@/lib/salon-settings.functions";
-import { BUSINESS_TYPES, SALON_CATEGORIES } from "@/lib/business-schema";
-import { useCountries } from "@/lib/reference-data";
+import { BUSINESS_TYPES } from "@/lib/business-schema";
+import { useCategories, useCountries } from "@/lib/reference-data";
 
 type TabKey =
   | "general"
@@ -227,6 +227,7 @@ function SettingsPage() {
 
   const countries = useCountries();
   const countryOptions = countries.data ?? [];
+  const categoryOptions = useCategories();
 
   const save = useMutation({
     mutationFn: async () => {
@@ -483,9 +484,9 @@ function SettingsPage() {
 
           <Section title="Categories" description="Pick everything your salon offers.">
             <div className="flex flex-wrap gap-2">
-              {SALON_CATEGORIES.map((category: any) => {
-                const value = typeof category === "string" ? category : category.value ?? category.en;
-                const label = typeof category === "string" ? category : category.label ?? category.en;
+              {(categoryOptions.data ?? []).map((category) => {
+                const value = category.name;
+                const label = category.name;
                 const selected = (form.categories ?? []).includes(value);
                 return (
                   <button

@@ -61,23 +61,6 @@ export const PLANS = [
   },
 ];
 
-/** Categories a salon can be listed under (multi-select at onboarding). */
-export const SALON_CATEGORIES = [
-  "Hair Salon",
-  "Barbershop",
-  "Beauty Salon",
-  "Nail Salon",
-  "Spa",
-  "Massage",
-  "Waxing",
-  "Makeup Studio",
-  "Eyebrows & Lashes",
-  "Laser Hair Removal",
-  "Skincare",
-  "Permanent Makeup",
-  "Wellness Center",
-] as const;
-
 export const businessDetailsSchema = z.object({
   name: z.string().trim().min(2, "Business name is required").max(120),
   businessType: z.string().trim().max(80).optional().default(""),
@@ -93,7 +76,7 @@ export const businessDetailsSchema = z.object({
   facebook: z.string().trim().max(255).optional().default(""),
   tiktok: z.string().trim().max(255).optional().default(""),
   country: z.string().trim().min(2, "Country is required").max(80),
-  countryCode: z.string().trim().length(2).default("AE"),
+  countryCode: z.string().trim().length(2).default("DZ"),
   city: z.string().trim().min(2, "City is required").max(80),
   district: z.string().trim().max(80).optional().default(""),
   address: z.string().trim().min(4, "Address is required").max(255),

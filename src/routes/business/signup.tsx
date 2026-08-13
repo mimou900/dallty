@@ -28,11 +28,13 @@ import { uploadAndSign } from "@/lib/storage";
 import { registerBusiness } from "@/lib/business.functions";
 import { ensureSessionAfterSignUp } from "@/lib/auth-session";
 import {
-  SALON_CATEGORIES,
   businessDetailsSchema,
   phoneSchema,
   strongPassword,
 } from "@/lib/business-schema";
+import { useCategories } from "@/lib/reference-data";
+import * as Icons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { checkSignupPassword, checkPhoneHasAccount } from "@/lib/account.functions";
 import { friendlyError } from "@/lib/friendly-error";
@@ -74,6 +76,11 @@ function usePlatformAdminRedirect() {
 const inputClass =
   "min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2";
 const labelClass = "mb-1.5 block text-sm font-semibold";
+
+function CategoryIcon({ name }: { name: string }) {
+  const Icon = (Icons as unknown as Record<string, LucideIcon>)[name] ?? Icons.Sparkles;
+  return <Icon className="size-3.5" />;
+}
 
 type Account = {
   fullName: string;
@@ -177,6 +184,7 @@ function BusinessSignupPage() {
   const offset = needsAccount ? 1 : 0;
 
   const countries = useCountries();
+  const categoryOptions = useCategories();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState<null | "account" | "salon">(null);
   const [busyLabel, setBusyLabel] = useState("");
@@ -691,20 +699,20 @@ function BusinessSignupPage() {
                   <div className="sm:col-span-2">
                     <span className={labelClass}>Business categories</span>
                     <div className="flex flex-wrap gap-2">
-                      {SALON_CATEGORIES.map((category) => {
-                        const on = categories.includes(category);
+                      {(categoryOptions.data ?? []).map((category) => {
+                        const on = categories.includes(category.name);
                         return (
                           <button
-                            key={category}
+                            key={category.id}
                             type="button"
                             aria-pressed={on}
-                            onClick={() => toggleCategory(category)}
+                            onClick={() => toggleCategory(category.name)}
                             className={`press flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold transition-colors ${
                               on ? "bg-primary text-primary-foreground" : "glass-soft"
                             }`}
                           >
-                            {on && <Check className="size-3.5" />}
-                            {category}
+                            {on ? <Check className="size-3.5" /> : <CategoryIcon name={category.icon} />}
+                            {category.name}
                           </button>
                         );
                       })}
