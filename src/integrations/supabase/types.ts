@@ -1606,6 +1606,13 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      check_login_throttle: {
+        Args: { _email: string };
+        Returns: {
+          retry_after_seconds: number;
+          throttled: boolean;
+        }[];
+      };
       check_promo_code: {
         Args: { _amount: number; _code: string; _salon_id: string };
         Returns: {
@@ -1615,6 +1622,10 @@ export type Database = {
           reason: string;
           valid: boolean;
         }[];
+      };
+      record_login_attempt: {
+        Args: { _email: string };
+        Returns: undefined;
       };
       get_available_slots: {
         Args: { _day: string; _service_id: string; _staff_id: string };

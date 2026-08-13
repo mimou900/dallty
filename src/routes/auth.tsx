@@ -259,11 +259,27 @@ function AuthPage() {
         toast.success(t.welcome);
         await goHome();
       } else {
+        const { data: throttle } = await supabase.rpc("check_login_throttle", {
+          _email: parsed.data.email,
+        });
+        const throttleRow = Array.isArray(throttle) ? throttle[0] : undefined;
+        if (throttleRow?.throttled) {
+          const minutes = Math.ceil(throttleRow.retry_after_seconds / 60);
+          toast.error(
+            `Too many attempts — try again in ${minutes} minute${minutes === 1 ? "" : "s"}`,
+          );
+          setBusy(false);
+          return;
+        }
+
         const { data: signInData, error } = await supabase.auth.signInWithPassword({
           email: parsed.data.email,
           password: parsed.data.password,
         });
-        if (error) throw error;
+        if (error) {
+          await supabase.rpc("record_login_attempt", { _email: parsed.data.email });
+          throw error;
+        }
 
         const { required } = await checkOtpRequired();
         if (required && signInData.user) {
