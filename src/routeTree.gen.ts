@@ -23,6 +23,7 @@ import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedFavoritesRouteImport } from './routes/_authenticated/favorites'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as BusinessBusinessIdRouteImport } from './routes/business.$businessId'
 import { Route as BusinessSignupRouteImport } from './routes/business/signup'
 import { Route as SalonSalonIdRouteImport } from './routes/salon.$salonId'
 import { Route as StaffSignupRouteImport } from './routes/staff/signup'
@@ -122,6 +123,11 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const BusinessBusinessIdRoute = BusinessBusinessIdRouteImport.update({
+  id: '/business/$businessId',
+  path: '/business/$businessId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const BusinessSignupRoute = BusinessSignupRouteImport.update({
   id: '/business/signup',
@@ -305,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/business/$businessId': typeof BusinessBusinessIdRoute
   '/business/signup': typeof BusinessSignupRoute
   '/salon/$salonId': typeof SalonSalonIdRoute
   '/staff/signup': typeof StaffSignupRoute
@@ -348,6 +355,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/business/$businessId': typeof BusinessBusinessIdRoute
   '/business/signup': typeof BusinessSignupRoute
   '/salon/$salonId': typeof SalonSalonIdRoute
   '/staff/signup': typeof StaffSignupRoute
@@ -394,6 +402,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/favorites': typeof AuthenticatedFavoritesRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/business/$businessId': typeof BusinessBusinessIdRoute
   '/business/signup': typeof BusinessSignupRoute
   '/salon/$salonId': typeof SalonSalonIdRoute
   '/staff/signup': typeof StaffSignupRoute
@@ -440,6 +449,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/favorites'
     | '/profile'
+    | '/business/$businessId'
     | '/business/signup'
     | '/salon/$salonId'
     | '/staff/signup'
@@ -483,6 +493,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/favorites'
     | '/profile'
+    | '/business/$businessId'
     | '/business/signup'
     | '/salon/$salonId'
     | '/staff/signup'
@@ -528,6 +539,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/favorites'
     | '/_authenticated/profile'
+    | '/business/$businessId'
     | '/business/signup'
     | '/salon/$salonId'
     | '/staff/signup'
@@ -567,6 +579,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SearchRoute: typeof SearchRoute
   VerifyOtpRoute: typeof VerifyOtpRoute
+  BusinessBusinessIdRoute: typeof BusinessBusinessIdRoute
   BusinessSignupRoute: typeof BusinessSignupRoute
   SalonSalonIdRoute: typeof SalonSalonIdRoute
   StaffSignupRoute: typeof StaffSignupRoute
@@ -674,6 +687,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/profile'
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/business/$businessId': {
+      id: '/business/$businessId'
+      path: '/business/$businessId'
+      fullPath: '/business/$businessId'
+      preLoaderRoute: typeof BusinessBusinessIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/business/signup': {
       id: '/business/signup'
@@ -978,6 +998,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SearchRoute: SearchRoute,
   VerifyOtpRoute: VerifyOtpRoute,
+  BusinessBusinessIdRoute: BusinessBusinessIdRoute,
   BusinessSignupRoute: BusinessSignupRoute,
   SalonSalonIdRoute: SalonSalonIdRoute,
   StaffSignupRoute: StaffSignupRoute,
