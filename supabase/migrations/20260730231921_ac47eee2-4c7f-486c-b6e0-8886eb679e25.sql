@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.notify_waitlist_on_free_slot() FROM PUBLIC, anon, authenticated;

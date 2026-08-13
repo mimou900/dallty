@@ -1,0 +1,235 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { Clock3, Heart, Scissors, Sparkles, Store } from "lucide-react";
+
+import { formatMoney } from "@/lib/countries";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { FavoriteButton, useFavorites } from "@/components/dallty/favorite-button";
+import { ClientShell } from "@/components/dallty/client-shell";
+
+export const Route = createFileRoute("/_authenticated/favorites")({
+  head: () => ({
+    meta: [
+      { title: "Saved salons & specialists — Dallty" },
+      {
+        name: "description",
+        content:
+          "All the salons, specialists and services you've saved on Dallty, plus the places you viewed recently.",
+      },
+      { property: "og:title", content: "Saved salons & specialists — Dallty" },
+      {
+        property: "og:description",
+        content: "Your saved salons, specialists and services on Dallty.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: FavoritesPage,
+});
+
+function FavoritesPage() {
+  const { user } = useAuth();
+  const favorites = useFavorites();
+  const rows = favorites.data ?? [];
+
+  const salonIds = rows.filter((r) => r.kind === "salon").map((r) => r.target_id);
+  const staffIds = rows.filter((r) => r.kind === "staff").map((r) => r.target_id);
+  const serviceIds = rows.filter((r) => r.kind === "service").map((r) => r.target_id);
+
+  const salonsQuery = useQuery({
+    queryKey: ["fav-salons", salonIds],
+    enabled: salonIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("salons")
+        .select("id, name, area, city, image_url, rating, review_count, price_range")
+        .in("id", salonIds);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const staffQuery = useQuery({
+    queryKey: ["fav-staff", staffIds],
+    enabled: staffIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff")
+        .select("id, full_name, title, salon_id")
+        .in("id", staffIds);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const servicesQuery = useQuery({
+    queryKey: ["fav-services", serviceIds],
+    enabled: serviceIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name, price, discount_price, duration_minutes, salon_id, salons(currency)")
+        .in("id", serviceIds);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const recentQuery = useQuery({
+    queryKey: ["recently-viewed", user?.id],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("recently_viewed")
+        .select("salon_id, viewed_at, salons(id, name, area, image_url, rating)")
+        .eq("user_id", user!.id)
+        .order("viewed_at", { ascending: false })
+        .limit(8);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const empty =
+    !favorites.isLoading && !salonIds.length && !staffIds.length && !serviceIds.length;
+
+  return (
+    <ClientShell title="Favorites" subtitle="Salons, specialists and services you saved.">
+
+      {empty && (
+        <div className="mt-8 rounded-3xl glass p-8 text-center">
+          <Heart className="mx-auto size-8 text-rose" />
+          <p className="mt-3 text-base font-bold">Nothing saved yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tap the heart on a salon, specialist or service to keep it here.
+          </p>
+          <Link
+            to="/"
+            className="press mt-5 inline-flex min-h-11 items-center rounded-2xl bg-primary px-6 text-sm font-bold text-primary-foreground"
+          >
+            Explore salons
+          </Link>
+        </div>
+      )}
+
+      {salonsQuery.data?.length ? (
+        <section className="mt-6">
+          <h2 className="flex items-center gap-2 text-lg font-extrabold">
+            <Store className="size-4 text-primary" /> Salons
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {salonsQuery.data.map((salon) => (
+              <div key={salon.id} className="flex items-center gap-3 rounded-3xl glass p-3">
+                <Link
+                  to="/salon/$salonId"
+                  params={{ salonId: salon.id }}
+                  className="flex min-w-0 flex-1 items-center gap-3"
+                >
+                  <img
+                    src={salon.image_url ?? "/salons/placeholder.jpg"}
+                    alt={salon.name}
+                    loading="lazy"
+                    className="size-16 rounded-2xl object-cover"
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-extrabold">{salon.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {salon.area}
+                      {salon.city ? `, ${salon.city}` : ""} · ★ {Number(salon.rating).toFixed(1)}
+                    </span>
+                  </span>
+                </Link>
+                <FavoriteButton kind="salon" targetId={salon.id} label={salon.name} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {staffQuery.data?.length ? (
+        <section className="mt-6">
+          <h2 className="flex items-center gap-2 text-lg font-extrabold">
+            <Scissors className="size-4 text-primary" /> Specialists
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {staffQuery.data.map((member) => (
+              <div key={member.id} className="flex items-center gap-3 rounded-3xl glass p-4">
+                <Link
+                  to="/salon/$salonId"
+                  params={{ salonId: member.salon_id }}
+                  className="min-w-0 flex-1"
+                >
+                  <span className="block truncate text-sm font-extrabold">{member.full_name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{member.title}</span>
+                </Link>
+                <FavoriteButton kind="staff" targetId={member.id} label={member.full_name} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {servicesQuery.data?.length ? (
+        <section className="mt-6">
+          <h2 className="flex items-center gap-2 text-lg font-extrabold">
+            <Sparkles className="size-4 text-primary" /> Services
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {servicesQuery.data.map((service) => (
+              <div key={service.id} className="flex items-center gap-3 rounded-3xl glass p-4">
+                <Link
+                  to="/salon/$salonId"
+                  params={{ salonId: service.salon_id }}
+                  className="min-w-0 flex-1"
+                >
+                  <span className="block truncate text-sm font-extrabold">{service.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {service.duration_minutes} min ·{" "}
+                    {formatMoney(
+                      service.discount_price ?? service.price,
+                      (service as { salons?: { currency?: string } }).salons?.currency,
+                    )}
+                  </span>
+                </Link>
+                <FavoriteButton kind="service" targetId={service.id} label={service.name} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {recentQuery.data?.length ? (
+        <section className="mt-8">
+          <h2 className="flex items-center gap-2 text-lg font-extrabold">
+            <Clock3 className="size-4 text-primary" /> Recently viewed
+          </h2>
+          <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
+            {recentQuery.data.map((row) => {
+              const salon = row.salons as { id: string; name: string; area: string; image_url: string | null } | null;
+              if (!salon) return null;
+              return (
+                <Link
+                  key={salon.id}
+                  to="/salon/$salonId"
+                  params={{ salonId: salon.id }}
+                  className="w-40 shrink-0 rounded-3xl glass p-3"
+                >
+                  <img
+                    src={salon.image_url ?? "/salons/placeholder.jpg"}
+                    alt={salon.name}
+                    loading="lazy"
+                    className="h-24 w-full rounded-2xl object-cover"
+                  />
+                  <p className="mt-2 truncate text-sm font-bold">{salon.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{salon.area}</p>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+    </ClientShell>
+  );
+}

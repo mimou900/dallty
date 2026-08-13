@@ -1,0 +1,1 @@
+GRANT SELECT (is_verified, verified_at) ON public.salons TO anon, authenticated;

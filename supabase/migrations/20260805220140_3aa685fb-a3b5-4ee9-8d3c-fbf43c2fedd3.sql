@@ -1,0 +1,1 @@
+GRANT SELECT (latitude, longitude) ON public.salons TO anon, authenticated;
