@@ -41,6 +41,8 @@ import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
 import { Route as AuthenticatedRescheduleBookingIdRouteImport } from './routes/_authenticated/reschedule.$bookingId'
 import { Route as AuthenticatedAdminPlatformBusinessesRouteImport } from './routes/_authenticated/admin/platform/businesses'
+import { Route as AuthenticatedAdminPlatformCategoriesRouteImport } from './routes/_authenticated/admin/platform/categories'
+import { Route as AuthenticatedAdminPlatformCountriesRouteImport } from './routes/_authenticated/admin/platform/countries'
 import { Route as AuthenticatedAdminPlatformDirectoryRouteImport } from './routes/_authenticated/admin/platform/directory'
 import { Route as AuthenticatedAdminPlatformMarketplaceRouteImport } from './routes/_authenticated/admin/platform/marketplace'
 import { Route as AuthenticatedAdminPlatformOverviewRouteImport } from './routes/_authenticated/admin/platform/overview'
@@ -223,6 +225,18 @@ const AuthenticatedAdminPlatformBusinessesRoute =
     path: '/platform/businesses',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminPlatformCategoriesRoute =
+  AuthenticatedAdminPlatformCategoriesRouteImport.update({
+    id: '/platform/categories',
+    path: '/platform/categories',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminPlatformCountriesRoute =
+  AuthenticatedAdminPlatformCountriesRouteImport.update({
+    id: '/platform/countries',
+    path: '/platform/countries',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminPlatformDirectoryRoute =
   AuthenticatedAdminPlatformDirectoryRouteImport.update({
     id: '/platform/directory',
@@ -296,6 +310,8 @@ export interface FileRoutesByFullPath {
   '/reschedule/$bookingId': typeof AuthenticatedRescheduleBookingIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/platform/businesses': typeof AuthenticatedAdminPlatformBusinessesRoute
+  '/admin/platform/categories': typeof AuthenticatedAdminPlatformCategoriesRoute
+  '/admin/platform/countries': typeof AuthenticatedAdminPlatformCountriesRoute
   '/admin/platform/directory': typeof AuthenticatedAdminPlatformDirectoryRoute
   '/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
@@ -335,6 +351,8 @@ export interface FileRoutesByTo {
   '/reschedule/$bookingId': typeof AuthenticatedRescheduleBookingIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/platform/businesses': typeof AuthenticatedAdminPlatformBusinessesRoute
+  '/admin/platform/categories': typeof AuthenticatedAdminPlatformCategoriesRoute
+  '/admin/platform/countries': typeof AuthenticatedAdminPlatformCountriesRoute
   '/admin/platform/directory': typeof AuthenticatedAdminPlatformDirectoryRoute
   '/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
@@ -377,6 +395,8 @@ export interface FileRoutesById {
   '/_authenticated/reschedule/$bookingId': typeof AuthenticatedRescheduleBookingIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/platform/businesses': typeof AuthenticatedAdminPlatformBusinessesRoute
+  '/_authenticated/admin/platform/categories': typeof AuthenticatedAdminPlatformCategoriesRoute
+  '/_authenticated/admin/platform/countries': typeof AuthenticatedAdminPlatformCountriesRoute
   '/_authenticated/admin/platform/directory': typeof AuthenticatedAdminPlatformDirectoryRoute
   '/_authenticated/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/_authenticated/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
@@ -419,6 +439,8 @@ export interface FileRouteTypes {
     | '/reschedule/$bookingId'
     | '/admin/'
     | '/admin/platform/businesses'
+    | '/admin/platform/categories'
+    | '/admin/platform/countries'
     | '/admin/platform/directory'
     | '/admin/platform/marketplace'
     | '/admin/platform/overview'
@@ -458,6 +480,8 @@ export interface FileRouteTypes {
     | '/reschedule/$bookingId'
     | '/admin'
     | '/admin/platform/businesses'
+    | '/admin/platform/categories'
+    | '/admin/platform/countries'
     | '/admin/platform/directory'
     | '/admin/platform/marketplace'
     | '/admin/platform/overview'
@@ -499,6 +523,8 @@ export interface FileRouteTypes {
     | '/_authenticated/reschedule/$bookingId'
     | '/_authenticated/admin/'
     | '/_authenticated/admin/platform/businesses'
+    | '/_authenticated/admin/platform/categories'
+    | '/_authenticated/admin/platform/countries'
     | '/_authenticated/admin/platform/directory'
     | '/_authenticated/admin/platform/marketplace'
     | '/_authenticated/admin/platform/overview'
@@ -749,6 +775,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPlatformBusinessesRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/platform/categories': {
+      id: '/_authenticated/admin/platform/categories'
+      path: '/platform/categories'
+      fullPath: '/admin/platform/categories'
+      preLoaderRoute: typeof AuthenticatedAdminPlatformCategoriesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/platform/countries': {
+      id: '/_authenticated/admin/platform/countries'
+      path: '/platform/countries'
+      fullPath: '/admin/platform/countries'
+      preLoaderRoute: typeof AuthenticatedAdminPlatformCountriesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/platform/directory': {
       id: '/_authenticated/admin/platform/directory'
       path: '/platform/directory'
@@ -817,6 +857,8 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminPlatformBusinessesRoute: typeof AuthenticatedAdminPlatformBusinessesRoute
+  AuthenticatedAdminPlatformCategoriesRoute: typeof AuthenticatedAdminPlatformCategoriesRoute
+  AuthenticatedAdminPlatformCountriesRoute: typeof AuthenticatedAdminPlatformCountriesRoute
   AuthenticatedAdminPlatformDirectoryRoute: typeof AuthenticatedAdminPlatformDirectoryRoute
   AuthenticatedAdminPlatformMarketplaceRoute: typeof AuthenticatedAdminPlatformMarketplaceRoute
   AuthenticatedAdminPlatformOverviewRoute: typeof AuthenticatedAdminPlatformOverviewRoute
@@ -842,6 +884,10 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
     AuthenticatedAdminPlatformBusinessesRoute:
       AuthenticatedAdminPlatformBusinessesRoute,
+    AuthenticatedAdminPlatformCategoriesRoute:
+      AuthenticatedAdminPlatformCategoriesRoute,
+    AuthenticatedAdminPlatformCountriesRoute:
+      AuthenticatedAdminPlatformCountriesRoute,
     AuthenticatedAdminPlatformDirectoryRoute:
       AuthenticatedAdminPlatformDirectoryRoute,
     AuthenticatedAdminPlatformMarketplaceRoute:

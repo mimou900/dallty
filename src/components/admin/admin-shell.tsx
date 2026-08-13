@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Clock,
   CreditCard,
+  Globe,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
@@ -22,6 +23,7 @@ import {
   Star,
   Store,
   Sun,
+  Tags,
   Users,
   UserCog,
   Wallet,
@@ -147,6 +149,8 @@ export const PLATFORM_NAV: NavItem[] = [
     icon: Store,
   },
   { to: "/admin/platform/users", label: "Platform users", labelAr: "المستخدمون", icon: ShieldCheck },
+  { to: "/admin/platform/categories", label: "Categories", labelAr: "الفئات", icon: Tags },
+  { to: "/admin/platform/countries", label: "Countries", labelAr: "الدول", icon: Globe },
 
 ];
 
