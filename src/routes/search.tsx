@@ -28,7 +28,7 @@ import { useUserLocation, haversineKm } from "@/hooks/use-user-location";
 import { getTravelTimes } from "@/lib/geo.functions";
 import type { TravelInfo } from "@/components/dallty/salon-card";
 import { useLocale } from "@/lib/i18n";
-import { useCountries } from "@/lib/reference-data";
+import { useCountries, translate } from "@/lib/reference-data";
 import { citiesFor, provincesFor } from "@/lib/arab-cities";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
 
@@ -200,7 +200,10 @@ function SearchPage() {
     params.country
       ? {
           key: "country",
-          label: countryOptions.find((c) => c.iso_code === params.country)?.name ?? params.country,
+          label: (() => {
+            const hit = countryOptions.find((c) => c.iso_code === params.country);
+            return hit ? translate(hit, lang) : params.country;
+          })(),
           clear: { country: "", state: "", city: "" },
         }
       : null,
@@ -316,7 +319,7 @@ function SearchPage() {
                 <option value="">{en ? "All countries" : "كل الدول"}</option>
                 {countryOptions.map((c) => (
                   <option key={c.iso_code} value={c.iso_code}>
-                    {c.flag} {en ? c.name : c.name_ar}
+                    {c.flag} {translate(c, lang)}
                   </option>
                 ))}
               </SelectField>

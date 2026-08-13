@@ -5,9 +5,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const categoryInput = z.object({
   id: z.string().uuid().optional(),
-  name: z.string().trim().min(1).max(80),
-  name_fr: z.string().trim().min(1).max(80),
-  name_ar: z.string().trim().min(1).max(80),
+  default_name: z.string().trim().min(1).max(80),
+  translations: z.record(z.string().min(2).max(10), z.string().trim().min(1).max(80)).default({}),
   icon: z.string().trim().min(1).max(60),
   image_url: z.string().trim().max(4000).nullable().optional(),
   description: z.string().trim().max(1000).nullable().optional(),
@@ -68,7 +67,7 @@ export const listCountriesAdmin = createServerFn({ method: "POST" })
       .from("countries")
       .select("*")
       .order("display_order")
-      .order("name");
+      .order("default_name");
     if (error) throw new Error(error.message);
     return data;
   });

@@ -521,8 +521,8 @@ function SettingsPage() {
           <Section title="Categories" description="Pick everything your salon offers.">
             <div className="flex flex-wrap gap-2">
               {(categoryOptions.data ?? []).map((category) => {
-                const value = category.name;
-                const label = category.name;
+                const value = category.default_name;
+                const label = category.default_name;
                 const selected = (form.categories ?? []).includes(value);
                 return (
                   <button
@@ -622,14 +622,14 @@ function SettingsPage() {
                       setForm((f) => ({
                         ...f,
                         country_code: e.target.value,
-                        country: hit?.name ?? f.country,
+                        country: hit?.default_name ?? f.country,
                       }));
                     }}
                   >
                     <option value="">Select a country</option>
                     {countryOptions.map((c) => (
                       <option key={c.iso_code} value={c.iso_code}>
-                        {c.flag} {c.name}
+                        {c.flag} {c.default_name}
                       </option>
                     ))}
                   </select>

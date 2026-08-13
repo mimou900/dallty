@@ -5,7 +5,8 @@
 
 import { writeFileSync } from "node:fs";
 
-const SOURCE_URL = "https://raw.githubusercontent.com/ihahachi/Algeria-Cities/main/json/algeria_cities.json";
+const SOURCE_URL =
+  "https://raw.githubusercontent.com/ihahachi/Algeria-Cities/main/json/algeria_cities.json";
 const ALGERIA_ID_SQL = "(select id from public.countries where iso_code = 'DZ')";
 
 function sqlQuote(value) {
@@ -19,7 +20,9 @@ function sqlJsonb(obj) {
 async function main() {
   const rows = await fetch(SOURCE_URL).then((r) => r.json());
   if (rows.length !== 1541) {
-    console.warn(`Warning: expected 1541 communes, source returned ${rows.length}. Continuing anyway.`);
+    console.warn(
+      `Warning: expected 1541 communes, source returned ${rows.length}. Continuing anyway.`,
+    );
   }
 
   const wilayas = new Map(); // wilaya_code -> { nameFr, nameAr }
@@ -30,7 +33,9 @@ async function main() {
     }
   }
   if (wilayas.size !== 69) {
-    console.warn(`Warning: expected 69 wilayas, source returned ${wilayas.size}. Continuing anyway.`);
+    console.warn(
+      `Warning: expected 69 wilayas, source returned ${wilayas.size}. Continuing anyway.`,
+    );
   }
 
   const lines = [];
@@ -49,7 +54,9 @@ async function main() {
       .join(",\n") + ";",
   );
   lines.push("");
-  lines.push("INSERT INTO public.cities (region_id, default_name, translations, postal_code) VALUES");
+  lines.push(
+    "INSERT INTO public.cities (region_id, default_name, translations, postal_code) VALUES",
+  );
   lines.push(
     rows
       .map((r) => {
@@ -61,7 +68,10 @@ async function main() {
       .join(",\n") + ";",
   );
 
-  writeFileSync("supabase/migrations/20260813020100_seed_regions_cities.sql", lines.join("\n") + "\n");
+  writeFileSync(
+    "supabase/migrations/20260813020100_seed_regions_cities.sql",
+    lines.join("\n") + "\n",
+  );
   console.log(`Wrote ${wilayas.size} regions and ${rows.length} cities.`);
 }
 

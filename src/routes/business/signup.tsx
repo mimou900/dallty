@@ -200,7 +200,7 @@ function BusinessSignupPage() {
     description: "",
     businessEmail: "",
     businessPhone: "",
-    country: getDefaultCountry().name,
+    country: getDefaultCountry().default_name,
     countryCode: getDefaultCountry().iso_code,
     city: "",
     district: "",
@@ -247,7 +247,7 @@ function BusinessSignupPage() {
       address: place.address || prev.address,
       city: place.city || prev.city,
       district: place.district || prev.district,
-      country: known?.name ?? place.country ?? prev.country,
+      country: known?.default_name ?? place.country ?? prev.country,
       countryCode: known?.iso_code ?? prev.countryCode,
       postalCode: place.postalCode || prev.postalCode,
       latitude: place.latitude != null ? place.latitude.toFixed(6) : prev.latitude,
@@ -692,13 +692,13 @@ function BusinessSignupPage() {
                     <span className={labelClass}>Business categories</span>
                     <div className="flex flex-wrap gap-2">
                       {(categoryOptions.data ?? []).map((category) => {
-                        const on = categories.includes(category.name);
+                        const on = categories.includes(category.default_name);
                         return (
                           <button
                             key={category.id}
                             type="button"
                             aria-pressed={on}
-                            onClick={() => toggleCategory(category.name)}
+                            onClick={() => toggleCategory(category.default_name)}
                             className={`press flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold transition-colors ${
                               on ? "bg-primary text-primary-foreground" : "glass-soft"
                             }`}
@@ -708,7 +708,7 @@ function BusinessSignupPage() {
                             ) : (
                               <CategoryIcon name={category.icon} />
                             )}
-                            {category.name}
+                            {category.default_name}
                           </button>
                         );
                       })}
@@ -753,14 +753,14 @@ function BusinessSignupPage() {
                         setB((prev) => ({
                           ...prev,
                           countryCode: c.iso_code,
-                          country: c.name,
+                          country: c.default_name,
                           city: "",
                         }));
                       }}
                     >
                       {(countries.data ?? []).map((c) => (
                         <option key={c.iso_code} value={c.iso_code}>
-                          {c.flag} {c.name} · {c.currency_code}
+                          {c.flag} {c.default_name} · {c.currency_code}
                         </option>
                       ))}
                     </select>

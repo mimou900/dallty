@@ -229,14 +229,13 @@ export type Database = {
           calling_code: string;
           created_at: string;
           currency_code: string;
+          default_name: string;
           display_order: number;
           flag: string;
           id: string;
           iso_code: string;
-          name: string;
-          name_ar: string;
-          name_fr: string;
           timezone: string;
+          translations: Json;
           updated_at: string;
         };
         Insert: {
@@ -244,14 +243,13 @@ export type Database = {
           calling_code: string;
           created_at?: string;
           currency_code: string;
+          default_name: string;
           display_order?: number;
           flag: string;
           id?: string;
           iso_code: string;
-          name: string;
-          name_ar: string;
-          name_fr: string;
           timezone: string;
+          translations?: Json;
           updated_at?: string;
         };
         Update: {
@@ -259,14 +257,13 @@ export type Database = {
           calling_code?: string;
           created_at?: string;
           currency_code?: string;
+          default_name?: string;
           display_order?: number;
           flag?: string;
           id?: string;
           iso_code?: string;
-          name?: string;
-          name_ar?: string;
-          name_fr?: string;
           timezone?: string;
+          translations?: Json;
           updated_at?: string;
         };
         Relationships: [
@@ -283,99 +280,107 @@ export type Database = {
         Row: {
           active: boolean;
           created_at: string;
+          default_name: string;
           description: string | null;
           display_order: number;
           icon: string;
           id: string;
           image_url: string | null;
-          name: string;
-          name_ar: string;
-          name_fr: string;
+          translations: Json;
           updated_at: string;
         };
         Insert: {
           active?: boolean;
           created_at?: string;
+          default_name: string;
           description?: string | null;
           display_order?: number;
           icon: string;
           id?: string;
           image_url?: string | null;
-          name: string;
-          name_ar: string;
-          name_fr: string;
+          translations?: Json;
           updated_at?: string;
         };
         Update: {
           active?: boolean;
           created_at?: string;
+          default_name?: string;
           description?: string | null;
           display_order?: number;
           icon?: string;
           id?: string;
           image_url?: string | null;
-          name?: string;
-          name_ar?: string;
-          name_fr?: string;
+          translations?: Json;
           updated_at?: string;
         };
         Relationships: [];
       };
-      wilayas: {
+      regions: {
         Row: {
           active: boolean;
-          code: string;
+          code: string | null;
+          country_id: string;
+          default_name: string;
           id: string;
-          name: string;
-          name_ar: string;
+          translations: Json;
         };
         Insert: {
           active?: boolean;
-          code: string;
+          code?: string | null;
+          country_id: string;
+          default_name: string;
           id?: string;
-          name: string;
-          name_ar: string;
+          translations?: Json;
         };
         Update: {
           active?: boolean;
-          code?: string;
+          code?: string | null;
+          country_id?: string;
+          default_name?: string;
           id?: string;
-          name?: string;
-          name_ar?: string;
-        };
-        Relationships: [];
-      };
-      communes: {
-        Row: {
-          active: boolean;
-          id: string;
-          name: string;
-          name_ar: string;
-          postal_code: string | null;
-          wilaya_id: string;
-        };
-        Insert: {
-          active?: boolean;
-          id?: string;
-          name: string;
-          name_ar: string;
-          postal_code?: string | null;
-          wilaya_id: string;
-        };
-        Update: {
-          active?: boolean;
-          id?: string;
-          name?: string;
-          name_ar?: string;
-          postal_code?: string | null;
-          wilaya_id?: string;
+          translations?: Json;
         };
         Relationships: [
           {
-            foreignKeyName: "communes_wilaya_id_fkey";
-            columns: ["wilaya_id"];
+            foreignKeyName: "regions_country_id_fkey";
+            columns: ["country_id"];
             isOneToOne: false;
-            referencedRelation: "wilayas";
+            referencedRelation: "countries";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cities: {
+        Row: {
+          active: boolean;
+          default_name: string;
+          id: string;
+          postal_code: string | null;
+          region_id: string;
+          translations: Json;
+        };
+        Insert: {
+          active?: boolean;
+          default_name: string;
+          id?: string;
+          postal_code?: string | null;
+          region_id: string;
+          translations?: Json;
+        };
+        Update: {
+          active?: boolean;
+          default_name?: string;
+          id?: string;
+          postal_code?: string | null;
+          region_id?: string;
+          translations?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cities_region_id_fkey";
+            columns: ["region_id"];
+            isOneToOne: false;
+            referencedRelation: "regions";
             referencedColumns: ["id"];
           },
         ];

@@ -90,7 +90,7 @@ function CountriesAdminPage() {
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold">
-                  {c.flag} {c.name} · {c.calling_code}
+                  {c.flag} {c.default_name} · {c.calling_code}
                 </p>
                 <p className="text-xs text-muted-foreground">{c.currency_code}</p>
               </div>

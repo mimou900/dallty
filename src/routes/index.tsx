@@ -28,7 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { landingForRoles } from "@/lib/post-login";
 import { SiteHeader } from "@/components/dallty/site-nav";
-import { useCountries } from "@/lib/reference-data";
+import { useCountries, translate } from "@/lib/reference-data";
 import { citiesFor, provincesFor, provinceOfCity } from "@/lib/arab-cities";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
 
@@ -181,12 +181,17 @@ function Index() {
   const activeChips = useMemo(
     () =>
       [
-        country ? (countryOptions.find((c) => c.iso_code === country)?.name ?? country) : "",
+        country
+          ? (() => {
+              const hit = countryOptions.find((c) => c.iso_code === country);
+              return hit ? translate(hit, lang) : country;
+            })()
+          : "",
         stateName,
         city,
         shopType,
       ].filter(Boolean) as string[],
-    [country, countryOptions, stateName, city, shopType],
+    [country, countryOptions, stateName, city, shopType, lang],
   );
 
   return (
@@ -317,7 +322,7 @@ function Index() {
                 <option value="">{lang === "en" ? "All countries" : "كل الدول"}</option>
                 {countryOptions.map((c) => (
                   <option key={c.iso_code} value={c.iso_code}>
-                    {c.flag} {lang === "en" ? c.name : c.name_ar}
+                    {c.flag} {translate(c, lang)}
                   </option>
                 ))}
               </SelectField>

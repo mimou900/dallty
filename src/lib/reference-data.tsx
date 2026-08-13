@@ -3,12 +3,14 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 
+/** Any-language translation bag, e.g. `{ fr: "Salon", ar: "صالون" }`. */
+export type Translations = Record<string, string>;
+
 export type Country = {
   id: string;
   iso_code: string;
-  name: string;
-  name_fr: string;
-  name_ar: string;
+  default_name: string;
+  translations: Translations;
   currency_code: string;
   calling_code: string;
   timezone: string;
@@ -27,9 +29,8 @@ export type Currency = {
 
 export type Category = {
   id: string;
-  name: string;
-  name_fr: string;
-  name_ar: string;
+  default_name: string;
+  translations: Translations;
   icon: string;
   image_url: string | null;
   description: string | null;
@@ -37,24 +38,40 @@ export type Category = {
   active: boolean;
 };
 
-export type Wilaya = { id: string; code: string; name: string; name_ar: string; active: boolean };
-
-export type Commune = {
+/** Generic administrative division, one level below Country. Algeria: Wilaya. */
+export type Region = {
   id: string;
-  wilaya_id: string;
-  name: string;
-  name_ar: string;
+  country_id: string;
+  code: string | null;
+  default_name: string;
+  translations: Translations;
+  active: boolean;
+};
+
+/** Generic administrative division, one level below Region. Algeria: Commune. */
+export type City = {
+  id: string;
+  region_id: string;
+  default_name: string;
+  translations: Translations;
   postal_code: string | null;
   active: boolean;
 };
+
+/** Looks up a row's name in `lang`, falling back to its default (source) name. */
+export function translate(
+  row: { default_name: string; translations: Translations },
+  lang: string,
+): string {
+  return row.translations[lang] ?? row.default_name;
+}
 
 /** Minimal fallback used only before the first Countries fetch resolves. */
 const FALLBACK_COUNTRY: Country = {
   id: "",
   iso_code: "DZ",
-  name: "Algeria",
-  name_fr: "Algérie",
-  name_ar: "الجزائر",
+  default_name: "Algeria",
+  translations: { fr: "Algérie", ar: "الجزائر" },
   currency_code: "DZD",
   calling_code: "+213",
   timezone: "Africa/Algiers",
@@ -88,7 +105,7 @@ export function useCountries(): UseQueryResult<Country[]> {
         .select("*")
         .eq("active", true)
         .order("display_order")
-        .order("name");
+        .order("default_name");
       if (error) throw error;
       return data as Country[];
     },
@@ -121,7 +138,7 @@ export function useCategories(): UseQueryResult<Category[]> {
         .select("*")
         .eq("active", true)
         .order("display_order")
-        .order("name");
+        .order("default_name");
       if (error) throw error;
       return data as Category[];
     },
@@ -129,35 +146,39 @@ export function useCategories(): UseQueryResult<Category[]> {
   });
 }
 
-export function useWilayas(): UseQueryResult<Wilaya[]> {
+/** Regions for one country (Algeria's wilayas, a future country's provinces/states, ...). */
+export function useRegions(countryId: string | null): UseQueryResult<Region[]> {
   return useQuery({
-    queryKey: ["reference-data", "wilayas"],
+    queryKey: ["reference-data", "regions", countryId],
+    enabled: Boolean(countryId),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("wilayas")
+        .from("regions")
         .select("*")
+        .eq("country_id", countryId!)
         .eq("active", true)
-        .order("name");
+        .order("default_name");
       if (error) throw error;
-      return data as Wilaya[];
+      return data as Region[];
     },
     staleTime: Infinity,
   });
 }
 
-export function useCommunes(wilayaId: string | null): UseQueryResult<Commune[]> {
+/** Cities for one region (Algeria's communes, a future region's municipalities, ...). */
+export function useCities(regionId: string | null): UseQueryResult<City[]> {
   return useQuery({
-    queryKey: ["reference-data", "communes", wilayaId],
-    enabled: Boolean(wilayaId),
+    queryKey: ["reference-data", "cities", regionId],
+    enabled: Boolean(regionId),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("communes")
+        .from("cities")
         .select("*")
-        .eq("wilaya_id", wilayaId!)
+        .eq("region_id", regionId!)
         .eq("active", true)
-        .order("name");
+        .order("default_name");
       if (error) throw error;
-      return data as Commune[];
+      return data as City[];
     },
     staleTime: Infinity,
   });

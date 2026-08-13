@@ -73,20 +73,24 @@ function CategoriesAdminPage() {
       {categories.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading categories…</p>
       ) : (
-        <div className="grid gap-2">
+        <div className="flex w-full flex-col gap-2">
           {(categories.data ?? []).map((c) => (
-            <div key={c.id} className="flex items-center justify-between rounded-2xl glass p-4">
-              <div>
-                <p className="font-bold">{c.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {c.name_fr} / {c.name_ar}
+            <div
+              key={c.id}
+              className="flex w-full items-center justify-between gap-3 rounded-2xl glass p-4"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold">{c.default_name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {Object.values((c.translations ?? {}) as Record<string, string>).join(" / ") ||
+                    "No translations yet"}
                 </p>
               </div>
               <button
                 type="button"
                 disabled={busyId === c.id}
                 onClick={() => toggleActive(c.id, !c.active)}
-                className={`press flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold disabled:opacity-60 ${
+                className={`press flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-bold disabled:opacity-60 ${
                   c.active ? "glass-soft" : "bg-primary text-primary-foreground"
                 }`}
               >
