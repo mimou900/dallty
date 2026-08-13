@@ -188,7 +188,8 @@ function AuthPage() {
       toast.error(parsed.error.issues[0].message);
       return;
     }
-    const contactDial = (getCountryByCode(contactPhone.countryCode) ?? getDefaultCountry()).calling_code;
+    const contactDial = (getCountryByCode(contactPhone.countryCode) ?? getDefaultCountry())
+      .calling_code;
     const contactE164 = toE164(contactDial, contactPhone.national);
     if (mode === "signup" && !isValidNational(contactDial, contactPhone.national)) {
       toast.error(t.phoneInvalid);

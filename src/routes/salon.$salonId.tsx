@@ -457,7 +457,10 @@ function BookingFlow() {
     }
   }, [profileQuery.isSuccess, profileQuery.data]);
 
-  const phoneE164 = toE164((getCountryByCode(phone.countryCode) ?? getDefaultCountry()).calling_code, phone.national);
+  const phoneE164 = toE164(
+    (getCountryByCode(phone.countryCode) ?? getDefaultCountry()).calling_code,
+    phone.national,
+  );
   const phoneReady = !needsPhone || isValidE164(phoneE164);
 
   // Guest checkout — asked for on step 4 only when signed out. Kept separate

@@ -43,7 +43,6 @@ function Field({ children, title }: { title: string; children: React.ReactNode }
   );
 }
 
-
 function ProfilePage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -57,7 +56,6 @@ function ProfilePage() {
     full_name: "",
     phone: "",
   });
-
 
   const profileQuery = useQuery({
     queryKey: ["profile", user?.id],
@@ -90,7 +88,10 @@ function ProfilePage() {
     signedUrl("avatars", profile.avatar_url).then(setAvatarUrl);
   }, [profile]);
 
-  const phoneE164 = toE164((getCountryByCode(phone.countryCode) ?? getDefaultCountry()).calling_code, phone.national);
+  const phoneE164 = toE164(
+    (getCountryByCode(phone.countryCode) ?? getDefaultCountry()).calling_code,
+    phone.national,
+  );
 
   const save = useMutation({
     mutationFn: async () => {
@@ -117,7 +118,10 @@ function ProfilePage() {
     setUploading(true);
     try {
       const path = await uploadTo("avatars", user.id, file);
-      const { error } = await supabase.from("profiles").update({ avatar_url: path }).eq("id", user.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: path })
+        .eq("id", user.id);
       if (error) throw error;
       setAvatarUrl(await signedUrl("avatars", path));
       queryClient.invalidateQueries({ queryKey: ["profile"] });
@@ -146,7 +150,6 @@ function ProfilePage() {
       subtitle="Keep your details and preferences up to date."
       width="max-w-2xl"
     >
-
       <section className="mt-6 flex items-center gap-4 rounded-3xl glass p-5">
         <div className="relative">
           {avatarUrl ? (
@@ -161,7 +164,11 @@ function ProfilePage() {
             </div>
           )}
           <label className="press absolute -bottom-1 -end-1 grid size-9 cursor-pointer place-items-center rounded-2xl bg-primary text-primary-foreground">
-            {uploading ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+            {uploading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Camera className="size-4" />
+            )}
             <span className="sr-only">Upload a profile photo</span>
             <input
               type="file"
@@ -178,7 +185,6 @@ function ProfilePage() {
           <p className="truncate text-lg font-extrabold">{form.full_name || "Add your name"}</p>
           <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
         </div>
-
       </section>
 
       <form
@@ -199,13 +205,16 @@ function ProfilePage() {
 
         <PhoneField id="profile-phone" value={phone} onChange={setPhone} label="Phone" />
 
-
         <button
           type="submit"
           disabled={save.isPending}
           className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
         >
-          {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+          {save.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Save className="size-4" />
+          )}
           Save profile
         </button>
       </form>

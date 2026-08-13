@@ -22,7 +22,10 @@ export const listCategoriesAdmin = createServerFn({ method: "POST" })
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
     await assertSuperAdmin(context.supabase, context.userId);
     const supabaseAdmin = await adminClient();
-    const { data, error } = await supabaseAdmin.from("categories").select("*").order("display_order");
+    const { data, error } = await supabaseAdmin
+      .from("categories")
+      .select("*")
+      .order("display_order");
     if (error) throw new Error(error.message);
     return data;
   });
@@ -37,7 +40,14 @@ export const upsertCategory = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
     const { error } = await supabaseAdmin.from("categories").upsert(data as never);
     if (error) throw new Error(error.message);
-    await logAdminAction(supabaseAdmin, context.userId, "category.upsert", "category", data.id ?? null, data);
+    await logAdminAction(
+      supabaseAdmin,
+      context.userId,
+      "category.upsert",
+      "category",
+      data.id ?? null,
+      data,
+    );
     return { ok: true };
   });
 

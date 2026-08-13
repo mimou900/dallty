@@ -32,7 +32,6 @@ import { useCountries } from "@/lib/reference-data";
 import { citiesFor, provincesFor, provinceOfCity } from "@/lib/arab-cities";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
 
-
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -133,7 +132,9 @@ function Index() {
   const stateOptions = useMemo(() => {
     const listed = [
       ...new Set(
-        (liveSalons ?? []).filter((s) => (!country || s.countryCode === country) && s.state).map((s) => s.state),
+        (liveSalons ?? [])
+          .filter((s) => (!country || s.countryCode === country) && s.state)
+          .map((s) => s.state),
       ),
     ].sort();
     const known = provincesFor(country);
@@ -146,7 +147,9 @@ function Index() {
         (liveSalons ?? [])
           .filter(
             (s) =>
-              (!country || s.countryCode === country) && (!stateName || s.state === stateName) && s.city,
+              (!country || s.countryCode === country) &&
+              (!stateName || s.state === stateName) &&
+              s.city,
           )
           .map((s) => s.city),
       ),
@@ -178,15 +181,13 @@ function Index() {
   const activeChips = useMemo(
     () =>
       [
-        country ? countryOptions.find((c) => c.iso_code === country)?.name ?? country : "",
+        country ? (countryOptions.find((c) => c.iso_code === country)?.name ?? country) : "",
         stateName,
         city,
         shopType,
       ].filter(Boolean) as string[],
     [country, countryOptions, stateName, city, shopType],
   );
-
-
 
   return (
     <div dir={t.dir} className="relative min-h-dvh overflow-x-hidden bg-background">
@@ -198,8 +199,6 @@ function Index() {
       </div>
 
       <SiteHeader lang={lang} onToggleLang={toggleLang} />
-
-
 
       <main className="mx-auto max-w-6xl px-4 pb-32 md:pb-24">
         {/* Hero */}
@@ -224,7 +223,9 @@ function Index() {
             <div className="flex min-h-[19rem] flex-col justify-end gap-3 p-5 pb-12 sm:min-h-[26rem] sm:p-10 sm:pb-16">
               <span className="inline-flex w-fit items-center gap-2 rounded-full glass-soft px-3 py-1.5 text-[0.7rem] font-bold tracking-wide text-background sm:text-xs">
                 <Sparkles className="size-3.5 shrink-0 text-gold" />
-                {lang === "en" ? "Trusted beauty pros across the Arab world" : "خبراء تجميل موثوقون في العالم العربي"}
+                {lang === "en"
+                  ? "Trusted beauty pros across the Arab world"
+                  : "خبراء تجميل موثوقون في العالم العربي"}
               </span>
               <h1 className="max-w-2xl text-[2rem] font-extrabold leading-[1.05] text-background sm:text-6xl">
                 {t.heroTitle}
@@ -418,13 +419,13 @@ function Index() {
             {t.stats.map(([value, label]) => (
               <div key={label} className="rounded-3xl glass px-2 py-4 text-center sm:px-4 sm:py-5">
                 <p className="text-lg font-extrabold sm:text-2xl">{value}</p>
-                <p className="text-[0.7rem] leading-tight text-muted-foreground sm:text-sm">{label}</p>
+                <p className="text-[0.7rem] leading-tight text-muted-foreground sm:text-sm">
+                  {label}
+                </p>
               </div>
             ))}
           </div>
         </section>
-
-
 
         {/* Categories */}
         <section className="mt-10 sm:mt-14">
@@ -448,12 +449,16 @@ function Index() {
                 >
                   <span
                     className={`grid size-10 place-items-center rounded-2xl sm:size-12 ${
-                      active ? "bg-primary-foreground/15 text-primary-foreground" : "bg-accent text-accent-foreground"
+                      active
+                        ? "bg-primary-foreground/15 text-primary-foreground"
+                        : "bg-accent text-accent-foreground"
                     }`}
                   >
                     <Icon className="size-5 sm:size-6" />
                   </span>
-                  <span className="text-xs font-semibold sm:text-sm">{lang === "en" ? c.en : c.ar}</span>
+                  <span className="text-xs font-semibold sm:text-sm">
+                    {lang === "en" ? c.en : c.ar}
+                  </span>
                 </button>
               );
             })}
@@ -483,11 +488,13 @@ function Index() {
             </button>
           </div>
 
-
           {results.length === 0 ? (
             <div className="mt-6 rounded-3xl glass p-10 text-center">
               <p className="font-bold">
-                No salons match “{[query, activeCategory, city, shopType].filter(Boolean).join(" · ") || "your search"}”.
+                No salons match “
+                {[query, activeCategory, city, shopType].filter(Boolean).join(" · ") ||
+                  "your search"}
+                ”.
               </p>
               <button
                 type="button"
@@ -503,7 +510,6 @@ function Index() {
                 {t.seeAll}
               </button>
             </div>
-
           ) : (
             <div className="mt-5 grid gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
               {results.map((s) => (
@@ -550,11 +556,34 @@ function Index() {
                 {t.menu.customers}
               </p>
               <nav aria-label="Customer links" className="mt-3 flex flex-col gap-2">
-                <Link to="/" className="hover:text-foreground">{t.menu.explore}</Link>
-                <Link to="/search" search={{ q: "", country: "", state: "", city: "", type: "", sort: "rating", instant: false, open: false }} className="hover:text-foreground">{t.menu.search}</Link>
-                <Link to="/bookings" className="hover:text-foreground">{t.menu.bookings}</Link>
-                <Link to="/favorites" className="hover:text-foreground">{t.menu.favorites}</Link>
-                <Link to="/profile" className="hover:text-foreground">{t.menu.account}</Link>
+                <Link to="/" className="hover:text-foreground">
+                  {t.menu.explore}
+                </Link>
+                <Link
+                  to="/search"
+                  search={{
+                    q: "",
+                    country: "",
+                    state: "",
+                    city: "",
+                    type: "",
+                    sort: "rating",
+                    instant: false,
+                    open: false,
+                  }}
+                  className="hover:text-foreground"
+                >
+                  {t.menu.search}
+                </Link>
+                <Link to="/bookings" className="hover:text-foreground">
+                  {t.menu.bookings}
+                </Link>
+                <Link to="/favorites" className="hover:text-foreground">
+                  {t.menu.favorites}
+                </Link>
+                <Link to="/profile" className="hover:text-foreground">
+                  {t.menu.account}
+                </Link>
               </nav>
             </div>
             <div>
@@ -562,18 +591,25 @@ function Index() {
                 {t.menu.business}
               </p>
               <nav aria-label="Business links" className="mt-3 flex flex-col gap-2">
-                <Link to="/business/signup" className="hover:text-foreground">{t.menu.listBusiness}</Link>
-                <Link to="/auth" className="hover:text-foreground">{t.menu.businessSignIn}</Link>
-                <Link to="/staff/signup" className="hover:text-foreground">{t.menu.staffSignIn}</Link>
+                <Link to="/business/signup" className="hover:text-foreground">
+                  {t.menu.listBusiness}
+                </Link>
+                <Link to="/auth" className="hover:text-foreground">
+                  {t.menu.businessSignIn}
+                </Link>
+                <Link to="/staff/signup" className="hover:text-foreground">
+                  {t.menu.staffSignIn}
+                </Link>
                 {isManager && (
-                  <Link to={home} className="hover:text-foreground">{t.menu.businessDashboard}</Link>
+                  <Link to={home} className="hover:text-foreground">
+                    {t.menu.businessDashboard}
+                  </Link>
                 )}
               </nav>
             </div>
           </div>
           <p className="text-center">{t.footer}</p>
         </footer>
-
       </main>
 
       <BottomNav tabs={t.tabs} />

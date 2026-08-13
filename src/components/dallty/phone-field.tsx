@@ -33,7 +33,8 @@ export function PhoneField({
     () => toE164(country.calling_code, value.national),
     [country.calling_code, value.national],
   );
-  const invalid = value.national.length > 0 && !isValidNational(country.calling_code, value.national);
+  const invalid =
+    value.national.length > 0 && !isValidNational(country.calling_code, value.national);
   const errorMessage = invalid ? nationalPhoneError(country.calling_code, value.national) : null;
 
   return (
@@ -64,7 +65,9 @@ export function PhoneField({
           autoComplete="tel-national"
           placeholder="541 678 551"
           value={value.national}
-          onChange={(e) => onChange({ ...value, national: digitsOnly(e.target.value).slice(0, 15) })}
+          onChange={(e) =>
+            onChange({ ...value, national: digitsOnly(e.target.value).slice(0, 15) })
+          }
           disabled={disabled}
           className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2 disabled:opacity-60"
         />

@@ -17,7 +17,13 @@ export type Country = {
   active: boolean;
 };
 
-export type Currency = { code: string; name: string; symbol: string; decimal_digits: number; active: boolean };
+export type Currency = {
+  code: string;
+  name: string;
+  symbol: string;
+  decimal_digits: number;
+  active: boolean;
+};
 
 export type Category = {
   id: string;
@@ -94,7 +100,11 @@ export function useCurrencies(): UseQueryResult<Currency[]> {
   return useQuery({
     queryKey: ["reference-data", "currencies"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("currencies").select("*").eq("active", true).order("code");
+      const { data, error } = await supabase
+        .from("currencies")
+        .select("*")
+        .eq("active", true)
+        .order("code");
       if (error) throw error;
       return data as Currency[];
     },
@@ -123,7 +133,11 @@ export function useWilayas(): UseQueryResult<Wilaya[]> {
   return useQuery({
     queryKey: ["reference-data", "wilayas"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("wilayas").select("*").eq("active", true).order("name");
+      const { data, error } = await supabase
+        .from("wilayas")
+        .select("*")
+        .eq("active", true)
+        .order("name");
       if (error) throw error;
       return data as Wilaya[];
     },

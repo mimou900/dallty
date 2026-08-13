@@ -44,7 +44,11 @@ export const registerBusiness = createServerFn({ method: "POST" })
       .maybeSingle();
     const { data: fallbackCountry } = countryRow
       ? { data: countryRow }
-      : await supabaseAdmin.from("countries").select("iso_code, currency_code, timezone").eq("iso_code", "DZ").single();
+      : await supabaseAdmin
+          .from("countries")
+          .select("iso_code, currency_code, timezone")
+          .eq("iso_code", "DZ")
+          .single();
     const resolvedCountry = countryRow ?? fallbackCountry!;
 
     const { data: salon, error } = await supabaseAdmin
@@ -114,7 +118,6 @@ export const registerBusiness = createServerFn({ method: "POST" })
         })),
       );
     }
-
 
     const { notifyBusinessStatus } = await import("@/lib/business-status-email.server");
     await notifyBusinessStatus({

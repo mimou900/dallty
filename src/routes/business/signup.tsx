@@ -27,11 +27,7 @@ import { PlacesAutocomplete, type PlaceResult } from "@/components/dallty/places
 import { uploadAndSign } from "@/lib/storage";
 import { registerBusiness } from "@/lib/business.functions";
 import { ensureSessionAfterSignUp } from "@/lib/auth-session";
-import {
-  businessDetailsSchema,
-  phoneSchema,
-  strongPassword,
-} from "@/lib/business-schema";
+import { businessDetailsSchema, phoneSchema, strongPassword } from "@/lib/business-schema";
 import { useCategories } from "@/lib/reference-data";
 import * as Icons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -495,15 +491,12 @@ function BusinessSignupPage() {
     );
   }
 
-
   if (done) {
     return (
       <main className="relative grid min-h-dvh place-items-center px-4 py-10">
         <div className="w-full max-w-lg rounded-4xl glass p-8 text-center">
           <CircleCheck className="mx-auto size-10 text-primary" />
-          <h1 className="mt-4 text-3xl font-extrabold">
-            Your salon has been created successfully
-          </h1>
+          <h1 className="mt-4 text-3xl font-extrabold">Your salon has been created successfully</h1>
           <p className="mt-3 text-sm text-muted-foreground">
             {done.needsEmailConfirm
               ? "Confirm your email to activate your login, then finish setting up your salon."
@@ -682,7 +675,6 @@ function BusinessSignupPage() {
                 </div>
               )}
 
-
               {step === offset && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
@@ -711,7 +703,11 @@ function BusinessSignupPage() {
                               on ? "bg-primary text-primary-foreground" : "glass-soft"
                             }`}
                           >
-                            {on ? <Check className="size-3.5" /> : <CategoryIcon name={category.icon} />}
+                            {on ? (
+                              <Check className="size-3.5" />
+                            ) : (
+                              <CategoryIcon name={category.icon} />
+                            )}
                             {category.name}
                           </button>
                         );
@@ -754,7 +750,12 @@ function BusinessSignupPage() {
                       value={b.countryCode}
                       onChange={(e) => {
                         const c = getCountryByCode(e.target.value) ?? getDefaultCountry();
-                        setB((prev) => ({ ...prev, countryCode: c.iso_code, country: c.name, city: "" }));
+                        setB((prev) => ({
+                          ...prev,
+                          countryCode: c.iso_code,
+                          country: c.name,
+                          city: "",
+                        }));
                       }}
                     >
                       {(countries.data ?? []).map((c) => (
@@ -792,7 +793,9 @@ function BusinessSignupPage() {
                       onSelect={applyPlace}
                     />
                     {errors.address && (
-                      <p className="mt-1 text-xs font-semibold text-destructive">{errors.address}</p>
+                      <p className="mt-1 text-xs font-semibold text-destructive">
+                        {errors.address}
+                      </p>
                     )}
                     <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-bold text-muted-foreground">
                       <span className="rounded-full bg-secondary px-2.5 py-1">
@@ -974,7 +977,6 @@ function BusinessSignupPage() {
                 </button>
               )}
             </div>
-
           </form>
         </div>
       </div>

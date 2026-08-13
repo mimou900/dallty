@@ -171,7 +171,6 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -188,20 +187,18 @@ function RootComponent() {
           router.navigate({ to: saved, replace: true });
         }
       }
-
     });
     return () => sub.subscription.unsubscribe();
   }, [router, queryClient]);
-
 
   return (
     <QueryClientProvider client={queryClient}>
       <ReferenceDataProvider>
         <AuthProvider>
           <LocaleProvider>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-          <Toaster />
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+            <Toaster />
           </LocaleProvider>
         </AuthProvider>
       </ReferenceDataProvider>

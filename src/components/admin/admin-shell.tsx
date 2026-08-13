@@ -30,7 +30,6 @@ import {
   X,
 } from "lucide-react";
 
-
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useMyStaffRecord } from "@/lib/admin";
@@ -64,7 +63,13 @@ export const ADMIN_SECTIONS: NavSection[] = [
   {
     label: "Today",
     items: [
-      { to: "/admin", label: "Dashboard", labelAr: "لوحة التحكم", icon: LayoutDashboard, exact: true },
+      {
+        to: "/admin",
+        label: "Dashboard",
+        labelAr: "لوحة التحكم",
+        icon: LayoutDashboard,
+        exact: true,
+      },
       { to: "/admin/calendar", label: "Calendar", labelAr: "التقويم", icon: CalendarDays },
       { to: "/admin/appointments", label: "Bookings", labelAr: "الحجوزات", icon: ClipboardList },
     ],
@@ -96,7 +101,12 @@ export const ADMIN_SECTIONS: NavSection[] = [
     label: "Account",
     items: [
       { to: "/admin/notifications", label: "Notifications", labelAr: "الإشعارات", icon: Bell },
-      { to: "/admin/settings", label: "Salon settings", labelAr: "إعدادات الصالون", icon: Settings },
+      {
+        to: "/admin/settings",
+        label: "Salon settings",
+        labelAr: "إعدادات الصالون",
+        icon: Settings,
+      },
       {
         to: "/admin/marketplace",
         label: "Marketplace status",
@@ -108,7 +118,6 @@ export const ADMIN_SECTIONS: NavSection[] = [
 ];
 
 export const ADMIN_NAV: NavItem[] = ADMIN_SECTIONS.flatMap((s) => s.items).filter((i) => !i.soon);
-
 
 /** Reduced menu for specialists: their own book only. */
 export const STAFF_SECTIONS: NavSection[] = [
@@ -134,7 +143,12 @@ export const STAFF_SECTIONS: NavSection[] = [
 export const STAFF_NAV: NavItem[] = STAFF_SECTIONS.flatMap((s) => s.items);
 
 export const PLATFORM_NAV: NavItem[] = [
-  { to: "/admin/platform/overview", label: "Global data", labelAr: "البيانات العامة", icon: BarChart3 },
+  {
+    to: "/admin/platform/overview",
+    label: "Global data",
+    labelAr: "البيانات العامة",
+    icon: BarChart3,
+  },
   { to: "/admin/platform/directory", label: "Directory", labelAr: "الفهرس", icon: Search },
   {
     to: "/admin/platform/businesses",
@@ -148,10 +162,14 @@ export const PLATFORM_NAV: NavItem[] = [
     labelAr: "موافقات المتجر",
     icon: Store,
   },
-  { to: "/admin/platform/users", label: "Platform users", labelAr: "المستخدمون", icon: ShieldCheck },
+  {
+    to: "/admin/platform/users",
+    label: "Platform users",
+    labelAr: "المستخدمون",
+    icon: ShieldCheck,
+  },
   { to: "/admin/platform/categories", label: "Categories", labelAr: "الفئات", icon: Tags },
   { to: "/admin/platform/countries", label: "Countries", labelAr: "الدول", icon: Globe },
-
 ];
 
 const QUICK_ACTIONS = [
@@ -161,7 +179,6 @@ const QUICK_ACTIONS = [
   { label: "New booking", to: "/admin/appointments" },
   { label: "Add client", to: "/admin/customers" },
 ] as const;
-
 
 /* ---------------------------------- theme --------------------------------- */
 
@@ -380,7 +397,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
       );
     }
     return (
-
       <Link
         key={item.to}
         to={item.to}
@@ -441,7 +457,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
       ))}
     </nav>
   );
-
 
   return (
     <div className="min-h-dvh bg-background">

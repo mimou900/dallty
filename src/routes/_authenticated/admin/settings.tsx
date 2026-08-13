@@ -128,9 +128,7 @@ function Section({
   return (
     <section className="rounded-3xl glass p-4 sm:p-6">
       <h2 className="text-base font-extrabold">{title}</h2>
-      {description ? (
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      ) : null}
+      {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -218,7 +216,11 @@ function SettingsPage() {
               opens_at: String(hit.opens_at).slice(0, 5),
               closes_at: String(hit.closes_at).slice(0, 5),
             }
-          : { ...base, opens_at: (salon.opens_at ?? "09:00").slice(0, 5), closes_at: (salon.closes_at ?? "21:00").slice(0, 5) };
+          : {
+              ...base,
+              opens_at: (salon.opens_at ?? "09:00").slice(0, 5),
+              closes_at: (salon.closes_at ?? "21:00").slice(0, 5),
+            };
       }),
     );
   }, [settings.data]);
@@ -253,8 +255,14 @@ function SettingsPage() {
         district: form.district ?? null,
         area: form.area ?? form.district ?? form.city ?? "",
         postal_code: form.postal_code ?? null,
-        latitude: form.latitude === null || form.latitude === undefined || form.latitude === "" ? null : Number(form.latitude),
-        longitude: form.longitude === null || form.longitude === undefined || form.longitude === "" ? null : Number(form.longitude),
+        latitude:
+          form.latitude === null || form.latitude === undefined || form.latitude === ""
+            ? null
+            : Number(form.latitude),
+        longitude:
+          form.longitude === null || form.longitude === undefined || form.longitude === ""
+            ? null
+            : Number(form.longitude),
         maps_url: form.maps_url ?? null,
         timezone: form.timezone ?? "UTC",
         currency: form.currency ?? "USD",
@@ -334,16 +342,16 @@ function SettingsPage() {
           </>
         ) : (
           <>
-        <p className="text-sm font-bold">No business linked to this account yet.</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Register your salon to unlock business settings.
-        </p>
-        <Link
-          to="/business/signup"
-          className="press mt-4 inline-flex min-h-11 items-center rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
-        >
-          Register a business
-        </Link>
+            <p className="text-sm font-bold">No business linked to this account yet.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Register your salon to unlock business settings.
+            </p>
+            <Link
+              to="/business/signup"
+              className="press mt-4 inline-flex min-h-11 items-center rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
+            >
+              Register a business
+            </Link>
           </>
         )}
       </div>
@@ -351,7 +359,10 @@ function SettingsPage() {
   }
 
   const pin =
-    form.latitude !== null && form.latitude !== undefined && form.longitude !== null && form.longitude !== undefined
+    form.latitude !== null &&
+    form.latitude !== undefined &&
+    form.longitude !== null &&
+    form.longitude !== undefined
       ? { lat: Number(form.latitude), lng: Number(form.longitude) }
       : null;
 
@@ -375,7 +386,11 @@ function SettingsPage() {
           disabled={save.isPending}
           className="press hidden min-h-11 shrink-0 items-center gap-2 rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-float disabled:opacity-60 sm:inline-flex"
         >
-          {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+          {save.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Save className="size-4" />
+          )}
           Save changes
         </button>
       </header>
@@ -409,10 +424,20 @@ function SettingsPage() {
         <Section title="General" description="The basics clients see first.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Salon name">
-              <input className={inputClass} value={form.name ?? ""} onChange={(e) => set("name", e.target.value)} required />
+              <input
+                className={inputClass}
+                value={form.name ?? ""}
+                onChange={(e) => set("name", e.target.value)}
+                required
+              />
             </Field>
             <Field label="Salon name (Arabic)">
-              <input dir="rtl" className={inputClass} value={form.name_ar ?? ""} onChange={(e) => set("name_ar", e.target.value)} />
+              <input
+                dir="rtl"
+                className={inputClass}
+                value={form.name_ar ?? ""}
+                onChange={(e) => set("name_ar", e.target.value)}
+              />
             </Field>
             <Field label="Description" className="sm:col-span-2">
               <textarea
@@ -430,10 +455,18 @@ function SettingsPage() {
               />
             </Field>
             <Field label="Public phone">
-              <input className={inputClass} value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} />
+              <input
+                className={inputClass}
+                value={form.phone ?? ""}
+                onChange={(e) => set("phone", e.target.value)}
+              />
             </Field>
             <Field label="Website">
-              <input className={inputClass} value={form.website_url ?? ""} onChange={(e) => set("website_url", e.target.value)} />
+              <input
+                className={inputClass}
+                value={form.website_url ?? ""}
+                onChange={(e) => set("website_url", e.target.value)}
+              />
             </Field>
           </div>
         </Section>
@@ -441,7 +474,10 @@ function SettingsPage() {
 
       {tab === "business" && (
         <div className="space-y-4">
-          <Section title="Business profile" description="How Dallty classifies and contacts your business.">
+          <Section
+            title="Business profile"
+            description="How Dallty classifies and contacts your business."
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Business type">
                 <select
@@ -514,13 +550,25 @@ function SettingsPage() {
           <Section title="Social profiles">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Instagram">
-                <input className={inputClass} value={form.instagram_url ?? ""} onChange={(e) => set("instagram_url", e.target.value)} />
+                <input
+                  className={inputClass}
+                  value={form.instagram_url ?? ""}
+                  onChange={(e) => set("instagram_url", e.target.value)}
+                />
               </Field>
               <Field label="Facebook">
-                <input className={inputClass} value={form.facebook_url ?? ""} onChange={(e) => set("facebook_url", e.target.value)} />
+                <input
+                  className={inputClass}
+                  value={form.facebook_url ?? ""}
+                  onChange={(e) => set("facebook_url", e.target.value)}
+                />
               </Field>
               <Field label="TikTok">
-                <input className={inputClass} value={form.tiktok_url ?? ""} onChange={(e) => set("tiktok_url", e.target.value)} />
+                <input
+                  className={inputClass}
+                  value={form.tiktok_url ?? ""}
+                  onChange={(e) => set("tiktok_url", e.target.value)}
+                />
               </Field>
             </div>
           </Section>
@@ -559,7 +607,9 @@ function SettingsPage() {
 
               <MapPinPicker
                 value={pin}
-                onChange={(next) => setForm((f) => ({ ...f, latitude: next.lat, longitude: next.lng }))}
+                onChange={(next) =>
+                  setForm((f) => ({ ...f, latitude: next.lat, longitude: next.lng }))
+                }
               />
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -569,7 +619,11 @@ function SettingsPage() {
                     value={form.country_code ?? ""}
                     onChange={(e) => {
                       const hit = countryOptions.find((c) => c.iso_code === e.target.value);
-                      setForm((f) => ({ ...f, country_code: e.target.value, country: hit?.name ?? f.country }));
+                      setForm((f) => ({
+                        ...f,
+                        country_code: e.target.value,
+                        country: hit?.name ?? f.country,
+                      }));
                     }}
                   >
                     <option value="">Select a country</option>
@@ -581,20 +635,34 @@ function SettingsPage() {
                   </select>
                 </Field>
                 <Field label="State / Province">
-                  <input className={inputClass} value={form.district ?? ""} onChange={(e) => set("district", e.target.value)} />
+                  <input
+                    className={inputClass}
+                    value={form.district ?? ""}
+                    onChange={(e) => set("district", e.target.value)}
+                  />
                 </Field>
                 <Field label="City">
-                  <input className={inputClass} value={form.city ?? ""} onChange={(e) => set("city", e.target.value)} />
+                  <input
+                    className={inputClass}
+                    value={form.city ?? ""}
+                    onChange={(e) => set("city", e.target.value)}
+                  />
                 </Field>
                 <Field label="Postal code">
-                  <input className={inputClass} value={form.postal_code ?? ""} onChange={(e) => set("postal_code", e.target.value)} />
+                  <input
+                    className={inputClass}
+                    value={form.postal_code ?? ""}
+                    onChange={(e) => set("postal_code", e.target.value)}
+                  />
                 </Field>
                 <Field label="Latitude">
                   <input
                     inputMode="decimal"
                     className={inputClass}
                     value={form.latitude ?? ""}
-                    onChange={(e) => set("latitude", e.target.value === "" ? null : Number(e.target.value))}
+                    onChange={(e) =>
+                      set("latitude", e.target.value === "" ? null : Number(e.target.value))
+                    }
                   />
                 </Field>
                 <Field label="Longitude">
@@ -602,7 +670,9 @@ function SettingsPage() {
                     inputMode="decimal"
                     className={inputClass}
                     value={form.longitude ?? ""}
-                    onChange={(e) => set("longitude", e.target.value === "" ? null : Number(e.target.value))}
+                    onChange={(e) =>
+                      set("longitude", e.target.value === "" ? null : Number(e.target.value))
+                    }
                   />
                 </Field>
               </div>
@@ -612,7 +682,10 @@ function SettingsPage() {
       )}
 
       {tab === "hours" && (
-        <Section title="Opening hours" description="Salon-level hours. Specialist shifts live in availability.">
+        <Section
+          title="Opening hours"
+          description="Salon-level hours. Specialist shifts live in availability."
+        >
           <div className="space-y-2">
             {hours.map((day, index) => (
               <div
@@ -623,7 +696,9 @@ function SettingsPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    setHours((h) => h.map((d, i) => (i === index ? { ...d, is_closed: !d.is_closed } : d)))
+                    setHours((h) =>
+                      h.map((d, i) => (i === index ? { ...d, is_closed: !d.is_closed } : d)),
+                    )
                   }
                   className={`press min-h-9 shrink-0 rounded-xl px-3 text-xs font-bold ${
                     day.is_closed ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
@@ -638,7 +713,9 @@ function SettingsPage() {
                       className={inputClass}
                       value={day.opens_at}
                       onChange={(e) =>
-                        setHours((h) => h.map((d, i) => (i === index ? { ...d, opens_at: e.target.value } : d)))
+                        setHours((h) =>
+                          h.map((d, i) => (i === index ? { ...d, opens_at: e.target.value } : d)),
+                        )
                       }
                     />
                     <span className="text-sm text-muted-foreground">–</span>
@@ -647,7 +724,9 @@ function SettingsPage() {
                       className={inputClass}
                       value={day.closes_at}
                       onChange={(e) =>
-                        setHours((h) => h.map((d, i) => (i === index ? { ...d, closes_at: e.target.value } : d)))
+                        setHours((h) =>
+                          h.map((d, i) => (i === index ? { ...d, closes_at: e.target.value } : d)),
+                        )
                       }
                     />
                   </div>
@@ -659,7 +738,9 @@ function SettingsPage() {
             type="button"
             onClick={() => {
               const first = hours[0];
-              setHours((h) => h.map((d) => ({ ...d, opens_at: first.opens_at, closes_at: first.closes_at })));
+              setHours((h) =>
+                h.map((d) => ({ ...d, opens_at: first.opens_at, closes_at: first.closes_at })),
+              );
             }}
             className="press mt-3 min-h-10 rounded-2xl glass-soft px-4 text-sm font-bold"
           >
@@ -751,7 +832,10 @@ function SettingsPage() {
       )}
 
       {tab === "photos" && (
-        <Section title="Photos" description="A sharp logo and a wide cover shot make your listing convert.">
+        <Section
+          title="Photos"
+          description="A sharp logo and a wide cover shot make your listing convert."
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             <ImageDrop label="Logo" file={logo} onChange={setLogo} />
             <ImageDrop label="Cover photo" file={cover} onChange={setCover} aspect="wide" />
@@ -759,10 +843,18 @@ function SettingsPage() {
           {(form.logo_url || form.cover_url) && (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {form.logo_url ? (
-                <img src={form.logo_url} alt="Current logo" className="h-28 w-28 rounded-2xl object-cover" />
+                <img
+                  src={form.logo_url}
+                  alt="Current logo"
+                  className="h-28 w-28 rounded-2xl object-cover"
+                />
               ) : null}
               {form.cover_url ? (
-                <img src={form.cover_url} alt="Current cover" className="h-28 w-full rounded-2xl object-cover" />
+                <img
+                  src={form.cover_url}
+                  alt="Current cover"
+                  className="h-28 w-full rounded-2xl object-cover"
+                />
               ) : null}
             </div>
           )}
@@ -844,10 +936,21 @@ function SettingsPage() {
       )}
 
       {tab === "payments" && (
-        <Section title="Payments" description="How clients pay you today. Online payments arrive with Billing.">
+        <Section
+          title="Payments"
+          description="How clients pay you today. Online payments arrive with Billing."
+        >
           <div className="grid gap-2 sm:grid-cols-3">
-            <Toggle label="Cash" checked={form.accept_cash !== false} onChange={(v) => set("accept_cash", v)} />
-            <Toggle label="Card in salon" checked={Boolean(form.accept_card)} onChange={(v) => set("accept_card", v)} />
+            <Toggle
+              label="Cash"
+              checked={form.accept_cash !== false}
+              onChange={(v) => set("accept_cash", v)}
+            />
+            <Toggle
+              label="Card in salon"
+              checked={Boolean(form.accept_card)}
+              onChange={(v) => set("accept_card", v)}
+            />
             <Toggle
               label="Online payment"
               description="Coming soon"
@@ -892,7 +995,8 @@ function SettingsPage() {
             <Lock className="mx-auto size-6 text-muted-foreground" />
             <p className="mt-2 text-sm font-bold">Billing is coming soon</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              You are on the <span className="font-semibold capitalize">{form.plan ?? "starter"}</span> plan.
+              You are on the{" "}
+              <span className="font-semibold capitalize">{form.plan ?? "starter"}</span> plan.
               Invoices and plan changes will appear here.
             </p>
           </div>
@@ -932,13 +1036,24 @@ function SettingsPage() {
 
       {tab === "advanced" && (
         <div className="space-y-4">
-          <Section title="Regional" description="Currency and time zone used across bookings and reports.">
+          <Section
+            title="Regional"
+            description="Currency and time zone used across bookings and reports."
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Currency">
-                <input className={inputClass} value={form.currency ?? "USD"} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
+                <input
+                  className={inputClass}
+                  value={form.currency ?? "USD"}
+                  onChange={(e) => set("currency", e.target.value.toUpperCase())}
+                />
               </Field>
               <Field label="Time zone">
-                <input className={inputClass} value={form.timezone ?? "UTC"} onChange={(e) => set("timezone", e.target.value)} />
+                <input
+                  className={inputClass}
+                  value={form.timezone ?? "UTC"}
+                  onChange={(e) => set("timezone", e.target.value)}
+                />
               </Field>
             </div>
           </Section>
@@ -976,7 +1091,11 @@ function SettingsPage() {
           disabled={save.isPending}
           className="press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
         >
-          {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+          {save.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Save className="size-4" />
+          )}
           Save changes
         </button>
       </div>

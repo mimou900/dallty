@@ -68,7 +68,8 @@ export const Route = createFileRoute("/search")({
       { property: "og:title", content: "Search salons & barbers — Dallty" },
       {
         property: "og:description",
-        content: "Filter beauty shops across the Arab world by location, type, rating and instant booking.",
+        content:
+          "Filter beauty shops across the Arab world by location, type, rating and instant booking.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -138,9 +139,7 @@ function SearchPage() {
         (!params.type || s.businessType === params.type) &&
         (!params.instant || s.instant) &&
         (!params.open || s.open) &&
-        (!name ||
-          s.en.name.toLowerCase().includes(name) ||
-          s.ar.name.toLowerCase().includes(name)),
+        (!name || s.en.name.toLowerCase().includes(name) || s.ar.name.toLowerCase().includes(name)),
     );
     const sorted = [...list];
     if (params.sort === "distance")
@@ -181,9 +180,10 @@ function SearchPage() {
       if (!geo.coords || salon.lat == null || salon.lng == null) continue;
       const hit = (travelQuery.data ?? []).find((t) => t.id === salon.id);
       map.set(salon.id, {
-        km: hit?.distanceMeters != null
-          ? hit.distanceMeters / 1000
-          : haversineKm(geo.coords, { lat: salon.lat, lng: salon.lng }),
+        km:
+          hit?.distanceMeters != null
+            ? hit.distanceMeters / 1000
+            : haversineKm(geo.coords, { lat: salon.lat, lng: salon.lng }),
         drivingMinutes: hit?.drivingSeconds != null ? Math.round(hit.drivingSeconds / 60) : null,
         walkingMinutes: hit?.walkingSeconds != null ? Math.round(hit.walkingSeconds / 60) : null,
       });
@@ -210,7 +210,9 @@ function SearchPage() {
     params.instant
       ? { key: "instant", label: en ? "Instant booking" : "حجز فوري", clear: { instant: false } }
       : null,
-    params.open ? { key: "open", label: en ? "Open now" : "مفتوح الآن", clear: { open: false } } : null,
+    params.open
+      ? { key: "open", label: en ? "Open now" : "مفتوح الآن", clear: { open: false } }
+      : null,
   ].filter(Boolean) as { key: string; label: string; clear: Partial<SearchParams> }[];
 
   function clearAll() {
@@ -235,7 +237,11 @@ function SearchPage() {
             >
               <ArrowLeft className="size-5 rtl:rotate-180" />
             </Link>
-            <Link to="/" aria-label={en ? "Dallty home" : "الصفحة الرئيسية"} className="hidden items-center gap-2 sm:flex">
+            <Link
+              to="/"
+              aria-label={en ? "Dallty home" : "الصفحة الرئيسية"}
+              className="hidden items-center gap-2 sm:flex"
+            >
               <LogoMark className="size-9" />
             </Link>
 
@@ -297,7 +303,6 @@ function SearchPage() {
               ) : null}
             </button>
             <NavMenu lang={lang} onToggleLang={toggleLang} />
-
           </div>
 
           {showFilters ? (
@@ -470,7 +475,13 @@ function SearchPage() {
             ) : (
               <Navigation className="size-4" />
             )}
-            {geo.enabled ? (en ? "Nearby salons" : "الصالونات القريبة") : en ? "Near me" : "بالقرب مني"}
+            {geo.enabled
+              ? en
+                ? "Nearby salons"
+                : "الصالونات القريبة"
+              : en
+                ? "Near me"
+                : "بالقرب مني"}
           </button>
           {geo.status === "denied" ? (
             <span className="text-xs font-medium text-muted-foreground">

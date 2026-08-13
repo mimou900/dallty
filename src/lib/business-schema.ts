@@ -8,7 +8,6 @@ export const PASSWORD_RULES = rulesFor("privileged");
 
 export const strongPassword = passwordSchema("privileged");
 
-
 export const phoneSchema = z
   .string()
   .trim()
@@ -95,7 +94,6 @@ export const businessDetailsSchema = z.object({
   galleryUrls: z.array(z.string().trim().max(4000)).max(12).optional().default([]),
   plan: z.enum(["starter", "professional", "enterprise"]).optional().default("starter"),
 });
-
 
 export const businessRegistrationSchema = z.object({
   userId: z.string().uuid(),

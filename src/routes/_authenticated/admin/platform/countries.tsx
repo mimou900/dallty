@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { Globe, Loader2, ShieldAlert } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { listCountriesAdmin, listCurrenciesAdmin, upsertCountry } from "@/lib/reference-data.functions";
+import {
+  listCountriesAdmin,
+  listCurrenciesAdmin,
+  upsertCountry,
+} from "@/lib/reference-data.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/platform/countries")({
   head: () => ({
@@ -14,7 +18,8 @@ export const Route = createFileRoute("/_authenticated/admin/platform/countries")
       { title: "Countries — Dallty Platform" },
       {
         name: "description",
-        content: "Manage which countries appear across Dallty's phone picker, search filters, and address forms.",
+        content:
+          "Manage which countries appear across Dallty's phone picker, search filters, and address forms.",
       },
     ],
   }),
@@ -79,7 +84,10 @@ function CountriesAdminPage() {
       ) : (
         <div className="flex max-h-[60vh] w-full flex-col gap-2 overflow-x-hidden overflow-y-auto">
           {(countries.data ?? []).map((c) => (
-            <div key={c.id} className="flex w-full items-center justify-between gap-3 rounded-2xl glass p-4">
+            <div
+              key={c.id}
+              className="flex w-full items-center justify-between gap-3 rounded-2xl glass p-4"
+            >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold">
                   {c.flag} {c.name} · {c.calling_code}

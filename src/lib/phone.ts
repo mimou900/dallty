@@ -61,7 +61,8 @@ export function splitE164(value?: string | null): { countryCode: string; nationa
     const match = [...getCountriesSync()]
       .sort((a, b) => b.calling_code.length - a.calling_code.length)
       .find((c) => raw.startsWith(c.calling_code));
-    if (match) return { countryCode: match.iso_code, national: raw.slice(match.calling_code.length) };
+    if (match)
+      return { countryCode: match.iso_code, national: raw.slice(match.calling_code.length) };
   }
   return { countryCode: getDefaultCountry().iso_code, national: digitsOnly(raw) };
 }
