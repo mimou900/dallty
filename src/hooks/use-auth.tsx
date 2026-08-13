@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { installEphemeralSessionGuard } from "@/lib/session";
+import { clearOtpPending, installEphemeralSessionGuard } from "@/lib/session";
 
 export type AppRole = "client" | "salon_owner" | "specialist" | "admin" | "super_admin";
 
@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!next) {
         setRoles([]);
         setRolesLoading(false);
+        clearOtpPending();
       }
     });
     supabase.auth.getSession().then(({ data }) => {

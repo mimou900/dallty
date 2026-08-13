@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as VerifyOtpRouteImport } from './routes/verify-otp'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedAvailabilityRouteImport } from './routes/_authenticated/availability'
@@ -79,6 +80,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyOtpRoute = VerifyOtpRouteImport.update({
+  id: '/verify-otp',
+  path: '/verify-otp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
+  '/verify-otp': typeof VerifyOtpRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/account': typeof AuthenticatedAccountRoute
   '/availability': typeof AuthenticatedAvailabilityRoute
@@ -334,6 +341,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
+  '/verify-otp': typeof VerifyOtpRoute
   '/account': typeof AuthenticatedAccountRoute
   '/availability': typeof AuthenticatedAvailabilityRoute
   '/bookings': typeof AuthenticatedBookingsRoute
@@ -378,6 +386,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
+  '/verify-otp': typeof VerifyOtpRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/availability': typeof AuthenticatedAvailabilityRoute
@@ -423,6 +432,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/search'
+    | '/verify-otp'
     | '/admin'
     | '/account'
     | '/availability'
@@ -466,6 +476,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/search'
+    | '/verify-otp'
     | '/account'
     | '/availability'
     | '/bookings'
@@ -509,6 +520,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/search'
+    | '/verify-otp'
     | '/_authenticated/admin'
     | '/_authenticated/account'
     | '/_authenticated/availability'
@@ -554,6 +566,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SearchRoute: typeof SearchRoute
+  VerifyOtpRoute: typeof VerifyOtpRoute
   BusinessSignupRoute: typeof BusinessSignupRoute
   SalonSalonIdRoute: typeof SalonSalonIdRoute
   StaffSignupRoute: typeof StaffSignupRoute
@@ -604,6 +617,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-otp': {
+      id: '/verify-otp'
+      path: '/verify-otp'
+      fullPath: '/verify-otp'
+      preLoaderRoute: typeof VerifyOtpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/account': {
@@ -957,6 +977,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SearchRoute: SearchRoute,
+  VerifyOtpRoute: VerifyOtpRoute,
   BusinessSignupRoute: BusinessSignupRoute,
   SalonSalonIdRoute: SalonSalonIdRoute,
   StaffSignupRoute: StaffSignupRoute,

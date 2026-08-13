@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { isOtpPending } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -16,8 +17,14 @@ export const Route = createFileRoute("/_authenticated")({
     if (!data.session) {
       throw redirect({ to: "/auth", search: { next: location.href } });
     }
+    // App-level gate, not token-level: the access token above is already
+    // fully valid. A direct API call during this window bypasses the
+    // in-app detour — see /verify-otp and the Auth policies settings page
+    // for the caveat spelled out to the Super Admin.
+    if (isOtpPending(data.session.user.id)) {
+      throw redirect({ to: "/verify-otp", search: { next: location.href } });
+    }
     return { user: data.session.user };
   },
   component: () => <Outlet />,
 });
-

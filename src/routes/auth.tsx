@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Apple, Loader2, Scissors, Store } from "lucide-react";
@@ -7,12 +8,13 @@ import { Apple, Loader2, Scissors, Store } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { checkPhoneHasAccount, checkSignupPassword } from "@/lib/account.functions";
+import { checkLoginOtpRequired, requestOtp } from "@/lib/otp.functions";
 import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-field";
 import { guessCountryCode, isValidNational, toE164 } from "@/lib/phone";
 import { getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import { saveNextPath } from "@/lib/next-path";
 import { lovable } from "@/integrations/lovable/index";
-import { setRememberMe } from "@/lib/session";
+import { setOtpPending, setRememberMe } from "@/lib/session";
 import { ensureSessionAfterSignUp } from "@/lib/auth-session";
 import { resolveLandingForSession } from "@/lib/post-login";
 import { friendlyError } from "@/lib/friendly-error";
@@ -147,6 +149,8 @@ type Method = "password" | "magic" | "phone";
 function AuthPage() {
   const { next, mode: modeParam, email: emailParam } = Route.useSearch();
   const navigate = useNavigate();
+  const checkOtpRequired = useServerFn(checkLoginOtpRequired);
+  const sendLoginOtp = useServerFn(requestOtp);
   const { lang: locale } = useLocale();
   const t = copy[locale];
   const [method, setMethod] = useState<Method>("password");
@@ -255,11 +259,28 @@ function AuthPage() {
         toast.success(t.welcome);
         await goHome();
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({
           email: parsed.data.email,
           password: parsed.data.password,
         });
         if (error) throw error;
+
+        const { required } = await checkOtpRequired();
+        if (required && signInData.user) {
+          setOtpPending(signInData.user.id);
+          const sent = await sendLoginOtp({ data: { purpose: "login_step_up" } });
+          navigate({
+            to: "/verify-otp",
+            search: {
+              next: destination ?? undefined,
+              expiryMinutes: sent.expiryMinutes,
+              cooldownSeconds: sent.cooldownSeconds,
+            },
+            replace: true,
+          });
+          return;
+        }
+
         toast.success(t.signedIn);
         await goHome();
       }

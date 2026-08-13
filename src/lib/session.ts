@@ -1,4 +1,5 @@
 const KEY = "dallty:remember";
+const OTP_PENDING_KEY = "dallty:otp-pending";
 
 /**
  * Supabase always persists the session in localStorage. When "Remember me" is
@@ -13,6 +14,29 @@ export function setRememberMe(remember: boolean) {
 export function isRememberMe() {
   if (typeof window === "undefined") return true;
   return window.localStorage.getItem(KEY) !== "0";
+}
+
+/**
+ * Marks that `userId` has a fully valid session but still owes an OTP
+ * step-up before using the app. Stored in localStorage (not sessionStorage)
+ * because the session itself may be persisted there too — a step-up left
+ * pending across a browser restart must still be enforced on reopen.
+ */
+export function setOtpPending(userId: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(OTP_PENDING_KEY, userId);
+}
+
+/** Does `userId` still owe an OTP step-up? */
+export function isOtpPending(userId: string): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(OTP_PENDING_KEY) === userId;
+}
+
+/** Clears the OTP step-up marker — call on successful verification or sign-out. */
+export function clearOtpPending() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(OTP_PENDING_KEY);
 }
 
 /** Registers the tab-close cleanup. Returns an unsubscribe function. */
