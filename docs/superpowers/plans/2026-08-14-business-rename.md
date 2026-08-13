@@ -962,13 +962,19 @@ Expected: `0` — no row still points at the old bucket.
 
 - [ ] **Step 3: Write and apply the bucket-removal migration**
 
-```sql
--- Business/Salon Terminology Rename: remove the old salon-media bucket now
--- that Task 7's verification confirmed every object was copied and every
--- stored URL rewritten to point at business-media.
+> **Correction, applied at execution time:** the original migration below (`DELETE FROM storage.objects` / `DELETE FROM storage.buckets`) fails with `"Direct deletion from storage tables is not allowed. Use the Storage API instead."` — a real, permanent Supabase constraint, discovered live, not a tool artifact. The bucket and its objects must be removed through the Storage API (`admin.storage.from(bucket).remove(paths)` then `admin.storage.deleteBucket(id)`), the same way the original `salon-media` bucket's *creation* was never migration-tracked either. The committed migration therefore only drops the 4 storage policies (a plain DDL statement, unaffected by this constraint); the bucket+object removal was done with a one-off Storage-API script, run once and not committed.
 
-DELETE FROM storage.objects WHERE bucket_id = 'salon-media';
-DELETE FROM storage.buckets WHERE id = 'salon-media';
+```sql
+-- Business/Salon Terminology Rename: remove the old salon-media Storage
+-- policies now that Task 7's verification confirmed every object was
+-- copied and every stored URL rewritten to point at business-media.
+--
+-- The bucket and its objects are NOT dropped here — Supabase blocks direct
+-- SQL DELETE against storage.objects/storage.buckets; that part of the
+-- cleanup was done with a one-off Storage-API script, run once and not
+-- committed. By the time this file runs on a fresh environment, the
+-- bucket won't exist there in the first place.
+
 DROP POLICY IF EXISTS "Read salon media" ON storage.objects;
 DROP POLICY IF EXISTS "Owners upload salon media" ON storage.objects;
 DROP POLICY IF EXISTS "Owners update salon media" ON storage.objects;
@@ -976,7 +982,8 @@ DROP POLICY IF EXISTS "Owners delete salon media" ON storage.objects;
 ```
 
 Run: `npx supabase db query -f supabase/migrations/20260814060000_drop_salon_media_bucket.sql --db-url "$DB_URL"`
-Expected: `DELETE 4`, `DELETE 1`, then 4 `DROP POLICY` results.
+Expected: 4 `DROP POLICY` results.
+Then, separately, run a one-off Storage-API script (list every object in `salon-media`, `admin.storage.from("salon-media").remove(paths)`, then `admin.storage.deleteBucket("salon-media")`) with `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` set — not a SQL migration.
 
 - [ ] **Step 4: Final verify**
 
