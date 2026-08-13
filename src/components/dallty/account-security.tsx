@@ -25,6 +25,7 @@ import {
   requestEmailChange,
   requestPasswordChange,
   verifyCurrentPassword,
+  verifyOldEmailForChange,
 } from "@/lib/account.functions";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { OtpCodeInput } from "@/components/dallty/otp-code-input";
@@ -46,15 +47,17 @@ export function AccountSecurity() {
   const removeAccount = useServerFn(deleteMyAccount);
   const checkPassword = useServerFn(verifyCurrentPassword);
   const startEmailChange = useServerFn(requestEmailChange);
+  const verifyOldEmail = useServerFn(verifyOldEmailForChange);
   const finishEmailChange = useServerFn(confirmEmailChange);
   const startPasswordChange = useServerFn(requestPasswordChange);
   const finishPasswordChange = useServerFn(confirmPasswordChange);
   const checkPhone = useServerFn(checkPhoneHasAccount);
   const announcePhoneChanged = useServerFn(notifyPhoneChanged);
 
-  // Change email
+  // Change email — three steps: enter new address, verify the OLD address
+  // owns this change, then verify the NEW address before applying it.
   const [newEmail, setNewEmail] = useState("");
-  const [emailOtpPending, setEmailOtpPending] = useState(false);
+  const [emailStep, setEmailStep] = useState<"idle" | "verify-old" | "verify-new">("idle");
   const [emailCode, setEmailCode] = useState("");
 
   // Change password
@@ -86,10 +89,26 @@ export function AccountSecurity() {
     setBusy("email-request");
     try {
       await startEmailChange({ data: { newEmail: trimmed } });
-      setEmailOtpPending(true);
-      toast.success("Code sent to your new email");
+      setEmailStep("verify-old");
+      toast.success("Code sent to your current email");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not start email change");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function verifyOld() {
+    if (emailCode.length !== 6) return;
+    setBusy("email-verify-old");
+    try {
+      await verifyOldEmail({ data: { code: emailCode } });
+      setEmailStep("verify-new");
+      setEmailCode("");
+      toast.success("Code sent to your new email");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not verify code");
+      setEmailCode("");
     } finally {
       setBusy(null);
     }
@@ -101,7 +120,7 @@ export function AccountSecurity() {
     try {
       await finishEmailChange({ data: { code: emailCode } });
       await supabase.auth.refreshSession();
-      setEmailOtpPending(false);
+      setEmailStep("idle");
       setEmailCode("");
       setNewEmail("");
       toast.success("Email address updated");
@@ -349,37 +368,7 @@ export function AccountSecurity() {
         <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
           <Mail className="size-4" /> Change email
         </h2>
-        {emailOtpPending ? (
-          <div className="mt-4 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Enter the code we sent to <span className="font-semibold">{newEmail}</span>.
-            </p>
-            <OtpCodeInput
-              value={emailCode}
-              onChange={setEmailCode}
-              disabled={busy === "email-confirm"}
-            />
-            <button
-              type="button"
-              onClick={confirmEmail}
-              disabled={busy === "email-confirm" || emailCode.length !== 6}
-              className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
-            >
-              {busy === "email-confirm" && <Loader2 className="size-4 animate-spin" />}
-              Confirm new email
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEmailOtpPending(false);
-                setEmailCode("");
-              }}
-              className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
-            >
-              Use a different email
-            </button>
-          </div>
-        ) : (
+        {emailStep === "idle" && (
           <form onSubmit={requestEmail} className="mt-4 space-y-3">
             <input
               type="email"
@@ -399,6 +388,72 @@ export function AccountSecurity() {
               Send confirmation code
             </button>
           </form>
+        )}
+
+        {emailStep === "verify-old" && (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              First, confirm it's you — enter the code we sent to your current email,{" "}
+              <span className="font-semibold">{user?.email}</span>.
+            </p>
+            <OtpCodeInput
+              value={emailCode}
+              onChange={setEmailCode}
+              disabled={busy === "email-verify-old"}
+            />
+            <button
+              type="button"
+              onClick={verifyOld}
+              disabled={busy === "email-verify-old" || emailCode.length !== 6}
+              className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {busy === "email-verify-old" && <Loader2 className="size-4 animate-spin" />}
+              Verify
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmailStep("idle");
+                setEmailCode("");
+              }}
+              className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {emailStep === "verify-new" && (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Now enter the code we sent to <span className="font-semibold">{newEmail}</span>.
+            </p>
+            <OtpCodeInput
+              value={emailCode}
+              onChange={setEmailCode}
+              disabled={busy === "email-confirm"}
+            />
+            <button
+              type="button"
+              onClick={confirmEmail}
+              disabled={busy === "email-confirm" || emailCode.length !== 6}
+              className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {busy === "email-confirm" && <Loader2 className="size-4 animate-spin" />}
+              Confirm new email
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmailStep("idle");
+                setEmailCode("");
+                setNewEmail("");
+              }}
+              className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+            >
+              Start over
+            </button>
+          </div>
         )}
       </section>
 

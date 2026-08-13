@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 type AnySupabase = SupabaseClient<Database>;
-export type OtpPurpose = "login_step_up" | "change_email" | "change_password";
+export type OtpPurpose = "login_step_up" | "change_email" | "change_email_new" | "change_password";
 
 /** Generates a 6-digit numeric code, zero-padded (e.g. "004821"). */
 export function generateOtpCode(): string {
@@ -31,12 +31,18 @@ export function otpCodeMatches(code: string, hash: string): boolean {
 }
 
 /**
- * Sends a fresh 6-digit code for the given purpose to `target` (or the
- * user's own account email when `target` is omitted). Resends within the
- * cooldown window reuse and refresh the same row instead of creating a new
- * one, so `resend_count` tracks the whole session. Shared by the `requestOtp`
- * server function and every Phase C change-* flow that needs to trigger a
- * code send without re-running createServerFn middleware.
+ * Sends a fresh 6-digit code for the given purpose. `target` is stored on
+ * the row as the pending value being confirmed (e.g. a new email awaiting
+ * verification); `recipient` is who the code is actually emailed to, and
+ * defaults to `target` when omitted. Both default to the user's own account
+ * email when neither is given. The two can differ on purpose — the email
+ * change flow proves ownership of the *old* address first by sending that
+ * step's code to `recipient: currentEmail` while `target` already holds the
+ * pending new address. Resends within the cooldown window reuse and refresh
+ * the same row instead of creating a new one, so `resend_count` tracks the
+ * whole session. Shared by the `requestOtp` server function and every Phase
+ * C change-* flow that needs to trigger a code send without re-running
+ * createServerFn middleware.
  */
 export async function sendOtpCode(
   supabaseAdmin: AnySupabase,
@@ -44,6 +50,7 @@ export async function sendOtpCode(
     userId: string;
     purpose: OtpPurpose;
     target?: string | null;
+    recipient?: string | null;
     userAgent?: string | null;
   },
 ): Promise<{ sent: boolean; expiryMinutes: number; cooldownSeconds: number }> {
@@ -110,7 +117,7 @@ export async function sendOtpCode(
     if (error) throw new Error(error.message);
   }
 
-  let recipient = params.target;
+  let recipient = params.recipient ?? params.target;
   if (!recipient) {
     const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(params.userId);
     recipient = authUser?.user?.email ?? undefined;

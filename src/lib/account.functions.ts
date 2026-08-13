@@ -113,7 +113,10 @@ export const verifyCurrentPassword = createServerFn({ method: "POST" })
 
 /**
  * Step 1 of the change-email flow: rejects a duplicate target, then sends an
- * OTP to the *new* address to confirm ownership before anything changes.
+ * OTP to the *current* (old) address — proving whoever is making this
+ * change actually controls the account, before the new address is ever
+ * touched. `target` already holds the pending new address so step 2 knows
+ * where to send the second code.
  */
 export const requestEmailChange = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -128,7 +131,9 @@ export const requestEmailChange = createServerFn({ method: "POST" })
 
     const newEmail = data.newEmail.toLowerCase();
     const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
-    if (authUser?.user?.email?.toLowerCase() === newEmail) {
+    const currentEmail = authUser?.user?.email;
+    if (!currentEmail) throw new Error("Could not verify — no email on this account");
+    if (currentEmail.toLowerCase() === newEmail) {
       throw new Error("That's already your current email");
     }
     if (await emailExists(supabaseAdmin, newEmail)) {
@@ -140,28 +145,58 @@ export const requestEmailChange = createServerFn({ method: "POST" })
       userId: context.userId,
       purpose: "change_email",
       target: newEmail,
+      recipient: currentEmail,
       userAgent,
     });
   });
 
+const otpCodeInput = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Enter the 6-digit code"),
+});
+
 /**
- * Step 2 of the change-email flow: verifies the code, then applies the
- * change using the OTP row's own stored target — never a client-resupplied
+ * Step 2: verifies the code sent to the *old* address, then sends a fresh
+ * code to the pending new address (read from the just-verified row's own
+ * target, not resupplied by the client).
+ */
+export const verifyOldEmailForChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { code: string }) => otpCodeInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { verifyOtpCode, sendOtpCode } = await import("@/lib/otp.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+
+    const result = await verifyOtpCode(supabaseAdmin, {
+      userId: context.userId,
+      purpose: "change_email",
+      code: data.code,
+    });
+    if (!result.target) throw new Error("No email change is pending — start over");
+
+    const userAgent = getRequest()?.headers.get("user-agent") ?? null;
+    const sent = await sendOtpCode(supabaseAdmin, {
+      userId: context.userId,
+      purpose: "change_email_new",
+      target: result.target,
+      recipient: result.target,
+      userAgent,
+    });
+    return { ...sent, newEmail: result.target };
+  });
+
+/**
+ * Step 3: verifies the code sent to the *new* address, then applies the
+ * change using that row's own stored target — never a client-resupplied
  * value, so a stale or tampered client can't redirect the change elsewhere.
  * Notifies the *old* address afterward.
  */
 export const confirmEmailChange = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { code: string }) =>
-    z
-      .object({
-        code: z
-          .string()
-          .trim()
-          .regex(/^\d{6}$/, "Enter the 6-digit code"),
-      })
-      .parse(input),
-  )
+  .inputValidator((input: { code: string }) => otpCodeInput.parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { verifyOtpCode } = await import("@/lib/otp.server");
@@ -169,7 +204,7 @@ export const confirmEmailChange = createServerFn({ method: "POST" })
 
     const result = await verifyOtpCode(supabaseAdmin, {
       userId: context.userId,
-      purpose: "change_email",
+      purpose: "change_email_new",
       code: data.code,
     });
     if (!result.target) throw new Error("No email change is pending — start over");
