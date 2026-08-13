@@ -648,47 +648,22 @@ git commit -m "feat: rename salon-prefixed RPC functions to business-prefixed, r
 -- renames. Every policy below is already functionally correct after
 -- migration 1 (verified in Task 1 Step 3) — this only renames the policy
 -- itself so `\d+ businesses` and friends don't show a stale "salon" name to
--- the next person reading the schema.
+-- the next person reading the schema. Only the 10 policies whose NAME
+-- actually contains "salon" are listed — the plan's first draft listed
+-- every policy on these tables including ones whose name never said
+-- "salon" (e.g. "Owners manage promotions"), which would have been a
+-- pointless ALTER POLICY x RENAME TO x no-op; trimmed at execution time.
 
-ALTER POLICY "Customers create own bookings" ON public.bookings RENAME TO "Customers create own bookings";
-ALTER POLICY "Read own or managed bookings" ON public.bookings RENAME TO "Read own or managed bookings";
 ALTER POLICY "Staff and owners create bookings for their salon" ON public.bookings RENAME TO "Staff and owners create bookings for their business";
-ALTER POLICY "Update own or managed bookings" ON public.bookings RENAME TO "Update own or managed bookings";
-
-ALTER POLICY "Owners manage promotions" ON public.promotions RENAME TO "Owners manage promotions";
-
-ALTER POLICY "Anyone reads visible reviews" ON public.reviews RENAME TO "Anyone reads visible reviews";
-ALTER POLICY "Customers delete own reviews" ON public.reviews RENAME TO "Customers delete own reviews";
-ALTER POLICY "Customers edit own reviews" ON public.reviews RENAME TO "Customers edit own reviews";
-ALTER POLICY "Customers write own reviews" ON public.reviews RENAME TO "Customers write own reviews";
-ALTER POLICY "Owners moderate reviews" ON public.reviews RENAME TO "Owners moderate reviews";
-
 ALTER POLICY "Anyone reads gallery of active salons" ON public.business_gallery RENAME TO "Anyone reads gallery of active businesses";
-ALTER POLICY "Owners manage gallery" ON public.business_gallery RENAME TO "Owners manage gallery";
-
 ALTER POLICY "Anyone reads salon hours" ON public.business_hours RENAME TO "Anyone reads business hours";
 ALTER POLICY "Owners manage salon hours" ON public.business_hours RENAME TO "Owners manage business hours";
-
 ALTER POLICY "Owners delete salons" ON public.businesses RENAME TO "Owners delete businesses";
 ALTER POLICY "Owners insert salons" ON public.businesses RENAME TO "Owners insert businesses";
 ALTER POLICY "Owners update salons" ON public.businesses RENAME TO "Owners update businesses";
 ALTER POLICY "Public reads approved salons" ON public.businesses RENAME TO "Public reads approved businesses";
-
-ALTER POLICY "Anyone reads services" ON public.services RENAME TO "Anyone reads services";
-ALTER POLICY "Owners manage services" ON public.services RENAME TO "Owners manage services";
-
-ALTER POLICY "Anyone reads staff" ON public.staff RENAME TO "Anyone reads staff";
-ALTER POLICY "Owners manage staff" ON public.staff RENAME TO "Owners manage staff";
-
 ALTER POLICY "Requester and salon managers read requests" ON public.staff_join_requests RENAME TO "Requester and business managers read requests";
 ALTER POLICY "Salon managers review requests" ON public.staff_join_requests RENAME TO "Business managers review requests";
-ALTER POLICY "Users cancel their pending request" ON public.staff_join_requests RENAME TO "Users cancel their pending request";
-ALTER POLICY "Users create their own request" ON public.staff_join_requests RENAME TO "Users create their own request";
-
-ALTER POLICY "Customers create own waitlist" ON public.waitlist_entries RENAME TO "Customers create own waitlist";
-ALTER POLICY "Delete own waitlist" ON public.waitlist_entries RENAME TO "Delete own waitlist";
-ALTER POLICY "Read own or managed waitlist" ON public.waitlist_entries RENAME TO "Read own or managed waitlist";
-ALTER POLICY "Update own or managed waitlist" ON public.waitlist_entries RENAME TO "Update own or managed waitlist";
 ```
 
 - [ ] **Step 2: Apply the migration**
