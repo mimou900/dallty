@@ -150,7 +150,7 @@ export type Database = {
           paid_by: string | null;
           payment_status: Database["public"]["Enums"]["payment_status"];
           promotion_id: string | null;
-          salon_id: string;
+          business_id: string;
           service_id: string;
           staff_id: string;
           starts_at: string;
@@ -170,7 +170,7 @@ export type Database = {
           paid_by?: string | null;
           payment_status?: Database["public"]["Enums"]["payment_status"];
           promotion_id?: string | null;
-          salon_id: string;
+          business_id: string;
           service_id: string;
           staff_id: string;
           starts_at: string;
@@ -190,7 +190,7 @@ export type Database = {
           paid_by?: string | null;
           payment_status?: Database["public"]["Enums"]["payment_status"];
           promotion_id?: string | null;
-          salon_id?: string;
+          business_id?: string;
           service_id?: string;
           staff_id?: string;
           starts_at?: string;
@@ -207,10 +207,10 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "bookings_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "bookings_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
           {
@@ -559,7 +559,7 @@ export type Database = {
           is_active: boolean;
           max_uses: number | null;
           min_amount: number;
-          salon_id: string;
+          business_id: string;
           starts_at: string | null;
           updated_at: string;
           used_count: number;
@@ -575,7 +575,7 @@ export type Database = {
           is_active?: boolean;
           max_uses?: number | null;
           min_amount?: number;
-          salon_id: string;
+          business_id: string;
           starts_at?: string | null;
           updated_at?: string;
           used_count?: number;
@@ -591,46 +591,46 @@ export type Database = {
           is_active?: boolean;
           max_uses?: number | null;
           min_amount?: number;
-          salon_id?: string;
+          business_id?: string;
           starts_at?: string | null;
           updated_at?: string;
           used_count?: number;
         };
         Relationships: [
           {
-            foreignKeyName: "promotions_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "promotions_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
         ];
       };
       recently_viewed: {
         Row: {
+          business_id: string;
           id: string;
-          salon_id: string;
           user_id: string;
           viewed_at: string;
         };
         Insert: {
+          business_id: string;
           id?: string;
-          salon_id: string;
           user_id: string;
           viewed_at?: string;
         };
         Update: {
+          business_id?: string;
           id?: string;
-          salon_id?: string;
           user_id?: string;
           viewed_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "recently_viewed_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "recently_viewed_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
         ];
@@ -680,7 +680,7 @@ export type Database = {
           photos: string[];
           rating: number;
           report_count: number;
-          salon_id: string;
+          business_id: string;
           service_id: string | null;
           staff_id: string | null;
           updated_at: string;
@@ -697,7 +697,7 @@ export type Database = {
           photos?: string[];
           rating: number;
           report_count?: number;
-          salon_id: string;
+          business_id: string;
           service_id?: string | null;
           staff_id?: string | null;
           updated_at?: string;
@@ -714,7 +714,7 @@ export type Database = {
           photos?: string[];
           rating?: number;
           report_count?: number;
-          salon_id?: string;
+          business_id?: string;
           service_id?: string | null;
           staff_id?: string | null;
           updated_at?: string;
@@ -728,10 +728,10 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "reviews_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "reviews_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
           {
@@ -750,92 +750,92 @@ export type Database = {
           },
         ];
       };
-      salon_gallery: {
+      business_gallery: {
         Row: {
           before_url: string | null;
+          business_id: string;
           caption: string | null;
           caption_ar: string | null;
           category: string;
           created_at: string;
           id: string;
-          salon_id: string;
           sort_order: number;
           url: string;
         };
         Insert: {
           before_url?: string | null;
+          business_id: string;
           caption?: string | null;
           caption_ar?: string | null;
           category?: string;
           created_at?: string;
           id?: string;
-          salon_id: string;
           sort_order?: number;
           url: string;
         };
         Update: {
           before_url?: string | null;
+          business_id?: string;
           caption?: string | null;
           caption_ar?: string | null;
           category?: string;
           created_at?: string;
           id?: string;
-          salon_id?: string;
           sort_order?: number;
           url?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "salon_gallery_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "business_gallery_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
         ];
       };
-      salon_hours: {
+      business_hours: {
         Row: {
+          business_id: string;
           closes_at: string;
           created_at: string;
           id: string;
           is_closed: boolean;
           opens_at: string;
-          salon_id: string;
           updated_at: string;
           weekday: number;
         };
         Insert: {
+          business_id: string;
           closes_at?: string;
           created_at?: string;
           id?: string;
           is_closed?: boolean;
           opens_at?: string;
-          salon_id: string;
           updated_at?: string;
           weekday: number;
         };
         Update: {
+          business_id?: string;
           closes_at?: string;
           created_at?: string;
           id?: string;
           is_closed?: boolean;
           opens_at?: string;
-          salon_id?: string;
           updated_at?: string;
           weekday?: number;
         };
         Relationships: [
           {
-            foreignKeyName: "salon_hours_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "business_hours_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
         ];
       };
-      salons: {
+      businesses: {
         Row: {
           accept_card: boolean;
           accept_cash: boolean;
@@ -1134,7 +1134,7 @@ export type Database = {
           name_ar: string | null;
           price: number;
           processing_minutes: number;
-          salon_id: string;
+          business_id: string;
           tag: string | null;
           visibility: string;
         };
@@ -1154,7 +1154,7 @@ export type Database = {
           name_ar?: string | null;
           price?: number;
           processing_minutes?: number;
-          salon_id: string;
+          business_id: string;
           tag?: string | null;
           visibility?: string;
         };
@@ -1174,16 +1174,16 @@ export type Database = {
           name_ar?: string | null;
           price?: number;
           processing_minutes?: number;
-          salon_id?: string;
+          business_id?: string;
           tag?: string | null;
           visibility?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "services_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "services_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
         ];
@@ -1205,7 +1205,7 @@ export type Database = {
           languages: string[];
           phone: string | null;
           portfolio: string[];
-          salon_id: string;
+          business_id: string;
           social_links: Json;
           title: string;
           title_ar: string | null;
@@ -1227,7 +1227,7 @@ export type Database = {
           languages?: string[];
           phone?: string | null;
           portfolio?: string[];
-          salon_id: string;
+          business_id: string;
           social_links?: Json;
           title?: string;
           title_ar?: string | null;
@@ -1249,7 +1249,7 @@ export type Database = {
           languages?: string[];
           phone?: string | null;
           portfolio?: string[];
-          salon_id?: string;
+          business_id?: string;
           social_links?: Json;
           title?: string;
           title_ar?: string | null;
@@ -1257,10 +1257,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "staff_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "staff_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
         ];
@@ -1350,7 +1350,7 @@ export type Database = {
           phone: string | null;
           reviewed_at: string | null;
           reviewed_by: string | null;
-          salon_id: string;
+          business_id: string;
           staff_id: string | null;
           status: string;
           title: string;
@@ -1365,7 +1365,7 @@ export type Database = {
           phone?: string | null;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
-          salon_id: string;
+          business_id: string;
           staff_id?: string | null;
           status?: string;
           title?: string;
@@ -1380,7 +1380,7 @@ export type Database = {
           phone?: string | null;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
-          salon_id?: string;
+          business_id?: string;
           staff_id?: string | null;
           status?: string;
           title?: string;
@@ -1389,10 +1389,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "staff_join_requests_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "staff_join_requests_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
           {
@@ -1541,7 +1541,7 @@ export type Database = {
           id: string;
           notified_at: string | null;
           require_confirmation: boolean;
-          salon_id: string;
+          business_id: string;
           service_id: string;
           staff_id: string;
           status: Database["public"]["Enums"]["waitlist_status"];
@@ -1556,7 +1556,7 @@ export type Database = {
           id?: string;
           notified_at?: string | null;
           require_confirmation?: boolean;
-          salon_id: string;
+          business_id: string;
           service_id: string;
           staff_id: string;
           status?: Database["public"]["Enums"]["waitlist_status"];
@@ -1571,7 +1571,7 @@ export type Database = {
           id?: string;
           notified_at?: string | null;
           require_confirmation?: boolean;
-          salon_id?: string;
+          business_id?: string;
           service_id?: string;
           staff_id?: string;
           status?: Database["public"]["Enums"]["waitlist_status"];
@@ -1579,10 +1579,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "waitlist_entries_salon_id_fkey";
-            columns: ["salon_id"];
+            foreignKeyName: "waitlist_entries_business_id_fkey";
+            columns: ["business_id"];
             isOneToOne: false;
-            referencedRelation: "salons";
+            referencedRelation: "businesses";
             referencedColumns: ["id"];
           },
           {
@@ -1648,7 +1648,7 @@ export type Database = {
           working_hours_set: boolean;
         }[];
       };
-      get_salon_availability_summary: {
+      get_business_availability_summary: {
         Args: { _days?: number; _salon_id: string };
         Returns: {
           has_schedule: boolean;
@@ -1657,7 +1657,7 @@ export type Database = {
           staff_id: string;
         }[];
       };
-      get_salon_public_staff: {
+      get_business_public_staff: {
         Args: { _salon_id: string };
         Returns: {
           avatar_url: string;
@@ -1690,7 +1690,7 @@ export type Database = {
         Returns: boolean;
       };
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean };
-      is_salon_staff: {
+      is_business_staff: {
         Args: { _staff_id: string; _user_id: string };
         Returns: boolean;
       };
@@ -1704,15 +1704,15 @@ export type Database = {
         };
         Returns: undefined;
       };
-      owns_salon: {
+      owns_business: {
         Args: { _salon_id: string; _user_id: string };
         Returns: boolean;
       };
-      recompute_salon_listing: {
+      recompute_business_listing: {
         Args: { _salon_id: string };
         Returns: undefined;
       };
-      submit_salon_for_review: {
+      submit_business_for_review: {
         Args: { _salon_id: string };
         Returns: {
           ok: boolean;
@@ -1721,10 +1721,10 @@ export type Database = {
       };
     };
     Enums: {
-      app_role: "client" | "salon_owner" | "specialist" | "admin" | "super_admin";
+      app_role: "client" | "business_owner" | "specialist" | "admin" | "super_admin";
       booking_status: "pending" | "confirmed" | "completed" | "cancelled";
       business_status: "pending" | "approved" | "rejected" | "suspended";
-      favorite_kind: "salon" | "staff" | "service";
+      favorite_kind: "business" | "staff" | "service";
       marketplace_status: "draft" | "pending_review" | "approved" | "rejected" | "hidden";
       payment_status: "unpaid" | "paid" | "refunded";
       subscription_plan: "starter" | "professional" | "enterprise";
@@ -1850,10 +1850,10 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["client", "salon_owner", "specialist", "admin", "super_admin"],
+      app_role: ["client", "business_owner", "specialist", "admin", "super_admin"],
       booking_status: ["pending", "confirmed", "completed", "cancelled"],
       business_status: ["pending", "approved", "rejected", "suspended"],
-      favorite_kind: ["salon", "staff", "service"],
+      favorite_kind: ["business", "staff", "service"],
       marketplace_status: ["draft", "pending_review", "approved", "rejected", "hidden"],
       payment_status: ["unpaid", "paid", "refunded"],
       subscription_plan: ["starter", "professional", "enterprise"],
