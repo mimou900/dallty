@@ -447,10 +447,10 @@ function BusinessSignupPage() {
       let galleryUrls: string[] = [];
       setBusyLabel("Uploading your photos…");
       try {
-        if (logoFile) logoUrl = await uploadAndSign("salon-media", userId, logoFile);
-        if (coverFile) coverUrl = await uploadAndSign("salon-media", userId, coverFile);
+        if (logoFile) logoUrl = await uploadAndSign("business-media", userId, logoFile);
+        if (coverFile) coverUrl = await uploadAndSign("business-media", userId, coverFile);
         galleryUrls = await Promise.all(
-          galleryFiles.slice(0, 12).map((file) => uploadAndSign("salon-media", userId, file)),
+          galleryFiles.slice(0, 12).map((file) => uploadAndSign("business-media", userId, file)),
         );
       } catch {
         toast.message("Some photos could not be uploaded — you can add them from your dashboard.");

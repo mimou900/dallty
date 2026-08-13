@@ -297,9 +297,9 @@ function SettingsPage() {
         seo_keywords: form.seo_keywords ?? null,
         is_active: form.is_active !== false,
       };
-      if (logo) patch.logo_url = await uploadAndSign("salon-media", user.id, logo);
+      if (logo) patch.logo_url = await uploadAndSign("business-media", user.id, logo);
       if (cover) {
-        const url = await uploadAndSign("salon-media", user.id, cover);
+        const url = await uploadAndSign("business-media", user.id, cover);
         patch.cover_url = url;
         patch.image_url = url;
       }

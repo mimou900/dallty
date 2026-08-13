@@ -176,7 +176,7 @@ function ServicesPage() {
     try {
       setUploading(true);
       let imageUrl = draft.image_url;
-      if (imageFile && user) imageUrl = await uploadAndSign("salon-media", user.id, imageFile);
+      if (imageFile && user) imageUrl = await uploadAndSign("business-media", user.id, imageFile);
 
       const serviceId = await save.mutateAsync({
         ...draft,

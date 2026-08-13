@@ -142,7 +142,7 @@ export function SpecialistWizard({ draft, services, currency, onClose, onSaved }
       const urls: string[] = [];
       for (const file of Array.from(files).slice(0, 6)) {
         if (!file.type.startsWith("image/")) continue;
-        urls.push(await uploadAndSign("salon-media", user.id, file));
+        urls.push(await uploadAndSign("business-media", user.id, file));
       }
       set("portfolio", [...form.portfolio, ...urls]);
     } catch (e) {
@@ -166,7 +166,7 @@ export function SpecialistWizard({ draft, services, currency, onClose, onSaved }
       let avatar = form.avatarUrl;
       if (photo && user) {
         setUploading(true);
-        avatar = await uploadAndSign("salon-media", user.id, photo);
+        avatar = await uploadAndSign("business-media", user.id, photo);
         setUploading(false);
       }
 
