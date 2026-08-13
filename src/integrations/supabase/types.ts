@@ -193,6 +193,193 @@ export type Database = {
         };
         Relationships: [];
       };
+      currencies: {
+        Row: {
+          active: boolean;
+          code: string;
+          created_at: string;
+          decimal_digits: number;
+          name: string;
+          symbol: string;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          code: string;
+          created_at?: string;
+          decimal_digits?: number;
+          name: string;
+          symbol: string;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          created_at?: string;
+          decimal_digits?: number;
+          name?: string;
+          symbol?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      countries: {
+        Row: {
+          active: boolean;
+          calling_code: string;
+          created_at: string;
+          currency_code: string;
+          display_order: number;
+          flag: string;
+          id: string;
+          iso_code: string;
+          name: string;
+          name_ar: string;
+          name_fr: string;
+          timezone: string;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          calling_code: string;
+          created_at?: string;
+          currency_code: string;
+          display_order?: number;
+          flag: string;
+          id?: string;
+          iso_code: string;
+          name: string;
+          name_ar: string;
+          name_fr: string;
+          timezone: string;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          calling_code?: string;
+          created_at?: string;
+          currency_code?: string;
+          display_order?: number;
+          flag?: string;
+          id?: string;
+          iso_code?: string;
+          name?: string;
+          name_ar?: string;
+          name_fr?: string;
+          timezone?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "countries_currency_code_fkey";
+            columns: ["currency_code"];
+            isOneToOne: false;
+            referencedRelation: "currencies";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
+      categories: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          description: string | null;
+          display_order: number;
+          icon: string;
+          id: string;
+          image_url: string | null;
+          name: string;
+          name_ar: string;
+          name_fr: string;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          description?: string | null;
+          display_order?: number;
+          icon: string;
+          id?: string;
+          image_url?: string | null;
+          name: string;
+          name_ar: string;
+          name_fr: string;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          description?: string | null;
+          display_order?: number;
+          icon?: string;
+          id?: string;
+          image_url?: string | null;
+          name?: string;
+          name_ar?: string;
+          name_fr?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      wilayas: {
+        Row: {
+          active: boolean;
+          code: string;
+          id: string;
+          name: string;
+          name_ar: string;
+        };
+        Insert: {
+          active?: boolean;
+          code: string;
+          id?: string;
+          name: string;
+          name_ar: string;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          id?: string;
+          name?: string;
+          name_ar?: string;
+        };
+        Relationships: [];
+      };
+      communes: {
+        Row: {
+          active: boolean;
+          id: string;
+          name: string;
+          name_ar: string;
+          postal_code: string | null;
+          wilaya_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          id?: string;
+          name: string;
+          name_ar: string;
+          postal_code?: string | null;
+          wilaya_id: string;
+        };
+        Update: {
+          active?: boolean;
+          id?: string;
+          name?: string;
+          name_ar?: string;
+          postal_code?: string | null;
+          wilaya_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "communes_wilaya_id_fkey";
+            columns: ["wilaya_id"];
+            isOneToOne: false;
+            referencedRelation: "wilayas";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           allergies: string | null;
