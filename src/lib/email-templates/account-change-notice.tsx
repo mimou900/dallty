@@ -13,13 +13,29 @@ import {
 } from "@react-email/components";
 import type { TemplateEntry } from "./registry";
 
-import { brandName, brandTag, card, container, divider, footer, h1, main, text } from "./brand";
+import {
+  brandName,
+  brandTag,
+  button,
+  card,
+  container,
+  divider,
+  footer,
+  h1,
+  main,
+  text,
+} from "./brand";
 
 export type AccountChange = "email" | "password" | "phone";
 
 interface Props {
   change?: AccountChange;
   detail?: string;
+  /** e.g. "Chrome on Windows", from src/lib/user-agent.ts */
+  device?: string;
+  /** Pre-formatted date/time string — formatting happens server-side, not in the template. */
+  timestamp?: string;
+  secureAccountUrl?: string;
 }
 
 const COPY: Record<AccountChange, { subject: string; heading: string; body: string }> = {
@@ -40,7 +56,7 @@ const COPY: Record<AccountChange, { subject: string; heading: string; body: stri
   },
 };
 
-const Email = ({ change = "password", detail }: Props) => {
+const Email = ({ change = "password", detail, device, timestamp, secureAccountUrl }: Props) => {
   const c = COPY[change] ?? COPY.password;
   return (
     <Html lang="en" dir="ltr">
@@ -54,10 +70,24 @@ const Email = ({ change = "password", detail }: Props) => {
             <Heading style={h1}>{c.heading}</Heading>
             <Text style={text}>{c.body}</Text>
             {detail ? <Text style={text}>{detail}</Text> : null}
+            {(device || timestamp) && (
+              <Text style={text}>
+                {device ? `Device: ${device}` : null}
+                {device && timestamp ? <br /> : null}
+                {timestamp ? `Time: ${timestamp}` : null}
+              </Text>
+            )}
             <Hr style={divider} />
             <Text style={footer}>
-              If you didn't make this change, reset your password immediately and contact support.
+              If you didn't make this change, secure your account immediately.
             </Text>
+            {secureAccountUrl ? (
+              <Section style={{ textAlign: "center" as const, margin: "18px 0 0" }}>
+                <a href={secureAccountUrl} style={button}>
+                  Secure my account
+                </a>
+              </Section>
+            ) : null}
           </Section>
         </Container>
       </Body>
@@ -72,6 +102,9 @@ export const template = {
   displayName: "Account change notice",
   previewData: {
     change: "password",
+    device: "Chrome on Windows",
+    timestamp: "2026-08-13 14:22 UTC",
+    secureAccountUrl: "https://dallty.com/auth",
   },
 } satisfies TemplateEntry;
 

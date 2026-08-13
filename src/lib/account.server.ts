@@ -1,8 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
+import { parseUserAgent } from "@/lib/user-agent";
 
 type AnySupabase = SupabaseClient<Database>;
+
+/** Builds the device/timestamp/link fields for the account-change-notice email. */
+export function securityAlertFields(userAgent: string | null | undefined) {
+  return {
+    device: parseUserAgent(userAgent).summary,
+    timestamp: `${new Date().toISOString().replace("T", " ").slice(0, 16)} UTC`,
+    secureAccountUrl: "https://dallty.com/auth",
+  };
+}
 
 /** Does any account already use this email? Shared by signup and change-email duplicate checks. */
 export async function emailExists(supabaseAdmin: AnySupabase, email: string): Promise<boolean> {

@@ -201,6 +201,9 @@ export const confirmEmailChange = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { verifyOtpCode } = await import("@/lib/otp.server");
     const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
+    const { securityAlertFields } = await import("@/lib/account.server");
+    const { logAdminAction } = await import("@/lib/platform.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
 
     const result = await verifyOtpCode(supabaseAdmin, {
       userId: context.userId,
@@ -218,12 +221,27 @@ export const confirmEmailChange = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
 
+    const userAgent = getRequest()?.headers.get("user-agent") ?? null;
     if (oldEmail) {
       await sendTemplateEmail("account-change-notice", oldEmail, {
-        templateData: { change: "email", detail: `New email: ${result.target}` },
+        templateData: {
+          change: "email",
+          detail: `New email: ${result.target}`,
+          ...securityAlertFields(userAgent),
+        },
         idempotencyKey: `email-changed-${context.userId}-${Date.now()}`,
       }).catch(() => {});
     }
+    await logAdminAction(
+      supabaseAdmin,
+      context.userId,
+      "security.email_changed",
+      "user",
+      context.userId,
+      {
+        newEmail: result.target,
+      },
+    );
 
     return { ok: true, newEmail: result.target };
   });
@@ -303,6 +321,9 @@ export const confirmPasswordChange = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { verifyOtpCode } = await import("@/lib/otp.server");
     const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
+    const { securityAlertFields } = await import("@/lib/account.server");
+    const { logAdminAction } = await import("@/lib/platform.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
 
     await verifyOtpCode(supabaseAdmin, {
       userId: context.userId,
@@ -323,13 +344,21 @@ export const confirmPasswordChange = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
 
+    const userAgent = getRequest()?.headers.get("user-agent") ?? null;
     const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
     if (authUser?.user?.email) {
       await sendTemplateEmail("account-change-notice", authUser.user.email, {
-        templateData: { change: "password" },
+        templateData: { change: "password", ...securityAlertFields(userAgent) },
         idempotencyKey: `password-changed-${context.userId}-${Date.now()}`,
       }).catch(() => {});
     }
+    await logAdminAction(
+      supabaseAdmin,
+      context.userId,
+      "security.password_changed",
+      "user",
+      context.userId,
+    );
 
     return { ok: true };
   });
@@ -348,14 +377,32 @@ export const notifyPhoneChanged = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
+    const { securityAlertFields } = await import("@/lib/account.server");
+    const { logAdminAction } = await import("@/lib/platform.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
 
+    const userAgent = getRequest()?.headers.get("user-agent") ?? null;
     const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
     if (authUser?.user?.email) {
       await sendTemplateEmail("account-change-notice", authUser.user.email, {
-        templateData: { change: "phone", detail: `New phone: ${data.newPhone}` },
+        templateData: {
+          change: "phone",
+          detail: `New phone: ${data.newPhone}`,
+          ...securityAlertFields(userAgent),
+        },
         idempotencyKey: `phone-changed-${context.userId}-${Date.now()}`,
       }).catch(() => {});
     }
+    await logAdminAction(
+      supabaseAdmin,
+      context.userId,
+      "security.phone_changed",
+      "user",
+      context.userId,
+      {
+        newPhone: data.newPhone,
+      },
+    );
     return { ok: true };
   });
 
