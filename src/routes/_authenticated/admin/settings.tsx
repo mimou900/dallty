@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -30,7 +30,7 @@ import { PlacesAutocomplete } from "@/components/dallty/places-autocomplete";
 import { uploadAndSign } from "@/lib/storage";
 import { getSalonSettings, saveSalonSettings } from "@/lib/salon-settings.functions";
 import { BUSINESS_TYPES, SALON_CATEGORIES } from "@/lib/business-schema";
-import { COUNTRIES } from "@/lib/countries";
+import { useCountries } from "@/lib/reference-data";
 
 type TabKey =
   | "general"
@@ -225,7 +225,8 @@ function SettingsPage() {
 
   const set = (key: string, value: any) => setForm((f) => ({ ...f, [key]: value }));
 
-  const countryOptions = useMemo(() => COUNTRIES, []);
+  const countries = useCountries();
+  const countryOptions = countries.data ?? [];
 
   const save = useMutation({
     mutationFn: async () => {
@@ -566,13 +567,13 @@ function SettingsPage() {
                     className={inputClass}
                     value={form.country_code ?? ""}
                     onChange={(e) => {
-                      const hit = countryOptions.find((c) => c.code === e.target.value);
+                      const hit = countryOptions.find((c) => c.iso_code === e.target.value);
                       setForm((f) => ({ ...f, country_code: e.target.value, country: hit?.name ?? f.country }));
                     }}
                   >
                     <option value="">Select a country</option>
                     {countryOptions.map((c) => (
-                      <option key={c.code} value={c.code}>
+                      <option key={c.iso_code} value={c.iso_code}>
                         {c.flag} {c.name}
                       </option>
                     ))}

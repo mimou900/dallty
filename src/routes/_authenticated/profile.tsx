@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { signedUrl, uploadTo } from "@/lib/storage";
 import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-field";
 import { guessCountryCode, splitE164, toE164 } from "@/lib/phone";
-import { countryByCode } from "@/lib/countries";
+import { getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import { ClientShell } from "@/components/dallty/client-shell";
 import { AccountSecurity } from "@/components/dallty/account-security";
 
@@ -90,7 +90,7 @@ function ProfilePage() {
     signedUrl("avatars", profile.avatar_url).then(setAvatarUrl);
   }, [profile]);
 
-  const phoneE164 = toE164(countryByCode(phone.countryCode).dial, phone.national);
+  const phoneE164 = toE164((getCountryByCode(phone.countryCode) ?? getDefaultCountry()).calling_code, phone.national);
 
   const save = useMutation({
     mutationFn: async () => {

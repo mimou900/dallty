@@ -28,7 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { landingForRoles } from "@/lib/post-login";
 import { SiteHeader } from "@/components/dallty/site-nav";
-import { COUNTRIES } from "@/lib/countries";
+import { useCountries } from "@/lib/reference-data";
 import { citiesFor, provincesFor, provinceOfCity } from "@/lib/arab-cities";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
 
@@ -123,11 +123,12 @@ function Index() {
   });
 
   const placeFiltered = country || stateName || city || shopType;
+  const countries = useCountries();
 
   const countryOptions = useMemo(() => {
     const codes = new Set((liveSalons ?? []).map((s) => s.countryCode).filter(Boolean));
-    return COUNTRIES.filter((c) => codes.has(c.code));
-  }, [liveSalons]);
+    return (countries.data ?? []).filter((c) => codes.has(c.iso_code));
+  }, [liveSalons, countries.data]);
 
   const stateOptions = useMemo(() => {
     const listed = [
@@ -177,7 +178,7 @@ function Index() {
   const activeChips = useMemo(
     () =>
       [
-        country ? countryOptions.find((c) => c.code === country)?.name ?? country : "",
+        country ? countryOptions.find((c) => c.iso_code === country)?.name ?? country : "",
         stateName,
         city,
         shopType,
@@ -314,8 +315,8 @@ function Index() {
               >
                 <option value="">{lang === "en" ? "All countries" : "كل الدول"}</option>
                 {countryOptions.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.flag} {lang === "en" ? c.name : c.nameAr}
+                  <option key={c.iso_code} value={c.iso_code}>
+                    {c.flag} {lang === "en" ? c.name : c.name_ar}
                   </option>
                 ))}
               </SelectField>

@@ -1,4 +1,4 @@
-import { COUNTRIES, DEFAULT_COUNTRY, countryByCode, detectCountryCode } from "@/lib/countries";
+import { getCountriesSync, getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 
 /** Digits only, no leading zeros stripped. */
 export function digitsOnly(value: string) {
@@ -58,18 +58,18 @@ export function nationalPhoneError(dial: string, national: string): string | nul
 export function splitE164(value?: string | null): { countryCode: string; national: string } {
   const raw = (value ?? "").trim();
   if (raw.startsWith("+")) {
-    const match = [...COUNTRIES]
-      .sort((a, b) => b.dial.length - a.dial.length)
-      .find((c) => raw.startsWith(c.dial));
-    if (match) return { countryCode: match.code, national: raw.slice(match.dial.length) };
+    const match = [...getCountriesSync()]
+      .sort((a, b) => b.calling_code.length - a.calling_code.length)
+      .find((c) => raw.startsWith(c.calling_code));
+    if (match) return { countryCode: match.iso_code, national: raw.slice(match.calling_code.length) };
   }
-  return { countryCode: DEFAULT_COUNTRY, national: digitsOnly(raw) };
+  return { countryCode: getDefaultCountry().iso_code, national: digitsOnly(raw) };
 }
 
 /** Best-effort country guess for a fresh phone field. */
-export function guessCountryCode(hint?: string | null) {
-  if (hint) return countryByCode(hint).code;
-  return detectCountryCode();
+export function guessCountryCode(hint?: string | null): string {
+  if (hint) return getCountryByCode(hint)?.iso_code ?? getDefaultCountry().iso_code;
+  return getDefaultCountry().iso_code;
 }
 
 /** Pretty display used in lists: `+213 541 678 551`. */
@@ -77,7 +77,7 @@ export function formatPhoneDisplay(value?: string | null) {
   const raw = (value ?? "").trim();
   if (!raw) return "";
   const { countryCode, national } = splitE164(raw);
-  const dial = countryByCode(countryCode).dial;
+  const dial = (getCountryByCode(countryCode) ?? getDefaultCountry()).calling_code;
   if (!raw.startsWith("+")) return raw;
   return `${dial} ${national.replace(/(\d{3})(?=\d)/g, "$1 ").trim()}`;
 }

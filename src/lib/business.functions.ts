@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { businessRegistrationSchema, type BusinessRegistration } from "@/lib/business-schema";
-import { countryByCode } from "@/lib/countries";
 
 /**
  * Finishes a business registration: attaches the pending salon record to the
@@ -38,6 +37,16 @@ export const registerBusiness = createServerFn({ method: "POST" })
     const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
     const b = data.business;
 
+    const { data: countryRow } = await supabaseAdmin
+      .from("countries")
+      .select("iso_code, currency_code, timezone")
+      .eq("iso_code", b.countryCode)
+      .maybeSingle();
+    const { data: fallbackCountry } = countryRow
+      ? { data: countryRow }
+      : await supabaseAdmin.from("countries").select("iso_code, currency_code, timezone").eq("iso_code", "DZ").single();
+    const resolvedCountry = countryRow ?? fallbackCountry!;
+
     const { data: salon, error } = await supabaseAdmin
       .from("salons")
       .insert({
@@ -54,9 +63,9 @@ export const registerBusiness = createServerFn({ method: "POST" })
         facebook_url: b.facebook || null,
         tiktok_url: b.tiktok || null,
         country: b.country,
-        country_code: countryByCode(b.countryCode).code,
-        currency: countryByCode(b.countryCode).currency,
-        timezone: countryByCode(b.countryCode).timezone,
+        country_code: resolvedCountry.iso_code,
+        currency: resolvedCountry.currency_code,
+        timezone: resolvedCountry.timezone,
         city: b.city,
         area: b.district || b.city,
         district: b.district || null,

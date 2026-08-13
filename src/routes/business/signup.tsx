@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { COUNTRIES, DEFAULT_COUNTRY, countryByCode } from "@/lib/countries";
+import { useCountries, getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import { citiesFor } from "@/lib/arab-cities";
 import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-field";
 import { guessCountryCode, isValidNational, toE164 } from "@/lib/phone";
@@ -176,6 +176,7 @@ function BusinessSignupPage() {
   );
   const offset = needsAccount ? 1 : 0;
 
+  const countries = useCountries();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState<null | "account" | "salon">(null);
   const [busyLabel, setBusyLabel] = useState("");
@@ -195,8 +196,8 @@ function BusinessSignupPage() {
     description: "",
     businessEmail: "",
     businessPhone: "",
-    country: countryByCode(DEFAULT_COUNTRY).name,
-    countryCode: DEFAULT_COUNTRY,
+    country: getDefaultCountry().name,
+    countryCode: getDefaultCountry().iso_code,
     city: "",
     district: "",
     address: "",
@@ -213,7 +214,7 @@ function BusinessSignupPage() {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
 
-  const timezone = countryByCode(b.countryCode).timezone;
+  const timezone = (getCountryByCode(b.countryCode) ?? getDefaultCountry()).timezone;
   const passwordOk = isPasswordStrong(account.password, "privileged");
 
   function set<K extends keyof typeof b>(key: K, value: string) {
@@ -236,14 +237,14 @@ function BusinessSignupPage() {
   /** Fills the address plus the silently-stored location metadata. */
   function applyPlace(place: PlaceResult) {
     setErrors((prev) => ({ ...prev, address: "", city: "" }));
-    const known = COUNTRIES.find((c) => c.code === place.countryCode);
+    const known = (countries.data ?? []).find((c) => c.iso_code === place.countryCode);
     setB((prev) => ({
       ...prev,
       address: place.address || prev.address,
       city: place.city || prev.city,
       district: place.district || prev.district,
       country: known?.name ?? place.country ?? prev.country,
-      countryCode: known?.code ?? prev.countryCode,
+      countryCode: known?.iso_code ?? prev.countryCode,
       postalCode: place.postalCode || prev.postalCode,
       latitude: place.latitude != null ? place.latitude.toFixed(6) : prev.latitude,
       longitude: place.longitude != null ? place.longitude.toFixed(6) : prev.longitude,
@@ -255,7 +256,12 @@ function BusinessSignupPage() {
     const next: FieldErrors = {};
     if (account.fullName.trim().length < 2) next.fullName = "Enter your full name";
     if (!EMAIL_RE.test(account.email.trim())) next.email = "Enter a valid email address";
-    if (!isValidNational(countryByCode(account.phone.countryCode).dial, account.phone.national))
+    if (
+      !isValidNational(
+        (getCountryByCode(account.phone.countryCode) ?? getDefaultCountry()).calling_code,
+        account.phone.national,
+      )
+    )
       next.phone = "Enter a valid phone number for the selected country";
     const pw = strongPassword.safeParse(account.password);
     if (!pw.success) next.password = pw.error.issues[0].message;
@@ -317,7 +323,10 @@ function BusinessSignupPage() {
     setBusyLabel("Creating your account…");
     try {
       const email = account.email.trim().toLowerCase();
-      const phoneE164 = toE164(countryByCode(account.phone.countryCode).dial, account.phone.national);
+      const phoneE164 = toE164(
+        (getCountryByCode(account.phone.countryCode) ?? getDefaultCountry()).calling_code,
+        account.phone.national,
+      );
       const check = await checkSignupPassword({
         data: { password: account.password, accountType: "privileged" },
       });
@@ -736,13 +745,13 @@ function BusinessSignupPage() {
                       className={inputClass}
                       value={b.countryCode}
                       onChange={(e) => {
-                        const c = countryByCode(e.target.value);
-                        setB((prev) => ({ ...prev, countryCode: c.code, country: c.name, city: "" }));
+                        const c = getCountryByCode(e.target.value) ?? getDefaultCountry();
+                        setB((prev) => ({ ...prev, countryCode: c.iso_code, country: c.name, city: "" }));
                       }}
                     >
-                      {COUNTRIES.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.flag} {c.name} · {c.currency}
+                      {(countries.data ?? []).map((c) => (
+                        <option key={c.iso_code} value={c.iso_code}>
+                          {c.flag} {c.name} · {c.currency_code}
                         </option>
                       ))}
                     </select>

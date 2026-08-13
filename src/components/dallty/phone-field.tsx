@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Phone } from "lucide-react";
 
-import { COUNTRIES, countryByCode } from "@/lib/countries";
+import { useCountries, getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import { digitsOnly, isValidNational, nationalPhoneError, toE164 } from "@/lib/phone";
 import { telHref } from "@/lib/phone";
 
@@ -27,10 +27,14 @@ export function PhoneField({
   dir?: "ltr" | "rtl";
   disabled?: boolean;
 }) {
-  const country = countryByCode(value.countryCode);
-  const e164 = useMemo(() => toE164(country.dial, value.national), [country.dial, value.national]);
-  const invalid = value.national.length > 0 && !isValidNational(country.dial, value.national);
-  const errorMessage = invalid ? nationalPhoneError(country.dial, value.national) : null;
+  const countries = useCountries();
+  const country = getCountryByCode(value.countryCode) ?? getDefaultCountry();
+  const e164 = useMemo(
+    () => toE164(country.calling_code, value.national),
+    [country.calling_code, value.national],
+  );
+  const invalid = value.national.length > 0 && !isValidNational(country.calling_code, value.national);
+  const errorMessage = invalid ? nationalPhoneError(country.calling_code, value.national) : null;
 
   return (
     <div>
@@ -41,14 +45,14 @@ export function PhoneField({
       <div className="flex gap-2" dir="ltr">
         <select
           aria-label="Country code"
-          value={country.code}
+          value={country.iso_code}
           onChange={(e) => onChange({ ...value, countryCode: e.target.value })}
           disabled={disabled}
           className="min-h-12 shrink-0 rounded-2xl bg-card/70 px-3 text-base font-semibold outline-none ring-ring focus:ring-2 disabled:opacity-60"
         >
-          {COUNTRIES.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.flag} {c.dial}
+          {(countries.data ?? [country]).map((c) => (
+            <option key={c.iso_code} value={c.iso_code}>
+              {c.flag} {c.calling_code}
             </option>
           ))}
         </select>

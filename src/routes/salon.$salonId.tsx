@@ -31,7 +31,7 @@ import {
 } from "@/components/dallty/availability-calendar";
 import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-field";
 import { guessCountryCode, isValidE164, splitE164, toE164 } from "@/lib/phone";
-import { countryByCode } from "@/lib/countries";
+import { getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import {
   checkEmailHasAccount,
   createGuestBooking,
@@ -457,7 +457,7 @@ function BookingFlow() {
     }
   }, [profileQuery.isSuccess, profileQuery.data]);
 
-  const phoneE164 = toE164(countryByCode(phone.countryCode).dial, phone.national);
+  const phoneE164 = toE164((getCountryByCode(phone.countryCode) ?? getDefaultCountry()).calling_code, phone.national);
   const phoneReady = !needsPhone || isValidE164(phoneE164);
 
   // Guest checkout — asked for on step 4 only when signed out. Kept separate
@@ -473,7 +473,7 @@ function BookingFlow() {
     email: "",
   });
   const guestPhoneE164 = toE164(
-    countryByCode(guestInfo.phone.countryCode).dial,
+    (getCountryByCode(guestInfo.phone.countryCode) ?? getDefaultCountry()).calling_code,
     guestInfo.phone.national,
   );
   const guestInfoReady = guestInfo.name.trim().length > 0 && isValidE164(guestPhoneE164);

@@ -9,7 +9,7 @@ import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password
 import { checkPhoneHasAccount, checkSignupPassword } from "@/lib/account.functions";
 import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-field";
 import { guessCountryCode, isValidNational, toE164 } from "@/lib/phone";
-import { countryByCode } from "@/lib/countries";
+import { getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import { saveNextPath } from "@/lib/next-path";
 import { lovable } from "@/integrations/lovable/index";
 import { setRememberMe } from "@/lib/session";
@@ -188,7 +188,7 @@ function AuthPage() {
       toast.error(parsed.error.issues[0].message);
       return;
     }
-    const contactDial = countryByCode(contactPhone.countryCode).dial;
+    const contactDial = (getCountryByCode(contactPhone.countryCode) ?? getDefaultCountry()).calling_code;
     const contactE164 = toE164(contactDial, contactPhone.national);
     if (mode === "signup" && !isValidNational(contactDial, contactPhone.national)) {
       toast.error(t.phoneInvalid);

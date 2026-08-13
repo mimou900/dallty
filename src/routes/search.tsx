@@ -28,7 +28,7 @@ import { useUserLocation, haversineKm } from "@/hooks/use-user-location";
 import { getTravelTimes } from "@/lib/geo.functions";
 import type { TravelInfo } from "@/components/dallty/salon-card";
 import { useLocale } from "@/lib/i18n";
-import { COUNTRIES } from "@/lib/countries";
+import { useCountries } from "@/lib/reference-data";
 import { citiesFor, provincesFor } from "@/lib/arab-cities";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
 
@@ -88,6 +88,7 @@ function SearchPage() {
   const { data: liveSalons, isLoading } = useLiveSalons();
   const geo = useUserLocation();
   const fetchTravel = useServerFn(getTravelTimes);
+  const countries = useCountries();
 
   function update(patch: Partial<SearchParams>) {
     void navigate({ search: (prev: SearchParams) => ({ ...prev, ...patch }), replace: true });
@@ -95,8 +96,8 @@ function SearchPage() {
 
   const countryOptions = useMemo(() => {
     const codes = new Set((liveSalons ?? []).map((s) => s.countryCode).filter(Boolean));
-    return COUNTRIES.filter((c) => codes.has(c.code));
-  }, [liveSalons]);
+    return (countries.data ?? []).filter((c) => codes.has(c.iso_code));
+  }, [liveSalons, countries.data]);
 
   const stateOptions = useMemo(() => {
     const listed = [
@@ -199,7 +200,7 @@ function SearchPage() {
     params.country
       ? {
           key: "country",
-          label: countryOptions.find((c) => c.code === params.country)?.name ?? params.country,
+          label: countryOptions.find((c) => c.iso_code === params.country)?.name ?? params.country,
           clear: { country: "", state: "", city: "" },
         }
       : null,
@@ -309,8 +310,8 @@ function SearchPage() {
               >
                 <option value="">{en ? "All countries" : "كل الدول"}</option>
                 {countryOptions.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.flag} {en ? c.name : c.nameAr}
+                  <option key={c.iso_code} value={c.iso_code}>
+                    {c.flag} {en ? c.name : c.name_ar}
                   </option>
                 ))}
               </SelectField>
