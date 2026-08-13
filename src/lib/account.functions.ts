@@ -69,18 +69,8 @@ export const checkEmailHasAccount = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const target = data.email.toLowerCase();
-    for (let page = 1; page <= 10; page++) {
-      const { data: list, error } = await supabaseAdmin.auth.admin.listUsers({
-        page,
-        perPage: 200,
-      });
-      if (error) throw new Error(error.message);
-      const users = list?.users ?? [];
-      if (users.some((u) => u.email?.toLowerCase() === target)) return { exists: true };
-      if (users.length < 200) break;
-    }
-    return { exists: false };
+    const { emailExists } = await import("@/lib/account.server");
+    return { exists: await emailExists(supabaseAdmin, data.email) };
   });
 
 /**
@@ -102,6 +92,236 @@ export const checkPhoneHasAccount = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     return { exists: Boolean(row) };
+  });
+
+/** Checks the signed-in user's current password. Gates the change-password and change-phone flows. */
+export const verifyCurrentPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { password: string }) =>
+    z.object({ password: z.string().min(1).max(200) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { verifyPassword } = await import("@/lib/account.server");
+
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    const email = authUser?.user?.email;
+    if (!email) throw new Error("Could not verify — no email on this account");
+
+    return { valid: await verifyPassword(email, data.password) };
+  });
+
+/**
+ * Step 1 of the change-email flow: rejects a duplicate target, then sends an
+ * OTP to the *new* address to confirm ownership before anything changes.
+ */
+export const requestEmailChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { newEmail: string }) =>
+    z.object({ newEmail: z.string().trim().email().max(255) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { emailExists } = await import("@/lib/account.server");
+    const { sendOtpCode } = await import("@/lib/otp.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+
+    const newEmail = data.newEmail.toLowerCase();
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (authUser?.user?.email?.toLowerCase() === newEmail) {
+      throw new Error("That's already your current email");
+    }
+    if (await emailExists(supabaseAdmin, newEmail)) {
+      throw new Error("This email is already registered to another account");
+    }
+
+    const userAgent = getRequest()?.headers.get("user-agent") ?? null;
+    return sendOtpCode(supabaseAdmin, {
+      userId: context.userId,
+      purpose: "change_email",
+      target: newEmail,
+      userAgent,
+    });
+  });
+
+/**
+ * Step 2 of the change-email flow: verifies the code, then applies the
+ * change using the OTP row's own stored target — never a client-resupplied
+ * value, so a stale or tampered client can't redirect the change elsewhere.
+ * Notifies the *old* address afterward.
+ */
+export const confirmEmailChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { code: string }) =>
+    z
+      .object({
+        code: z
+          .string()
+          .trim()
+          .regex(/^\d{6}$/, "Enter the 6-digit code"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { verifyOtpCode } = await import("@/lib/otp.server");
+    const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
+
+    const result = await verifyOtpCode(supabaseAdmin, {
+      userId: context.userId,
+      purpose: "change_email",
+      code: data.code,
+    });
+    if (!result.target) throw new Error("No email change is pending — start over");
+
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    const oldEmail = authUser?.user?.email ?? null;
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+      email: result.target,
+      email_confirm: true,
+    });
+    if (error) throw new Error(error.message);
+
+    if (oldEmail) {
+      await sendTemplateEmail("account-change-notice", oldEmail, {
+        templateData: { change: "email", detail: `New email: ${result.target}` },
+        idempotencyKey: `email-changed-${context.userId}-${Date.now()}`,
+      }).catch(() => {});
+    }
+
+    return { ok: true, newEmail: result.target };
+  });
+
+/**
+ * Step 1 of the authenticated change-password flow (distinct from
+ * `changeMyPassword`, which powers the forgot-password recovery-link flow
+ * and has no current password to check). Validates the current password,
+ * the new policy, and reuse-prevention before sending an OTP.
+ */
+export const requestPasswordChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { currentPassword: string; newPassword: string }) =>
+    z
+      .object({
+        currentPassword: z.string().min(1).max(200),
+        newPassword: z.string().min(1).max(200),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { verifyPassword } = await import("@/lib/account.server");
+    const { sendOtpCode } = await import("@/lib/otp.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    const email = authUser?.user?.email;
+    if (!email) throw new Error("Could not verify — no email on this account");
+
+    if (!(await verifyPassword(email, data.currentPassword))) {
+      throw new Error("Current password is incorrect");
+    }
+
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const policy = policyForRoles((roleRows ?? []).map((r) => r.role as string));
+    const result = validatePassword(data.newPassword, policy);
+    if (!result.valid) throw new Error(result.errors[0] ?? "Password does not meet requirements");
+
+    if (await verifyPassword(email, data.newPassword)) {
+      throw new Error("New password must be different from your current password");
+    }
+
+    const userAgent = getRequest()?.headers.get("user-agent") ?? null;
+    return sendOtpCode(supabaseAdmin, {
+      userId: context.userId,
+      purpose: "change_password",
+      userAgent,
+    });
+  });
+
+/**
+ * Step 2 of the authenticated change-password flow: re-validates everything
+ * (defense in depth — time has passed since step 1) and applies the change
+ * on success. Does not sign out other sessions itself — the client does
+ * that immediately after via `supabase.auth.signOut({ scope: "others" })`,
+ * since only the calling session's own client can operate on its own
+ * refresh-token family.
+ */
+export const confirmPasswordChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { code: string; newPassword: string }) =>
+    z
+      .object({
+        code: z
+          .string()
+          .trim()
+          .regex(/^\d{6}$/, "Enter the 6-digit code"),
+        newPassword: z.string().min(1).max(200),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { verifyOtpCode } = await import("@/lib/otp.server");
+    const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
+
+    await verifyOtpCode(supabaseAdmin, {
+      userId: context.userId,
+      purpose: "change_password",
+      code: data.code,
+    });
+
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const policy = policyForRoles((roleRows ?? []).map((r) => r.role as string));
+    const result = validatePassword(data.newPassword, policy);
+    if (!result.valid) throw new Error(result.errors[0] ?? "Password does not meet requirements");
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+      password: data.newPassword,
+    });
+    if (error) throw new Error(error.message);
+
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (authUser?.user?.email) {
+      await sendTemplateEmail("account-change-notice", authUser.user.email, {
+        templateData: { change: "password" },
+        idempotencyKey: `password-changed-${context.userId}-${Date.now()}`,
+      }).catch(() => {});
+    }
+
+    return { ok: true };
+  });
+
+/**
+ * Sends the change-confirmation email for a phone number change. Called by
+ * the client immediately after Supabase's native SMS-OTP phone-change flow
+ * succeeds (`updateUser({phone})` + `verifyOtp({type:'phone_change'})`),
+ * which has no server-side hook of its own to trigger this from.
+ */
+export const notifyPhoneChanged = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { newPhone: string }) =>
+    z.object({ newPhone: z.string().trim().min(8).max(20) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
+
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (authUser?.user?.email) {
+      await sendTemplateEmail("account-change-notice", authUser.user.email, {
+        templateData: { change: "phone", detail: `New phone: ${data.newPhone}` },
+        idempotencyKey: `phone-changed-${context.userId}-${Date.now()}`,
+      }).catch(() => {});
+    }
+    return { ok: true };
   });
 
 /**

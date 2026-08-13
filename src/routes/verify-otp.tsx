@@ -10,12 +10,7 @@ import { requestOtp, verifyOtp } from "@/lib/otp.functions";
 import { clearOtpPending, isOtpPending } from "@/lib/session";
 import { resolveLandingForSession } from "@/lib/post-login";
 import { LogoMark } from "@/components/dallty/logo";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSeparator,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { OtpCodeInput } from "@/components/dallty/otp-code-input";
 
 const searchSchema = z.object({
   next: z.string().optional(),
@@ -141,20 +136,8 @@ function VerifyOtpPage() {
           Enter the 6-digit code we emailed you to finish signing in.
         </p>
 
-        <div className="mt-8 flex justify-center">
-          <InputOTP maxLength={6} value={code} onChange={setCode} disabled={busy || expired}>
-            <InputOTPGroup>
-              <InputOTPSlot index={0} />
-              <InputOTPSlot index={1} />
-              <InputOTPSlot index={2} />
-            </InputOTPGroup>
-            <InputOTPSeparator />
-            <InputOTPGroup>
-              <InputOTPSlot index={3} />
-              <InputOTPSlot index={4} />
-              <InputOTPSlot index={5} />
-            </InputOTPGroup>
-          </InputOTP>
+        <div className="mt-8">
+          <OtpCodeInput value={code} onChange={setCode} disabled={busy || expired} />
         </div>
 
         <p className="mt-4 text-center text-sm text-muted-foreground">

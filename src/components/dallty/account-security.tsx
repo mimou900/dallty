@@ -7,6 +7,7 @@ import {
   BadgeCheck,
   Loader2,
   LogOut,
+  Mail,
   MonitorSmartphone,
   ShieldAlert,
   ShieldCheck,
@@ -15,8 +16,18 @@ import {
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { changeMyPassword, deleteMyAccount } from "@/lib/account.functions";
+import {
+  checkPhoneHasAccount,
+  confirmEmailChange,
+  confirmPasswordChange,
+  deleteMyAccount,
+  notifyPhoneChanged,
+  requestEmailChange,
+  requestPasswordChange,
+  verifyCurrentPassword,
+} from "@/lib/account.functions";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
+import { OtpCodeInput } from "@/components/dallty/otp-code-input";
 import { policyForRoles } from "@/lib/password-policy";
 import { isValidE164 } from "@/lib/phone";
 
@@ -33,13 +44,32 @@ export function AccountSecurity() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const removeAccount = useServerFn(deleteMyAccount);
-  const updatePassword = useServerFn(changeMyPassword);
+  const checkPassword = useServerFn(verifyCurrentPassword);
+  const startEmailChange = useServerFn(requestEmailChange);
+  const finishEmailChange = useServerFn(confirmEmailChange);
+  const startPasswordChange = useServerFn(requestPasswordChange);
+  const finishPasswordChange = useServerFn(confirmPasswordChange);
+  const checkPhone = useServerFn(checkPhoneHasAccount);
+  const announcePhoneChanged = useServerFn(notifyPhoneChanged);
 
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  // Change email
+  const [newEmail, setNewEmail] = useState("");
+  const [emailOtpPending, setEmailOtpPending] = useState(false);
+  const [emailCode, setEmailCode] = useState("");
+
+  // Change password
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordOtpPending, setPasswordOtpPending] = useState(false);
+  const [passwordCode, setPasswordCode] = useState("");
+
+  // Change phone
+  const [phonePassword, setPhonePassword] = useState("");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState("");
 
@@ -47,19 +77,76 @@ export function AccountSecurity() {
   const phoneVerified = Boolean(user?.phone_confirmed_at);
   const providers = (user?.app_metadata?.providers as string[] | undefined) ?? [];
 
-  async function changePassword(e: React.FormEvent) {
+  async function requestEmail(e: React.FormEvent) {
     e.preventDefault();
-    if (!isPasswordStrong(password, passwordPolicy))
-      return toast.error("Password does not meet the requirements");
-    if (password !== confirm) return toast.error("Passwords do not match");
-    setBusy("password");
+    const trimmed = newEmail.trim().toLowerCase();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      return toast.error("Enter a valid email address");
+    }
+    setBusy("email-request");
     try {
-      await updatePassword({ data: { password } });
-      setPassword("");
-      setConfirm("");
-      toast.success("Password changed");
+      await startEmailChange({ data: { newEmail: trimmed } });
+      setEmailOtpPending(true);
+      toast.success("Code sent to your new email");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not change password");
+      toast.error(err instanceof Error ? err.message : "Could not start email change");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function confirmEmail() {
+    if (emailCode.length !== 6) return;
+    setBusy("email-confirm");
+    try {
+      await finishEmailChange({ data: { code: emailCode } });
+      await supabase.auth.refreshSession();
+      setEmailOtpPending(false);
+      setEmailCode("");
+      setNewEmail("");
+      toast.success("Email address updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not verify code");
+      setEmailCode("");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function requestPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentPassword) return toast.error("Enter your current password");
+    if (!isPasswordStrong(newPassword, passwordPolicy)) {
+      return toast.error("New password does not meet the requirements");
+    }
+    if (newPassword !== confirmNewPassword) return toast.error("Passwords do not match");
+    setBusy("password-request");
+    try {
+      await startPasswordChange({ data: { currentPassword, newPassword } });
+      setPasswordOtpPending(true);
+      toast.success("Code sent to your email");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not start password change");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function confirmPassword() {
+    if (passwordCode.length !== 6) return;
+    setBusy("password-confirm");
+    try {
+      await finishPasswordChange({ data: { code: passwordCode, newPassword } });
+      await supabase.auth.signOut({ scope: "others" });
+      setPasswordOtpPending(false);
+      setPasswordCode("");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      toast.success("Password changed — other devices signed out");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not verify code");
+      setPasswordCode("");
     } finally {
       setBusy(null);
     }
@@ -67,7 +154,7 @@ export function AccountSecurity() {
 
   async function resendEmailVerification() {
     if (!user?.email) return;
-    setBusy("email");
+    setBusy("verify-email");
     try {
       const { error } = await supabase.auth.resend({
         type: "signup",
@@ -84,11 +171,20 @@ export function AccountSecurity() {
   }
 
   async function sendPhoneCode() {
+    if (!phonePassword) return toast.error("Enter your current password");
     if (!isValidE164(phone.trim())) {
       return toast.error("Use international format, e.g. +9715xxxxxxx");
     }
     setBusy("phone");
     try {
+      const { valid } = await checkPassword({ data: { password: phonePassword } });
+      if (!valid) throw new Error("Current password is incorrect");
+
+      if (phone.trim() !== user?.phone) {
+        const { exists } = await checkPhone({ data: { phone: phone.trim() } });
+        if (exists) throw new Error("This phone number is already registered to another account");
+      }
+
       const { error } = await supabase.auth.updateUser({ phone: phone.trim() });
       if (error) throw error;
       setOtpSent(true);
@@ -111,8 +207,10 @@ export function AccountSecurity() {
       if (error) throw error;
       await supabase.from("profiles").update({ phone: phone.trim() }).eq("id", user!.id);
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      announcePhoneChanged({ data: { newPhone: phone.trim() } }).catch(() => {});
       setOtpSent(false);
       setOtp("");
+      setPhonePassword("");
       toast.success("Phone verified");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not verify code");
@@ -187,7 +285,7 @@ export function AccountSecurity() {
               <button
                 type="button"
                 onClick={resendEmailVerification}
-                disabled={busy === "email"}
+                disabled={busy === "verify-email"}
                 className="press shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60"
               >
                 Resend
@@ -211,27 +309,31 @@ export function AccountSecurity() {
             </div>
             <div className="mt-3 space-y-2">
               <input
+                type="password"
+                value={phonePassword}
+                onChange={(e) => setPhonePassword(e.target.value)}
+                placeholder="Current password"
+                aria-label="Current password"
+                autoComplete="current-password"
+                disabled={otpSent}
+                className={`${inputClass} disabled:opacity-60`}
+              />
+              <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+9715xxxxxxx"
                 aria-label="Phone number"
-                className={inputClass}
+                disabled={otpSent}
+                className={`${inputClass} disabled:opacity-60`}
               />
               {otpSent && (
-                <input
-                  inputMode="numeric"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="6-digit code"
-                  aria-label="Verification code"
-                  className={`${inputClass} tracking-[0.4em]`}
-                />
+                <OtpCodeInput value={otp} onChange={setOtp} disabled={busy === "phone"} />
               )}
               <button
                 type="button"
                 onClick={otpSent ? verifyPhoneCode : sendPhoneCode}
-                disabled={busy === "phone"}
+                disabled={busy === "phone" || (otpSent && otp.length !== 6)}
                 className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
               >
                 {busy === "phone" && <Loader2 className="size-4 animate-spin" />}
@@ -242,60 +344,164 @@ export function AccountSecurity() {
         </div>
       </section>
 
+      {/* Change email */}
+      <section className="rounded-3xl glass p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+          <Mail className="size-4" /> Change email
+        </h2>
+        {emailOtpPending ? (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Enter the code we sent to <span className="font-semibold">{newEmail}</span>.
+            </p>
+            <OtpCodeInput
+              value={emailCode}
+              onChange={setEmailCode}
+              disabled={busy === "email-confirm"}
+            />
+            <button
+              type="button"
+              onClick={confirmEmail}
+              disabled={busy === "email-confirm" || emailCode.length !== 6}
+              className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {busy === "email-confirm" && <Loader2 className="size-4 animate-spin" />}
+              Confirm new email
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmailOtpPending(false);
+                setEmailCode("");
+              }}
+              className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+            >
+              Use a different email
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={requestEmail} className="mt-4 space-y-3">
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="New email address"
+              aria-label="New email address"
+              autoComplete="email"
+              className={inputClass}
+            />
+            <button
+              type="submit"
+              disabled={busy === "email-request"}
+              className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {busy === "email-request" && <Loader2 className="size-4 animate-spin" />}
+              Send confirmation code
+            </button>
+          </form>
+        )}
+      </section>
+
       {/* Password */}
       <section className="rounded-3xl glass p-5">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
           Change password
         </h2>
-        <form onSubmit={changePassword} className="mt-4 space-y-3">
-          {/* Hidden username helps password managers save the updated credential */}
-          <input
-            type="email"
-            name="username"
-            autoComplete="username"
-            value={user?.email ?? ""}
-            readOnly
-            hidden
-            aria-hidden
-            tabIndex={-1}
-          />
-          <input
-            id="account-new-password"
-            name="new-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="New password"
-            aria-label="New password"
-            autoComplete="new-password"
-            className={inputClass}
-          />
-          <PasswordStrength value={password} policy={passwordPolicy} />
-          <input
-            id="account-confirm-password"
-            name="confirm-new-password"
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Confirm new password"
-            aria-label="Confirm new password"
-            autoComplete="new-password"
-            className={inputClass}
-          />
-          <button
-            type="submit"
-            disabled={busy === "password" || !isPasswordStrong(password, passwordPolicy)}
-            className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
-          >
-
-            {busy === "password" ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <ShieldCheck className="size-4" />
-            )}
-            Update password
-          </button>
-        </form>
+        {passwordOtpPending ? (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Enter the code we sent to your email to finish changing your password.
+            </p>
+            <OtpCodeInput
+              value={passwordCode}
+              onChange={setPasswordCode}
+              disabled={busy === "password-confirm"}
+            />
+            <button
+              type="button"
+              onClick={confirmPassword}
+              disabled={busy === "password-confirm" || passwordCode.length !== 6}
+              className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {busy === "password-confirm" && <Loader2 className="size-4 animate-spin" />}
+              Confirm password change
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPasswordOtpPending(false);
+                setPasswordCode("");
+              }}
+              className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={requestPassword} className="mt-4 space-y-3">
+            {/* Hidden username helps password managers save the updated credential */}
+            <input
+              type="email"
+              name="username"
+              autoComplete="username"
+              value={user?.email ?? ""}
+              readOnly
+              hidden
+              aria-hidden
+              tabIndex={-1}
+            />
+            <input
+              id="account-current-password"
+              name="current-password"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Current password"
+              aria-label="Current password"
+              autoComplete="current-password"
+              className={inputClass}
+            />
+            <input
+              id="account-new-password"
+              name="new-password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New password"
+              aria-label="New password"
+              autoComplete="new-password"
+              className={inputClass}
+            />
+            <PasswordStrength value={newPassword} policy={passwordPolicy} />
+            <input
+              id="account-confirm-password"
+              name="confirm-new-password"
+              type="password"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              placeholder="Confirm new password"
+              aria-label="Confirm new password"
+              autoComplete="new-password"
+              className={inputClass}
+            />
+            <button
+              type="submit"
+              disabled={
+                busy === "password-request" ||
+                !currentPassword ||
+                !isPasswordStrong(newPassword, passwordPolicy)
+              }
+              className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {busy === "password-request" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="size-4" />
+              )}
+              Update password
+            </button>
+          </form>
+        )}
       </section>
 
       {/* Sessions and devices */}
