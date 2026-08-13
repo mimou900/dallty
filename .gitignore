@@ -25,6 +25,10 @@ dist-ssr
 .env.*
 !.env.example
 
+# Scratch output from scripts/generate-*-seed.mjs -- review before turning
+# into a real migration, never auto-committed.
+scripts/output/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
