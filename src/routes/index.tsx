@@ -61,7 +61,7 @@ type LiveBusiness = Business & {
 };
 
 function Index() {
-  const { lang, t, toggleLang } = useLocale();
+  const { lang, t } = useLocale();
   const { user, roles } = useAuth();
   const home = landingForRoles(roles);
   const isManager = home !== "/bookings";
@@ -209,7 +209,7 @@ function Index() {
         <div className="absolute bottom-0 start-1/3 size-[28rem] rounded-full bg-sky/10 blur-3xl" />
       </div>
 
-      <SiteHeader lang={lang} onToggleLang={toggleLang} />
+      <SiteHeader lang={lang} />
 
       <main className="mx-auto max-w-6xl px-4 pb-32 md:pb-24">
         {/* Hero */}

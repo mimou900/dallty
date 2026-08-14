@@ -4,18 +4,41 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { useRouterState } from "@tanstack/react-router";
+import { arDZ, enUS, fr } from "date-fns/locale";
 
 import { copy, type Lang } from "@/lib/dallty-content";
+import { preloadNamespaces } from "@/lib/i18n/loader";
+import type { ActiveNamespace } from "@/lib/i18n/namespaces";
 
 export type { Lang };
 
 export const LANGUAGES = [
-  { code: "en" as const, label: "English", native: "English", dir: "ltr" as const },
-  { code: "ar" as const, label: "Arabic", native: "العربية", dir: "rtl" as const },
+  {
+    code: "en" as const,
+    label: "English",
+    native: "English",
+    dir: "ltr" as const,
+    dateFnsLocale: enUS,
+  },
+  {
+    code: "fr" as const,
+    label: "French",
+    native: "Français",
+    dir: "ltr" as const,
+    dateFnsLocale: fr,
+  },
+  {
+    code: "ar" as const,
+    label: "Arabic",
+    native: "العربية",
+    dir: "rtl" as const,
+    dateFnsLocale: arDZ,
+  },
 ];
 
 export const DEFAULT_LANG: Lang = "en";
@@ -23,11 +46,15 @@ const STORAGE_KEY = "dallty.lang";
 const COOKIE_KEY = "dallty_lang";
 
 export function isLang(value: unknown): value is Lang {
-  return value === "en" || value === "ar";
+  return value === "en" || value === "fr" || value === "ar";
 }
 
-export function dirFor(lang: Lang) {
-  return lang === "ar" ? ("rtl" as const) : ("ltr" as const);
+export function dirFor(lang: Lang): "ltr" | "rtl" {
+  return LANGUAGES.find((l) => l.code === lang)?.dir ?? "ltr";
+}
+
+export function dateFnsLocaleFor(lang: Lang) {
+  return LANGUAGES.find((l) => l.code === lang)?.dateFnsLocale ?? enUS;
 }
 
 /** Locale-specific URL for a path — used for canonical + hreflang alternates. */
@@ -64,6 +91,7 @@ function detectBrowserLang(): Lang {
   for (const raw of candidates) {
     const code = (raw || "").toLowerCase();
     if (code.startsWith("ar")) return "ar";
+    if (code.startsWith("fr")) return "fr";
     if (code.startsWith("en")) return "en";
   }
   return DEFAULT_LANG;
@@ -82,13 +110,23 @@ type LocaleValue = {
   lang: Lang;
   dir: "ltr" | "rtl";
   isRtl: boolean;
-  isArabic: boolean;
-  /** Existing bilingual copy dictionary for the active language. */
-  t: (typeof copy)[Lang];
-  /** Inline helper: pick(englishText, arabicText). */
+  /**
+   * Existing bilingual copy dictionary for the active language — retired
+   * incrementally as files migrate to useTranslation(); still consumed by
+   * index.tsx/search.tsx until that migration lands.
+   */
+  t: (typeof copy)["en" | "ar"];
+  /**
+   * Inline helper: pick(englishText, arabicText) — retired incrementally;
+   * still consumed by bookings.tsx/admin/appointments.tsx/admin/my-appointments.tsx
+   * until that migration lands.
+   */
   pick: <T>(en: T, ar: T) => T;
-  setLang: (next: Lang) => void;
+  setLang: (next: Lang) => Promise<void>;
+  /** Retired incrementally; still consumed by admin-shell.tsx until it migrates. */
   toggleLang: () => void;
+  /** Registers namespaces the active route/component needs, so a language switch re-preloads them before committing. */
+  registerNamespaces: (namespaces: ActiveNamespace[]) => void;
 };
 
 const LocaleContext = createContext<LocaleValue | null>(null);
@@ -118,6 +156,11 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     setPreferred(readStored() ?? detectBrowserLang());
   }, [location.urlLang]);
 
+  // "common" is chrome shared by nearly every screen — always warm.
+  useEffect(() => {
+    void preloadNamespaces(lang, ["common"]);
+  }, [lang]);
+
   // Keep the document in sync so RTL, fonts and screen readers follow along.
   useEffect(() => {
     const el = document.documentElement;
@@ -125,31 +168,39 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     el.dir = dirFor(lang);
   }, [lang]);
 
-  const setLang = useCallback(
-    (next: Lang) => {
-      persist(next);
-      setPreferred(next);
-      window.history.replaceState(
-        window.history.state,
-        "",
-        localizedPath(window.location.pathname, next, window.location.search),
-      );
-    },
-    [],
-  );
+  const activeNamespacesRef = useRef<Set<ActiveNamespace>>(new Set());
+
+  const registerNamespaces = useCallback((namespaces: ActiveNamespace[]) => {
+    for (const ns of namespaces) activeNamespacesRef.current.add(ns);
+  }, []);
+
+  const setLang = useCallback(async (next: Lang) => {
+    await preloadNamespaces(next, Array.from(activeNamespacesRef.current));
+    persist(next);
+    setPreferred(next);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      localizedPath(window.location.pathname, next, window.location.search),
+    );
+  }, []);
 
   const value = useMemo<LocaleValue>(
     () => ({
       lang,
       dir: dirFor(lang),
-      isRtl: lang === "ar",
-      isArabic: lang === "ar",
-      t: copy[lang],
+      isRtl: dirFor(lang) === "rtl",
+      t: copy[lang === "fr" ? "en" : lang],
       pick: <T,>(en: T, ar: T) => (lang === "ar" ? ar : en),
       setLang,
-      toggleLang: () => setLang(lang === "ar" ? "en" : "ar"),
+      toggleLang: () => {
+        const order: Lang[] = ["en", "fr", "ar"];
+        const next = order[(order.indexOf(lang) + 1) % order.length];
+        void setLang(next);
+      },
+      registerNamespaces,
     }),
-    [lang, setLang],
+    [lang, setLang, registerNamespaces],
   );
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
@@ -163,10 +214,10 @@ export function useLocale(): LocaleValue {
     lang: DEFAULT_LANG,
     dir: "ltr",
     isRtl: false,
-    isArabic: false,
-    t: copy[DEFAULT_LANG],
+    t: copy.en,
     pick: <T,>(en: T) => en,
-    setLang: () => {},
+    setLang: async () => {},
     toggleLang: () => {},
+    registerNamespaces: () => {},
   };
 }

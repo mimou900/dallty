@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { useLocale } from "@/lib/i18n";
-import { getCachedNamespace } from "./loader";
+import { getCachedNamespace, getCacheVersion, subscribeToCache } from "./loader";
 import type { ActiveNamespace } from "./namespaces";
 import type { NamespaceKeyMap } from "./keys.gen";
 
@@ -20,17 +20,22 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
 }
 
 export function useTranslation<N extends ActiveNamespace>(namespace: N | N[]) {
-  const { lang } = useLocale();
+  const { lang, registerNamespaces } = useLocale();
   const namespaces = Array.isArray(namespace) ? namespace : [namespace];
 
-  const dicts = useMemo(
-    () => namespaces.map((ns) => ({ ns, dict: getCachedNamespace(lang, ns) })),
+  useEffect(() => {
+    registerNamespaces(namespaces);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lang, namespaces.join(",")],
-  );
+  }, [namespaces.join(",")]);
+
+  // Re-renders once a namespace this component needs finishes loading after
+  // first mount — without this, a component mounted before its preload
+  // resolves would show raw keys forever.
+  useSyncExternalStore(subscribeToCache, getCacheVersion, getCacheVersion);
 
   function t(key: NamespaceKeyMap[N], vars?: Record<string, string | number>): string {
-    for (const { dict } of dicts) {
+    for (const ns of namespaces) {
+      const dict = getCachedNamespace(lang, ns);
       if (!dict) continue;
       const value = getPath(dict, key as string);
       if (typeof value === "string") return interpolate(value, vars);

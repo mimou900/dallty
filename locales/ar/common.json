@@ -1,1 +1,31 @@
-{}
+{
+  "brand": "دلّتي",
+  "tagline": "اكتشف. احجز. واستمتع.",
+  "sign_in": "تسجيل الدخول",
+  "footer": "© 2026 دلّتي. اكتشف. احجز. واستمتع.",
+  "language": "اللغة",
+  "nav": {
+    "home": "الرئيسية",
+    "search": "بحث",
+    "bookings": "حجوزاتي",
+    "favorites": "المفضلة",
+    "profile": "حسابي"
+  },
+  "menu": {
+    "customers": "للعملاء",
+    "business": "للأعمال",
+    "explore": "استكشف",
+    "search": "بحث",
+    "bookings": "حجوزاتي",
+    "favorites": "المفضلة",
+    "account": "حسابي",
+    "notifications": "الإشعارات",
+    "dashboard": "لوحة التحكم",
+    "list_business": "أضف نشاطك التجاري",
+    "business_sign_in": "دخول أصحاب الأعمال",
+    "staff_sign_in": "دخول الموظفين",
+    "business_dashboard": "لوحة تحكم النشاط",
+    "create_account": "إنشاء حساب",
+    "sign_out": "تسجيل الخروج"
+  }
+}

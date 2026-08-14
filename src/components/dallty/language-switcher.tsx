@@ -1,10 +1,12 @@
 import { Languages } from "lucide-react";
 
-import { LANGUAGES, useLocale } from "@/lib/i18n";
+import { LANGUAGES, useLocale, type Lang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
+const SHORT_LABEL: Record<Lang, string> = { en: "EN", fr: "FR", ar: "ع" };
+
 /**
- * Two-option language switcher (English / العربية).
+ * Language switcher (English / Français / العربية).
  * Writes the choice to the URL (?lang=) so each language is its own indexable page.
  */
 export function LanguageSwitcher({
@@ -64,7 +66,7 @@ export function LanguageSwitcher({
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {l.code === "ar" ? "ع" : "EN"}
+          {SHORT_LABEL[l.code]}
         </button>
       ))}
     </div>

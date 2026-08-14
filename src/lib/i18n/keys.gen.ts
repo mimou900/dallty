@@ -3,7 +3,7 @@ export type NamespaceKeyMap = {
   auth: never;
   booking: never;
   business: never;
-  common: never;
+  common: "brand" | "tagline" | "sign_in" | "footer" | "language" | "nav.home" | "nav.search" | "nav.bookings" | "nav.favorites" | "nav.profile" | "menu.customers" | "menu.business" | "menu.explore" | "menu.search" | "menu.bookings" | "menu.favorites" | "menu.account" | "menu.notifications" | "menu.dashboard" | "menu.list_business" | "menu.business_sign_in" | "menu.staff_sign_in" | "menu.business_dashboard" | "menu.create_account" | "menu.sign_out";
   customer: never;
   errors: never;
   marketplace: never;

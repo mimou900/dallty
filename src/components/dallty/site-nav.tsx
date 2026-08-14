@@ -29,22 +29,47 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { landingForRoles } from "@/lib/post-login";
-import { copy, type Lang } from "@/lib/dallty-content";
-import { useLocale } from "@/lib/i18n";
+import type { Lang } from "@/lib/dallty-content";
+import { dirFor, useLocale } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
+import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { LanguageSwitcher } from "@/components/dallty/language-switcher";
 import { NotificationCenter } from "@/components/dallty/notification-center";
 import { supabase } from "@/integrations/supabase/client";
 
 type NavProps = {
-  /** Optional overrides — by default the shared site language is used. */
+  /** Optional override — by default the shared site language is used. */
   lang?: Lang;
-  onToggleLang?: () => void;
 };
+
+function buildLegacyM(t: (key: NamespaceKeyMap["common"]) => string) {
+  return {
+    open: "Menu",
+    close: "Close menu",
+    customers: t("menu.customers"),
+    business: t("menu.business"),
+    explore: t("menu.explore"),
+    search: t("menu.search"),
+    bookings: t("menu.bookings"),
+    favorites: t("menu.favorites"),
+    account: t("menu.account"),
+    notifications: t("menu.notifications"),
+    dashboard: t("menu.dashboard"),
+    listBusiness: t("menu.list_business"),
+    businessSignIn: t("menu.business_sign_in"),
+    staffSignIn: t("menu.staff_sign_in"),
+    businessDashboard: t("menu.business_dashboard"),
+    createAccount: t("menu.create_account"),
+    signOut: t("menu.sign_out"),
+    language: t("language"),
+  };
+}
 
 /** Customer-first links, always the top priority in every menu. */
 function useNavLinks(lang: Lang) {
   const { user, roles } = useAuth();
-  const m = copy[lang].menu;
+  const { t } = useTranslation("common");
+  const m = buildLegacyM(t);
   const home = landingForRoles(roles);
   const isManager = home !== "/bookings";
 
@@ -62,9 +87,7 @@ function useNavLinks(lang: Lang) {
     { to: "/business/signup" as const, label: m.listBusiness, icon: Store },
     ...(user ? [] : [{ to: "/auth" as const, label: m.businessSignIn, icon: Briefcase }]),
     { to: "/staff/signup" as const, label: m.staffSignIn, icon: Users },
-    ...(isManager
-      ? [{ to: home, label: m.businessDashboard, icon: LayoutDashboard }]
-      : []),
+    ...(isManager ? [{ to: home, label: m.businessDashboard, icon: LayoutDashboard }] : []),
   ];
 
   return { customer, business, user, home, isManager, m };
@@ -84,7 +107,8 @@ export function NavMenu({ lang: langProp }: NavProps) {
   const returnPath = useReturnPath();
   const [open, setOpen] = useState(false);
   const { customer, business, user, home, isManager, m } = useNavLinks(lang);
-  const dir = copy[lang].dir;
+  const { t } = useTranslation("common");
+  const dir = dirFor(lang);
 
   async function signOut() {
     setOpen(false);
@@ -108,7 +132,7 @@ export function NavMenu({ lang: langProp }: NavProps) {
           <SheetHeader className="space-y-0 text-start">
             <SheetTitle className="flex items-center gap-2.5">
               <LogoMark className="size-9 shrink-0" />
-              <span className="truncate text-lg font-extrabold">{copy[lang].brand}</span>
+              <span className="truncate text-lg font-extrabold">{t("brand")}</span>
             </SheetTitle>
           </SheetHeader>
 
@@ -127,7 +151,7 @@ export function NavMenu({ lang: langProp }: NavProps) {
             ) : (
               <>
                 <LogIn className="size-4" />
-                {copy[lang].signIn}
+                {t("sign_in")}
               </>
             )}
           </Link>
@@ -184,11 +208,10 @@ export function NavMenu({ lang: langProp }: NavProps) {
             </div>
           )}
 
-
           <div className="mt-auto flex flex-col gap-2 border-t border-border pt-4">
             <div>
               <p className="mb-2 px-1 text-[0.7rem] font-bold uppercase tracking-wide text-muted-foreground">
-                {lang === "ar" ? "اللغة" : "Language"}
+                {t("language")}
               </p>
               <LanguageSwitcher variant="row" />
             </div>
@@ -215,7 +238,7 @@ export function SiteHeader({ lang: langProp }: NavProps) {
   const lang = langProp ?? activeLang;
   const returnPath = useReturnPath();
   const { customer, business, user, home, isManager, m } = useNavLinks(lang);
-  const t = copy[lang];
+  const { t } = useTranslation("common");
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -227,8 +250,12 @@ export function SiteHeader({ lang: langProp }: NavProps) {
         <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <LogoMark className="size-9 shrink-0 sm:size-10" />
           <div className="min-w-0">
-            <p className="truncate text-base font-extrabold leading-tight sm:text-lg">{t.brand}</p>
-            <p className="truncate text-[0.7rem] text-muted-foreground sm:text-xs">{t.tagline}</p>
+            <p className="truncate text-base font-extrabold leading-tight sm:text-lg">
+              {t("brand")}
+            </p>
+            <p className="truncate text-[0.7rem] text-muted-foreground sm:text-xs">
+              {t("tagline")}
+            </p>
           </div>
         </Link>
 
@@ -286,13 +313,20 @@ export function SiteHeader({ lang: langProp }: NavProps) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/favorites" className="font-semibold">{m.favorites}</Link>
+                  <Link to="/favorites" className="font-semibold">
+                    {m.favorites}
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/profile" className="font-semibold">{m.account}</Link>
+                  <Link to="/profile" className="font-semibold">
+                    {m.account}
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => void signOut()} className="font-semibold text-destructive">
+                <DropdownMenuItem
+                  onSelect={() => void signOut()}
+                  className="font-semibold text-destructive"
+                >
                   {m.signOut}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -303,7 +337,7 @@ export function SiteHeader({ lang: langProp }: NavProps) {
               search={{ next: returnPath }}
               className="press flex min-h-11 shrink-0 items-center rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground sm:px-5"
             >
-              {t.signIn}
+              {t("sign_in")}
             </Link>
           )}
 

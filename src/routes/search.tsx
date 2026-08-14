@@ -81,7 +81,7 @@ export const Route = createFileRoute("/search")({
 function SearchPage() {
   const params = Route.useSearch();
   const navigate = useNavigate({ from: "/search" });
-  const { lang, t, toggleLang } = useLocale();
+  const { lang, t } = useLocale();
   const en = lang === "en";
   const [draft, setDraft] = useState(params.q);
   const [showFilters, setShowFilters] = useState(false);
@@ -305,7 +305,7 @@ function SearchPage() {
                 </span>
               ) : null}
             </button>
-            <NavMenu lang={lang} onToggleLang={toggleLang} />
+            <NavMenu lang={lang} />
           </div>
 
           {showFilters ? (

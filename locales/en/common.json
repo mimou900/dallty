@@ -1,1 +1,31 @@
-{}
+{
+  "brand": "Dallty",
+  "tagline": "Find. Book. Relax.",
+  "sign_in": "Sign in",
+  "footer": "© 2026 Dallty. Find. Book. Relax.",
+  "language": "Language",
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "bookings": "Bookings",
+    "favorites": "Favorites",
+    "profile": "Profile"
+  },
+  "menu": {
+    "customers": "For customers",
+    "business": "For business",
+    "explore": "Explore",
+    "search": "Search",
+    "bookings": "My bookings",
+    "favorites": "Favorites",
+    "account": "Account",
+    "notifications": "Notifications",
+    "dashboard": "Dashboard",
+    "list_business": "List your business",
+    "business_sign_in": "Business sign in",
+    "staff_sign_in": "Staff sign in",
+    "business_dashboard": "Business dashboard",
+    "create_account": "Create account",
+    "sign_out": "Sign out"
+  }
+}

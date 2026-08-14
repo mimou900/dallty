@@ -1,1 +1,31 @@
-{}
+{
+  "brand": "Dallty",
+  "tagline": "Trouvez. Réservez. Détendez-vous.",
+  "sign_in": "Se connecter",
+  "footer": "© 2026 Dallty. Trouvez. Réservez. Détendez-vous.",
+  "language": "Langue",
+  "nav": {
+    "home": "Accueil",
+    "search": "Recherche",
+    "bookings": "Réservations",
+    "favorites": "Favoris",
+    "profile": "Profil"
+  },
+  "menu": {
+    "customers": "Pour les clients",
+    "business": "Pour les professionnels",
+    "explore": "Découvrir",
+    "search": "Recherche",
+    "bookings": "Mes réservations",
+    "favorites": "Favoris",
+    "account": "Compte",
+    "notifications": "Notifications",
+    "dashboard": "Tableau de bord",
+    "list_business": "Inscrire votre établissement",
+    "business_sign_in": "Connexion professionnel",
+    "staff_sign_in": "Connexion employé",
+    "business_dashboard": "Tableau de bord professionnel",
+    "create_account": "Créer un compte",
+    "sign_out": "Déconnexion"
+  }
+}

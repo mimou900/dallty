@@ -3,7 +3,7 @@ import barber from "@/assets/salon-barber.jpg";
 import nails from "@/assets/salon-nails.jpg";
 import spa from "@/assets/salon-spa.jpg";
 
-export type Lang = "en" | "ar";
+export type Lang = "en" | "fr" | "ar";
 
 export const categories = [
   { icon: "scissors", en: "Hair", ar: "شعر" },
@@ -142,7 +142,6 @@ export const copy = {
       signOut: "Sign out",
       language: "العربية",
     },
-
   },
   ar: {
     dir: "rtl" as const,
@@ -201,6 +200,5 @@ export const copy = {
       signOut: "تسجيل الخروج",
       language: "English",
     },
-
   },
 };

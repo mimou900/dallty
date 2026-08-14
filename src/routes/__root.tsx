@@ -154,6 +154,11 @@ function RootShell({ children }: { children: ReactNode }) {
         />
         <link
           rel="alternate"
+          hrefLang="fr"
+          href={SITE_URL + localizedPath(pathname, "fr", searchStr)}
+        />
+        <link
+          rel="alternate"
           hrefLang="ar"
           href={SITE_URL + localizedPath(pathname, "ar", searchStr)}
         />

@@ -152,7 +152,8 @@ function AuthPage() {
   const checkOtpRequired = useServerFn(checkLoginOtpRequired);
   const sendLoginOtp = useServerFn(requestOtp);
   const { lang: locale } = useLocale();
-  const t = copy[locale];
+  // TODO(i18n Task 7): migrates to useTranslation("auth"); falls back to English for "fr" until then.
+  const t = copy[locale === "fr" ? "en" : locale];
   const [method, setMethod] = useState<Method>("password");
   const [mode, setMode] = useState<"signin" | "signup">(modeParam ?? "signin");
   const [role, setRole] = useState<(typeof roleOptions)[number]["value"]>("client");

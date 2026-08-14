@@ -20,8 +20,12 @@ export function BusinessCard({
   travel?: TravelInfo;
 }) {
   const [fav, setFav] = useState(false);
-  const t = copy[lang];
-  const s = business[lang];
+  // TODO(i18n Task 6): copy/business fall back to English for "fr" until this
+  // component migrates to useTranslation("marketplace"); the Business type's
+  // per-listing fields are en/ar-only fallback/seed data, out of scope here.
+  const legacyLang = lang === "fr" ? "en" : lang;
+  const t = copy[legacyLang];
+  const s = business[legacyLang];
 
   return (
     <article className="press group overflow-hidden rounded-3xl glass">
