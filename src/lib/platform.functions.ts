@@ -114,7 +114,7 @@ export const listPlatformBusinesses = createServerFn({ method: "POST" })
     const { data, error } = await supabaseAdmin
       .from("businesses")
       .select(
-        "id, name, status, plan, city, country, business_email, business_phone, employee_count, branch_count, trial_ends_at, created_at, owner_id",
+        "id, name, slug, status, plan, city, country, business_email, business_phone, employee_count, branch_count, trial_ends_at, created_at, owner_id",
       )
       .order("created_at", { ascending: false })
       .limit(500);

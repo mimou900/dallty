@@ -7,6 +7,7 @@ import { Building2, Loader2, ShieldAlert } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { listPlatformBusinesses, setBusinessStatus } from "@/lib/platform.functions";
+import { SlugEditDialog } from "@/components/dallty/slug-edit-dialog";
 
 export const Route = createFileRoute("/_authenticated/admin/platform/businesses")({
   head: () => ({
@@ -43,6 +44,7 @@ function PlatformBusinessesPage() {
   const isSuper = hasRole("super_admin");
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("pending");
+  const [slugEditingId, setSlugEditingId] = useState<string | null>(null);
 
   const fetchBusinesses = useServerFn(listPlatformBusinesses);
   const updateStatus = useServerFn(setBusinessStatus);
@@ -157,7 +159,27 @@ function PlatformBusinessesPage() {
                       {s === "pending" ? "Move back to pending" : s}
                     </button>
                   ))}
+                <button
+                  type="button"
+                  onClick={() => setSlugEditingId(b.id)}
+                  className="press flex min-h-10 items-center gap-2 rounded-2xl px-4 text-sm font-bold capitalize glass-soft"
+                >
+                  Edit URL
+                </button>
               </div>
+              {slugEditingId === b.id && (
+                <SlugEditDialog
+                  open
+                  onOpenChange={(open) => !open && setSlugEditingId(null)}
+                  businessId={b.id}
+                  currentSlug={b.slug}
+                  redirectType="admin_correction"
+                  onUpdated={() => {
+                    setSlugEditingId(null);
+                    queryClient.invalidateQueries({ queryKey: ["platform-businesses"] });
+                  }}
+                />
+              )}
             </article>
           ))}
         </div>
