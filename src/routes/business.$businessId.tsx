@@ -31,7 +31,8 @@ import {
 } from "@/components/dallty/availability-calendar";
 import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-field";
 import { guessCountryCode, isValidE164, splitE164, toE164 } from "@/lib/phone";
-import { getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
+import { getCountryByCode, getDefaultCountry, useCategories } from "@/lib/reference-data";
+import { useLocale } from "@/lib/i18n";
 import {
   checkEmailHasAccount,
   createGuestBooking,
@@ -115,6 +116,8 @@ function BookingFlow() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
+  const { data: categories } = useCategories();
+  const { lang } = useLocale();
 
   const { book: bookIntent, tab: tabParam } = Route.useSearch();
   // Tab lives in the URL so deep links, refreshes and the back button all work.
@@ -186,7 +189,7 @@ function BookingFlow() {
       const { data, error } = await supabase
         .from("businesses")
         .select(
-          "id, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, amenities, languages, awards, certifications, brands, cancellation_policy, cancellation_policy_ar, house_rules, house_rules_ar, owner_story, owner_story_ar, faq, video_tour_url, instagram_url, tiktok_url, address, status, business_type, website_url, facebook_url, country, district, postal_code, maps_url, employee_count, branch_count, logo_url, cover_url, is_listed, is_verified, country_code, currency, timezone",
+          "id, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, amenities, languages, awards, certifications, brands, cancellation_policy, cancellation_policy_ar, house_rules, house_rules_ar, owner_story, owner_story_ar, faq, video_tour_url, instagram_url, tiktok_url, address, status, business_type, categories, website_url, facebook_url, country, district, postal_code, maps_url, employee_count, branch_count, logo_url, cover_url, is_listed, is_verified, country_code, currency, timezone",
         )
         .eq("id", businessId)
         .maybeSingle();
@@ -829,6 +832,8 @@ function BookingFlow() {
             business={business as never}
             services={(servicesQuery.data ?? []) as never}
             staffCount={(staffQuery.data ?? []).length}
+            categories={categories ?? []}
+            lang={lang}
             onBook={(id) => {
               if (id) {
                 setServiceId(id);

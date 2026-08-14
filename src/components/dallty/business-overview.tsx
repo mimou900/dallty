@@ -1,6 +1,8 @@
 import { CalendarDays, Clock, MapPin, Navigation, Sparkles, Star, Users, Zap } from "lucide-react";
 
 import { formatMoney } from "@/lib/countries";
+import { businessCategoryLabel } from "@/lib/business-category-label";
+import type { Category } from "@/lib/reference-data";
 
 type BusinessRow = {
   id: string;
@@ -21,6 +23,7 @@ type BusinessRow = {
   closes_at: string;
   instant_booking: boolean;
   business_type: string | null;
+  categories: string[] | null;
   amenities: string[] | null;
   currency: string;
 };
@@ -47,11 +50,15 @@ export function BusinessOverview({
   business,
   services,
   staffCount,
+  categories,
+  lang,
   onBook,
 }: {
   business: BusinessRow;
   services: ServiceRow[];
   staffCount: number;
+  categories: Category[];
+  lang: string;
   onBook: (serviceId?: string) => void;
 }) {
   const cover = business.cover_url ?? business.image_url ?? "/salons/hair.jpg";
@@ -84,9 +91,9 @@ export function BusinessOverview({
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/85 via-foreground/30 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 space-y-2 p-5">
             <div className="flex flex-wrap items-center gap-2">
-              {business.business_type ? (
+              {businessCategoryLabel(categories, business.categories, lang) ? (
                 <span className="rounded-full glass-soft px-3 py-1 text-xs font-bold text-background">
-                  {business.business_type}
+                  {businessCategoryLabel(categories, business.categories, lang)}
                 </span>
               ) : null}
               {business.instant_booking ? (
