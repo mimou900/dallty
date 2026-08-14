@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Car, Footprints, Heart, MapPin, Star, Zap } from "lucide-react";
-import type { Lang, Salon } from "@/lib/dallty-content";
+import type { Lang, Business } from "@/lib/dallty-content";
 import { copy } from "@/lib/dallty-content";
 
 export type TravelInfo = {
@@ -10,24 +10,24 @@ export type TravelInfo = {
   walkingMinutes: number | null;
 };
 
-export function SalonCard({
-  salon,
+export function BusinessCard({
+  business,
   lang,
   travel,
 }: {
-  salon: Salon;
+  business: Business;
   lang: Lang;
   travel?: TravelInfo;
 }) {
   const [fav, setFav] = useState(false);
   const t = copy[lang];
-  const s = salon[lang];
+  const s = business[lang];
 
   return (
     <article className="press group overflow-hidden rounded-3xl glass">
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
-          src={salon.image}
+          src={business.image}
           alt={s.name}
           loading="lazy"
           width={900}
@@ -44,9 +44,9 @@ export function SalonCard({
         </button>
         <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
           <span className="rounded-full glass-soft px-3 py-1 text-xs font-semibold">
-            {salon.open ? t.open : t.closed}
+            {business.open ? t.open : t.closed}
           </span>
-          {salon.instant && (
+          {business.instant && (
             <span className="flex items-center gap-1 rounded-full bg-gold px-3 py-1 text-xs font-semibold text-gold-foreground">
               <Zap className="size-3.5" />
               {t.instant}
@@ -58,8 +58,8 @@ export function SalonCard({
       <div className="space-y-3 p-5">
         <div className="flex items-start justify-between gap-3">
           <Link
-            to="/salon/$salonId"
-            params={{ salonId: salon.id }}
+            to="/business/$businessId"
+            params={{ businessId: business.id }}
             className="min-w-0 outline-none focus-visible:underline"
           >
             <h2 className="truncate text-lg font-bold hover:underline">{s.name}</h2>
@@ -67,7 +67,7 @@ export function SalonCard({
           </Link>
           <span className="flex shrink-0 items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-sm font-semibold">
             <Star className="size-4 fill-gold text-gold" />
-            {salon.rating.toFixed(1)}
+            {business.rating.toFixed(1)}
           </span>
         </div>
 
@@ -79,7 +79,7 @@ export function SalonCard({
               {travel?.km != null ? ` · ${travel.km.toFixed(1)} ${t.km}` : ""}
             </span>
           </span>
-          <span className="font-semibold text-foreground">{salon.price}</span>
+          <span className="font-semibold text-foreground">{business.price}</span>
         </div>
 
         {travel && (travel.drivingMinutes != null || travel.walkingMinutes != null) ? (
@@ -101,15 +101,15 @@ export function SalonCard({
 
         <div className="grid grid-cols-2 gap-2">
           <Link
-            to="/salon/$salonId"
-            params={{ salonId: salon.id }}
+            to="/business/$businessId"
+            params={{ businessId: business.id }}
             className="press block rounded-2xl glass-soft py-3 text-center text-sm font-semibold"
           >
             {lang === "ar" ? "التفاصيل" : "Details"}
           </Link>
           <Link
-            to="/salon/$salonId"
-            params={{ salonId: salon.id }}
+            to="/business/$businessId"
+            params={{ businessId: business.id }}
             search={{ book: true }}
             className="press block rounded-2xl bg-primary py-3 text-center text-sm font-semibold text-primary-foreground"
           >

@@ -21,8 +21,8 @@ import {
 
 import heroImage from "@/assets/hero-salon.jpg";
 import { BottomNav } from "@/components/dallty/bottom-nav";
-import { SalonCard } from "@/components/dallty/salon-card";
-import { categories, salons, type Salon } from "@/lib/dallty-content";
+import { BusinessCard } from "@/components/dallty/business-card";
+import { categories, businesses, type Business } from "@/lib/dallty-content";
 import { useLocale } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -53,7 +53,12 @@ export const Route = createFileRoute("/")({
 
 const categoryIcons = [Scissors, Scissors, Hand, Flower2, Sparkles, Eye];
 
-type LiveSalon = Salon & { countryCode: string; state: string; city: string; businessType: string };
+type LiveBusiness = Business & {
+  countryCode: string;
+  state: string;
+  city: string;
+  businessType: string;
+};
 
 function Index() {
   const { lang, t, toggleLang } = useLocale();
@@ -90,11 +95,11 @@ function Index() {
     document.getElementById("nearby")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const { data: liveSalons } = useQuery({
-    queryKey: ["salons"],
-    queryFn: async (): Promise<LiveSalon[]> => {
+  const { data: liveBusinesses } = useQuery({
+    queryKey: ["businesses"],
+    queryFn: async (): Promise<LiveBusiness[]> => {
       const { data, error } = await supabase
-        .from("salons")
+        .from("businesses")
         .select(
           "id, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, amenities, languages, awards, certifications, brands, cancellation_policy, cancellation_policy_ar, house_rules, house_rules_ar, owner_story, owner_story_ar, faq, video_tour_url, instagram_url, tiktok_url, address, status, business_type, website_url, facebook_url, country, country_code, district, postal_code, maps_url, employee_count, branch_count, logo_url, cover_url, is_listed",
         )
@@ -125,26 +130,26 @@ function Index() {
   const countries = useCountries();
 
   const countryOptions = useMemo(() => {
-    const codes = new Set((liveSalons ?? []).map((s) => s.countryCode).filter(Boolean));
+    const codes = new Set((liveBusinesses ?? []).map((s) => s.countryCode).filter(Boolean));
     return (countries.data ?? []).filter((c) => codes.has(c.iso_code));
-  }, [liveSalons, countries.data]);
+  }, [liveBusinesses, countries.data]);
 
   const stateOptions = useMemo(() => {
     const listed = [
       ...new Set(
-        (liveSalons ?? [])
+        (liveBusinesses ?? [])
           .filter((s) => (!country || s.countryCode === country) && s.state)
           .map((s) => s.state),
       ),
     ].sort();
     const known = provincesFor(country);
     return listed.map((p) => ({ en: p, ar: known.find((k) => k.en === p)?.ar ?? p }));
-  }, [liveSalons, country]);
+  }, [liveBusinesses, country]);
 
   const cityOptions = useMemo(() => {
     const listed = [
       ...new Set(
-        (liveSalons ?? [])
+        (liveBusinesses ?? [])
           .filter(
             (s) =>
               (!country || s.countryCode === country) &&
@@ -156,11 +161,11 @@ function Index() {
     ].sort();
     const known = citiesFor(country, stateName || undefined);
     return listed.map((c) => ({ en: c, ar: known.find((k) => k.en === c)?.ar ?? c }));
-  }, [liveSalons, country, stateName]);
+  }, [liveBusinesses, country, stateName]);
 
   const results = useMemo(() => {
-    const list: Salon[] = placeFiltered ? (liveSalons ?? []) : (liveSalons ?? salons);
-    const placed = (list as LiveSalon[]).filter(
+    const list: Business[] = placeFiltered ? (liveBusinesses ?? []) : (liveBusinesses ?? businesses);
+    const placed = (list as LiveBusiness[]).filter(
       (s) =>
         (!country || s.countryCode === country) &&
         (!stateName || s.state === stateName) &&
@@ -176,7 +181,7 @@ function Index() {
     return withCategory.filter(
       (s) => s.en.name.toLowerCase().includes(name) || s.ar.name.toLowerCase().includes(name),
     );
-  }, [liveSalons, query, activeCategory, country, stateName, city, shopType, placeFiltered]);
+  }, [liveBusinesses, query, activeCategory, country, stateName, city, shopType, placeFiltered]);
 
   const activeChips = useMemo(
     () =>
@@ -518,7 +523,7 @@ function Index() {
           ) : (
             <div className="mt-5 grid gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
               {results.map((s) => (
-                <SalonCard key={s.id} salon={s} lang={lang} />
+                <BusinessCard key={s.id} business={s} lang={lang} />
               ))}
             </div>
           )}

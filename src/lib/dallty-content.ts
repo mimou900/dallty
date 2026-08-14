@@ -14,7 +14,7 @@ export const categories = [
   { icon: "eye", en: "Lashes", ar: "رموش" },
 ] as const;
 
-export type Salon = {
+export type Business = {
   id: string;
   image: string;
   en: { name: string; area: string; tags: string };
@@ -27,7 +27,7 @@ export type Salon = {
   instant: boolean;
 };
 
-export const salons: Salon[] = [
+export const businesses: Business[] = [
   {
     id: "1",
     image: hair,

@@ -20,13 +20,13 @@ import {
 } from "lucide-react";
 
 import { BottomNav } from "@/components/dallty/bottom-nav";
-import { SalonCard } from "@/components/dallty/salon-card";
+import { BusinessCard } from "@/components/dallty/business-card";
 import { LogoMark } from "@/components/dallty/logo";
 import { NavMenu } from "@/components/dallty/site-nav";
-import { useLiveSalons, type LiveSalon } from "@/hooks/use-live-salons";
+import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
 import { useUserLocation, haversineKm } from "@/hooks/use-user-location";
 import { getTravelTimes } from "@/lib/geo.functions";
-import type { TravelInfo } from "@/components/dallty/salon-card";
+import type { TravelInfo } from "@/components/dallty/business-card";
 import { useLocale } from "@/lib/i18n";
 import { useCountries, translate } from "@/lib/reference-data";
 import { citiesFor, provincesFor } from "@/lib/arab-cities";
@@ -86,7 +86,7 @@ function SearchPage() {
   const [draft, setDraft] = useState(params.q);
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: liveSalons, isLoading } = useLiveSalons();
+  const { data: liveBusinesses, isLoading } = useLiveBusinesses();
   const geo = useUserLocation();
   const fetchTravel = useServerFn(getTravelTimes);
   const countries = useCountries();
@@ -96,26 +96,26 @@ function SearchPage() {
   }
 
   const countryOptions = useMemo(() => {
-    const codes = new Set((liveSalons ?? []).map((s) => s.countryCode).filter(Boolean));
+    const codes = new Set((liveBusinesses ?? []).map((s) => s.countryCode).filter(Boolean));
     return (countries.data ?? []).filter((c) => codes.has(c.iso_code));
-  }, [liveSalons, countries.data]);
+  }, [liveBusinesses, countries.data]);
 
   const stateOptions = useMemo(() => {
     const listed = [
       ...new Set(
-        (liveSalons ?? [])
+        (liveBusinesses ?? [])
           .filter((s) => (!params.country || s.countryCode === params.country) && s.state)
           .map((s) => s.state),
       ),
     ].sort();
     const known = provincesFor(params.country);
     return listed.map((p) => ({ en: p, ar: known.find((k) => k.en === p)?.ar ?? p }));
-  }, [liveSalons, params.country]);
+  }, [liveBusinesses, params.country]);
 
   const cityOptions = useMemo(() => {
     const listed = [
       ...new Set(
-        (liveSalons ?? [])
+        (liveBusinesses ?? [])
           .filter(
             (s) =>
               (!params.country || s.countryCode === params.country) &&
@@ -127,11 +127,11 @@ function SearchPage() {
     ].sort();
     const known = citiesFor(params.country, params.state || undefined);
     return listed.map((c) => ({ en: c, ar: known.find((k) => k.en === c)?.ar ?? c }));
-  }, [liveSalons, params.country, params.state]);
+  }, [liveBusinesses, params.country, params.state]);
 
   const results = useMemo(() => {
     const name = params.q.trim().toLowerCase();
-    const list = (liveSalons ?? []).filter(
+    const list = (liveBusinesses ?? []).filter(
       (s) =>
         (!params.country || s.countryCode === params.country) &&
         (!params.state || s.state === params.state) &&
@@ -146,8 +146,8 @@ function SearchPage() {
       sorted.sort((a, b) => nearKm(geo.coords, a) - nearKm(geo.coords, b));
     else if (params.sort === "reviews") sorted.sort((a, b) => b.reviews - a.reviews);
     else sorted.sort((a, b) => b.rating - a.rating);
-    return sorted as LiveSalon[];
-  }, [liveSalons, params, geo.coords]);
+    return sorted as LiveBusiness[];
+  }, [liveBusinesses, params, geo.coords]);
 
   // Travel times are only requested once the visitor granted location access.
   const nearest = useMemo(
@@ -176,14 +176,14 @@ function SearchPage() {
 
   const travel = useMemo(() => {
     const map = new Map<string, TravelInfo>();
-    for (const salon of results) {
-      if (!geo.coords || salon.lat == null || salon.lng == null) continue;
-      const hit = (travelQuery.data ?? []).find((t) => t.id === salon.id);
-      map.set(salon.id, {
+    for (const business of results) {
+      if (!geo.coords || business.lat == null || business.lng == null) continue;
+      const hit = (travelQuery.data ?? []).find((t) => t.id === business.id);
+      map.set(business.id, {
         km:
           hit?.distanceMeters != null
             ? hit.distanceMeters / 1000
-            : haversineKm(geo.coords, { lat: salon.lat, lng: salon.lng }),
+            : haversineKm(geo.coords, { lat: business.lat, lng: business.lng }),
         drivingMinutes: hit?.drivingSeconds != null ? Math.round(hit.drivingSeconds / 60) : null,
         walkingMinutes: hit?.walkingSeconds != null ? Math.round(hit.walkingSeconds / 60) : null,
       });
@@ -530,7 +530,7 @@ function SearchPage() {
         ) : (
           <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {results.map((s) => (
-              <SalonCard key={s.id} salon={s} lang={lang} travel={travel.get(s.id)} />
+              <BusinessCard key={s.id} business={s} lang={lang} travel={travel.get(s.id)} />
             ))}
           </div>
         )}
@@ -559,9 +559,9 @@ function SearchPage() {
   );
 }
 
-function nearKm(coords: { lat: number; lng: number } | null, salon: LiveSalon) {
-  if (!coords || salon.lat == null || salon.lng == null) return Number.POSITIVE_INFINITY;
-  return haversineKm(coords, { lat: salon.lat, lng: salon.lng });
+function nearKm(coords: { lat: number; lng: number } | null, business: LiveBusiness) {
+  if (!coords || business.lat == null || business.lng == null) return Number.POSITIVE_INFINITY;
+  return haversineKm(coords, { lat: business.lat, lng: business.lng });
 }
 
 function Toggle({
