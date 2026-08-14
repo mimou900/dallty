@@ -39,7 +39,39 @@ import {
   sendGuestAccountInvite,
 } from "@/lib/account.functions";
 
-export const Route = createFileRoute("/business/$businessId")({
+export const Route = createFileRoute("/business/$businessSlug")({
+  beforeLoad: async ({ params }) => {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data: live } = await supabase
+      .from("businesses")
+      .select("id")
+      .eq("slug", params.businessSlug)
+      .maybeSingle();
+    if (live) return;
+
+    const { data: retired } = await supabase
+      .from("business_slug_redirects")
+      .select("business_id")
+      .eq("old_slug", params.businessSlug)
+      .maybeSingle();
+    if (!retired) return; // Let the component's own 404 handling take over.
+
+    const { data: current } = await supabase
+      .from("businesses")
+      .select("slug")
+      .eq("id", retired.business_id)
+      .maybeSingle();
+    if (!current) return;
+
+    await supabase.rpc("bump_slug_redirect_hit", { _old_slug: params.businessSlug });
+
+    const { redirect } = await import("@tanstack/react-router");
+    throw redirect({
+      to: "/business/$businessSlug",
+      params: { businessSlug: current.slug },
+      statusCode: 301,
+    });
+  },
   validateSearch: (
     search: Record<string, unknown>,
   ): { book?: boolean; tab?: "overview" | "book" | "reviews" } => ({
@@ -112,7 +144,7 @@ function BusinessProblem({ title }: { title: string }) {
 }
 
 function BookingFlow() {
-  const { businessId } = Route.useParams();
+  const { businessSlug } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
@@ -124,8 +156,8 @@ function BookingFlow() {
   const tab: TabId = tabParam ?? (bookIntent ? "book" : "overview");
   const setTab = (id: TabId) =>
     navigate({
-      to: "/business/$businessId",
-      params: { businessId },
+      to: "/business/$businessSlug",
+      params: { businessSlug },
       search: (prev) => ({ ...prev, tab: id }),
     });
   const [step, setStep] = useState(0);
@@ -142,7 +174,7 @@ function BookingFlow() {
   useEffect(() => {
     if (authLoading || restored.current) return;
     restored.current = true;
-    const pending = readPendingBooking(businessId);
+    const pending = readPendingBooking(businessSlug);
     if (!pending) return;
     if (pending.serviceId) setServiceId(pending.serviceId);
     if (pending.staffId) setStaffId(pending.staffId);
@@ -160,11 +192,11 @@ function BookingFlow() {
       clearPendingBooking();
       toast.info("Picked up where you left off — review and confirm.");
     }
-  }, [businessId, authLoading, user]);
+  }, [businessSlug, authLoading, user]);
 
   function stashBooking() {
     savePendingBooking({
-      businessId,
+      businessId: businessSlug,
       serviceId,
       staffId,
       day,
@@ -181,17 +213,17 @@ function BookingFlow() {
     if (!serviceId && !staffId && !slot) return;
     stashBooking();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading, businessId, serviceId, staffId, day, slot, step]);
+  }, [user, authLoading, businessSlug, serviceId, staffId, day, slot, step]);
 
   const businessQuery = useQuery({
-    queryKey: ["business", businessId],
+    queryKey: ["business", businessSlug],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("businesses")
         .select(
           "id, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, amenities, languages, awards, certifications, brands, cancellation_policy, cancellation_policy_ar, house_rules, house_rules_ar, owner_story, owner_story_ar, faq, video_tour_url, instagram_url, tiktok_url, address, status, business_type, categories, website_url, facebook_url, country, district, postal_code, maps_url, employee_count, branch_count, logo_url, cover_url, is_listed, is_verified, country_code, currency, timezone",
         )
-        .eq("id", businessId)
+        .eq("slug", businessSlug)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -201,13 +233,16 @@ function BookingFlow() {
     staleTime: 60_000,
   });
 
+  const business = businessQuery.data;
+
   const servicesQuery = useQuery({
-    queryKey: ["services", businessId],
+    queryKey: ["services", business?.id],
+    enabled: Boolean(business?.id),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
         .select("*")
-        .eq("business_id", businessId)
+        .eq("business_id", business!.id)
         .eq("is_active", true)
         .order("price");
       if (error) throw error;
@@ -216,10 +251,11 @@ function BookingFlow() {
   });
 
   const staffQuery = useQuery({
-    queryKey: ["staff", businessId],
+    queryKey: ["staff", business?.id],
+    enabled: Boolean(business?.id),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_business_public_staff", {
-        _salon_id: businessId,
+        _salon_id: business!.id,
       });
       if (error) throw error;
       return data ?? [];
@@ -231,10 +267,11 @@ function BookingFlow() {
    * weeks, so we can show what's really bookable instead of an empty time step.
    */
   const availabilityQuery = useQuery({
-    queryKey: ["availability-summary", businessId],
+    queryKey: ["availability-summary", business?.id],
+    enabled: Boolean(business?.id),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_business_availability_summary", {
-        _salon_id: businessId,
+        _salon_id: business!.id,
         _days: 14,
       });
       if (error) throw error;
@@ -267,12 +304,13 @@ function BookingFlow() {
 
   /** Average rating per specialist, for the specialist cards. */
   const staffRatingQuery = useQuery({
-    queryKey: ["staff-ratings", businessId],
+    queryKey: ["staff-ratings", business?.id],
+    enabled: Boolean(business?.id),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reviews")
         .select("staff_id, rating")
-        .eq("business_id", businessId)
+        .eq("business_id", business!.id)
         .eq("is_hidden", false)
         .not("staff_id", "is", null);
       if (error) throw error;
@@ -393,11 +431,17 @@ function BookingFlow() {
 
   // Real-time availability: any booking change for this business refreshes open slots.
   useEffect(() => {
+    if (!business?.id) return;
     const channel = supabase
-      .channel(`bookings-${businessId}`)
+      .channel(`bookings-${business.id}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "bookings", filter: `business_id=eq.${businessId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: `business_id=eq.${business.id}`,
+        },
         () => {
           queryClient.invalidateQueries({ queryKey: ["slots"] });
           queryClient.invalidateQueries({ queryKey: ["availability-summary"] });
@@ -408,19 +452,19 @@ function BookingFlow() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [businessId, queryClient]);
+  }, [business?.id, queryClient]);
 
   // Keep a lightweight "recently viewed" trail for signed-in customers.
   useEffect(() => {
-    if (!user) return;
+    if (!user || !business?.id) return;
     supabase
       .from("recently_viewed")
       .upsert(
-        { user_id: user.id, business_id: businessId, viewed_at: new Date().toISOString() },
+        { user_id: user.id, business_id: business.id, viewed_at: new Date().toISOString() },
         { onConflict: "user_id,business_id" },
       )
       .then(() => undefined);
-  }, [user, businessId]);
+  }, [user, business?.id]);
 
   const service = servicesQuery.data?.find((s) => s.id === serviceId) ?? null;
   const staffMember = staffQuery.data?.find((s) => s.id === staffId) ?? null;
@@ -519,7 +563,7 @@ function BookingFlow() {
       const code = coupon.trim();
       if (!code) throw new Error("Enter a coupon code");
       const { data, error } = await supabase.rpc("check_promo_code", {
-        _salon_id: businessId,
+        _salon_id: business!.id,
         _code: code,
         _amount: basePrice,
       });
@@ -578,7 +622,7 @@ function BookingFlow() {
           .from("bookings")
           .insert({
             customer_id: user.id,
-            business_id: businessId,
+            business_id: business!.id,
             service_id: service.id,
             staff_id: staffId,
             starts_at: starts.toISOString(),
@@ -597,7 +641,7 @@ function BookingFlow() {
       if (!guestInfoReady) throw new Error("Add your name and phone number to confirm");
       return await createGuestBooking({
         data: {
-          businessId,
+          businessId: business!.id,
           serviceId: service.id,
           staffId,
           slot,
@@ -708,7 +752,7 @@ function BookingFlow() {
       if (!user || !serviceId || !staffId) throw new Error("Pick a service and specialist first");
       const { error } = await supabase.from("waitlist_entries").insert({
         customer_id: user.id,
-        business_id: businessId,
+        business_id: business!.id,
         service_id: serviceId,
         staff_id: staffId,
         day,
@@ -744,7 +788,6 @@ function BookingFlow() {
     if (step < 5) setStep(step + 1);
   }
 
-  const business = businessQuery.data;
   // Prices and times always follow the business's own country settings.
   const currency = business?.currency ?? "AED";
   const businessTz = business?.timezone ?? undefined;
@@ -1165,7 +1208,7 @@ function BookingFlow() {
                       <Link
                         to="/auth"
                         onClick={stashBooking}
-                        search={{ next: `/business/${businessId}` }}
+                        search={{ next: `/business/${businessSlug}` }}
                         className="press inline-flex min-h-12 items-center rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
                       >
                         Sign in to join the waitlist
@@ -1274,7 +1317,7 @@ function BookingFlow() {
                       <Link
                         to="/auth"
                         onClick={stashBooking}
-                        search={{ next: `/business/${businessId}` }}
+                        search={{ next: `/business/${businessSlug}` }}
                         className="font-semibold text-foreground underline underline-offset-4"
                       >
                         Sign in instead
@@ -1410,8 +1453,8 @@ function BookingFlow() {
                             type="button"
                             onClick={() =>
                               navigate({
-                                to: "/business/$businessId",
-                                params: { businessId },
+                                to: "/business/$businessSlug",
+                                params: { businessSlug },
                                 search: { tab: "overview" },
                               })
                             }
@@ -1451,8 +1494,8 @@ function BookingFlow() {
                             type="button"
                             onClick={() =>
                               navigate({
-                                to: "/business/$businessId",
-                                params: { businessId },
+                                to: "/business/$businessSlug",
+                                params: { businessSlug },
                                 search: { tab: "overview" },
                               })
                             }
@@ -1482,8 +1525,8 @@ function BookingFlow() {
                             type="button"
                             onClick={() =>
                               navigate({
-                                to: "/business/$businessId",
-                                params: { businessId },
+                                to: "/business/$businessSlug",
+                                params: { businessSlug },
                                 search: { tab: "overview" },
                               })
                             }
