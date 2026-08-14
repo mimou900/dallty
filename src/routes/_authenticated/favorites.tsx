@@ -34,18 +34,18 @@ function FavoritesPage() {
   const favorites = useFavorites();
   const rows = favorites.data ?? [];
 
-  const salonIds = rows.filter((r) => r.kind === "salon").map((r) => r.target_id);
+  const businessIds = rows.filter((r) => r.kind === "business").map((r) => r.target_id);
   const staffIds = rows.filter((r) => r.kind === "staff").map((r) => r.target_id);
   const serviceIds = rows.filter((r) => r.kind === "service").map((r) => r.target_id);
 
-  const salonsQuery = useQuery({
-    queryKey: ["fav-salons", salonIds],
-    enabled: salonIds.length > 0,
+  const businessesQuery = useQuery({
+    queryKey: ["fav-businesses", businessIds],
+    enabled: businessIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("salons")
+        .from("businesses")
         .select("id, name, area, city, image_url, rating, review_count, price_range")
-        .in("id", salonIds);
+        .in("id", businessIds);
       if (error) throw error;
       return data;
     },
@@ -57,7 +57,7 @@ function FavoritesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, full_name, title, salon_id")
+        .select("id, full_name, title, business_id")
         .in("id", staffIds);
       if (error) throw error;
       return data;
@@ -70,7 +70,7 @@ function FavoritesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("id, name, price, discount_price, duration_minutes, salon_id, salons(currency)")
+        .select("id, name, price, discount_price, duration_minutes, business_id, businesses(currency)")
         .in("id", serviceIds);
       if (error) throw error;
       return data;
@@ -83,7 +83,7 @@ function FavoritesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recently_viewed")
-        .select("salon_id, viewed_at, salons(id, name, area, image_url, rating)")
+        .select("business_id, viewed_at, businesses(id, name, area, image_url, rating)")
         .eq("user_id", user!.id)
         .order("viewed_at", { ascending: false })
         .limit(8);
@@ -93,7 +93,7 @@ function FavoritesPage() {
   });
 
   const empty =
-    !favorites.isLoading && !salonIds.length && !staffIds.length && !serviceIds.length;
+    !favorites.isLoading && !businessIds.length && !staffIds.length && !serviceIds.length;
 
   return (
     <ClientShell title="Favorites" subtitle="Salons, specialists and services you saved.">
@@ -114,34 +114,35 @@ function FavoritesPage() {
         </div>
       )}
 
-      {salonsQuery.data?.length ? (
+      {businessesQuery.data?.length ? (
         <section className="mt-6">
           <h2 className="flex items-center gap-2 text-lg font-extrabold">
             <Store className="size-4 text-primary" /> Salons
           </h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {salonsQuery.data.map((salon) => (
-              <div key={salon.id} className="flex items-center gap-3 rounded-3xl glass p-3">
+            {businessesQuery.data.map((business) => (
+              <div key={business.id} className="flex items-center gap-3 rounded-3xl glass p-3">
                 <Link
-                  to="/salon/$salonId"
-                  params={{ salonId: salon.id }}
+                  to="/business/$businessId"
+                  params={{ businessId: business.id }}
                   className="flex min-w-0 flex-1 items-center gap-3"
                 >
                   <img
-                    src={salon.image_url ?? "/salons/placeholder.jpg"}
-                    alt={salon.name}
+                    src={business.image_url ?? "/salons/placeholder.jpg"}
+                    alt={business.name}
                     loading="lazy"
                     className="size-16 rounded-2xl object-cover"
                   />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-extrabold">{salon.name}</span>
+                    <span className="block truncate text-sm font-extrabold">{business.name}</span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {salon.area}
-                      {salon.city ? `, ${salon.city}` : ""} · ★ {Number(salon.rating).toFixed(1)}
+                      {business.area}
+                      {business.city ? `, ${business.city}` : ""} · ★{" "}
+                      {Number(business.rating).toFixed(1)}
                     </span>
                   </span>
                 </Link>
-                <FavoriteButton kind="salon" targetId={salon.id} label={salon.name} />
+                <FavoriteButton kind="business" targetId={business.id} label={business.name} />
               </div>
             ))}
           </div>
@@ -157,8 +158,8 @@ function FavoritesPage() {
             {staffQuery.data.map((member) => (
               <div key={member.id} className="flex items-center gap-3 rounded-3xl glass p-4">
                 <Link
-                  to="/salon/$salonId"
-                  params={{ salonId: member.salon_id }}
+                  to="/business/$businessId"
+                  params={{ businessId: member.business_id }}
                   className="min-w-0 flex-1"
                 >
                   <span className="block truncate text-sm font-extrabold">{member.full_name}</span>
@@ -180,8 +181,8 @@ function FavoritesPage() {
             {servicesQuery.data.map((service) => (
               <div key={service.id} className="flex items-center gap-3 rounded-3xl glass p-4">
                 <Link
-                  to="/salon/$salonId"
-                  params={{ salonId: service.salon_id }}
+                  to="/business/$businessId"
+                  params={{ businessId: service.business_id }}
                   className="min-w-0 flex-1"
                 >
                   <span className="block truncate text-sm font-extrabold">{service.name}</span>
@@ -189,7 +190,7 @@ function FavoritesPage() {
                     {service.duration_minutes} min ·{" "}
                     {formatMoney(
                       service.discount_price ?? service.price,
-                      (service as { salons?: { currency?: string } }).salons?.currency,
+                      (service as { businesses?: { currency?: string } }).businesses?.currency,
                     )}
                   </span>
                 </Link>
@@ -207,23 +208,28 @@ function FavoritesPage() {
           </h2>
           <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
             {recentQuery.data.map((row) => {
-              const salon = row.salons as { id: string; name: string; area: string; image_url: string | null } | null;
-              if (!salon) return null;
+              const business = row.businesses as {
+                id: string;
+                name: string;
+                area: string;
+                image_url: string | null;
+              } | null;
+              if (!business) return null;
               return (
                 <Link
-                  key={salon.id}
-                  to="/salon/$salonId"
-                  params={{ salonId: salon.id }}
+                  key={business.id}
+                  to="/business/$businessId"
+                  params={{ businessId: business.id }}
                   className="w-40 shrink-0 rounded-3xl glass p-3"
                 >
                   <img
-                    src={salon.image_url ?? "/salons/placeholder.jpg"}
-                    alt={salon.name}
+                    src={business.image_url ?? "/salons/placeholder.jpg"}
+                    alt={business.name}
                     loading="lazy"
                     className="h-24 w-full rounded-2xl object-cover"
                   />
-                  <p className="mt-2 truncate text-sm font-bold">{salon.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{salon.area}</p>
+                  <p className="mt-2 truncate text-sm font-bold">{business.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{business.area}</p>
                 </Link>
               );
             })}

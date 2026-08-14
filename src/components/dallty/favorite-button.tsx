@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
-export type FavoriteKind = "salon" | "staff" | "service";
+export type FavoriteKind = "business" | "staff" | "service";
 
 export function useFavorites(kind?: FavoriteKind) {
   const { user } = useAuth();
