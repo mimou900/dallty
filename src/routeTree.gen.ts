@@ -23,6 +23,7 @@ import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedFavoritesRouteImport } from './routes/_authenticated/favorites'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as BusinessIdBusinessIdRouteImport } from './routes/business-id.$businessId'
 import { Route as BusinessBusinessSlugRouteImport } from './routes/business.$businessSlug'
 import { Route as BusinessSignupRouteImport } from './routes/business/signup'
 import { Route as SalonSalonIdRouteImport } from './routes/salon.$salonId'
@@ -123,6 +124,11 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const BusinessIdBusinessIdRoute = BusinessIdBusinessIdRouteImport.update({
+  id: '/business-id/$businessId',
+  path: '/business-id/$businessId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const BusinessBusinessSlugRoute = BusinessBusinessSlugRouteImport.update({
   id: '/business/$businessSlug',
@@ -311,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
   '/business/$businessSlug': typeof BusinessBusinessSlugRoute
   '/business/signup': typeof BusinessSignupRoute
   '/salon/$salonId': typeof SalonSalonIdRoute
@@ -355,6 +362,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
   '/business/$businessSlug': typeof BusinessBusinessSlugRoute
   '/business/signup': typeof BusinessSignupRoute
   '/salon/$salonId': typeof SalonSalonIdRoute
@@ -402,6 +410,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/favorites': typeof AuthenticatedFavoritesRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
   '/business/$businessSlug': typeof BusinessBusinessSlugRoute
   '/business/signup': typeof BusinessSignupRoute
   '/salon/$salonId': typeof SalonSalonIdRoute
@@ -449,6 +458,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/favorites'
     | '/profile'
+    | '/business-id/$businessId'
     | '/business/$businessSlug'
     | '/business/signup'
     | '/salon/$salonId'
@@ -493,6 +503,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/favorites'
     | '/profile'
+    | '/business-id/$businessId'
     | '/business/$businessSlug'
     | '/business/signup'
     | '/salon/$salonId'
@@ -539,6 +550,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/favorites'
     | '/_authenticated/profile'
+    | '/business-id/$businessId'
     | '/business/$businessSlug'
     | '/business/signup'
     | '/salon/$salonId'
@@ -579,6 +591,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SearchRoute: typeof SearchRoute
   VerifyOtpRoute: typeof VerifyOtpRoute
+  BusinessIdBusinessIdRoute: typeof BusinessIdBusinessIdRoute
   BusinessBusinessSlugRoute: typeof BusinessBusinessSlugRoute
   BusinessSignupRoute: typeof BusinessSignupRoute
   SalonSalonIdRoute: typeof SalonSalonIdRoute
@@ -687,6 +700,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/profile'
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/business-id/$businessId': {
+      id: '/business-id/$businessId'
+      path: '/business-id/$businessId'
+      fullPath: '/business-id/$businessId'
+      preLoaderRoute: typeof BusinessIdBusinessIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/business/$businessSlug': {
       id: '/business/$businessSlug'
@@ -998,6 +1018,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SearchRoute: SearchRoute,
   VerifyOtpRoute: VerifyOtpRoute,
+  BusinessIdBusinessIdRoute: BusinessIdBusinessIdRoute,
   BusinessBusinessSlugRoute: BusinessBusinessSlugRoute,
   BusinessSignupRoute: BusinessSignupRoute,
   SalonSalonIdRoute: SalonSalonIdRoute,
