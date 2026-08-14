@@ -11,16 +11,16 @@ export function money(value: number | string | null | undefined, currency = CURR
   return formatMoney(value, currency || CURRENCY);
 }
 
-/** Currency of the salon currently being managed. */
+/** Currency of the business currently being managed. */
 export function useActiveCurrency() {
-  const { salon } = useActiveSalon();
-  return (salon as { currency?: string } | null)?.currency ?? CURRENCY;
+  const { business } = useActiveBusiness();
+  return (business as { currency?: string } | null)?.currency ?? CURRENCY;
 }
 
-/** Time zone of the salon currently being managed. */
+/** Time zone of the business currently being managed. */
 export function useActiveTimezone() {
-  const { salon } = useActiveSalon();
-  return (salon as { timezone?: string } | null)?.timezone ?? undefined;
+  const { business } = useActiveBusiness();
+  return (business as { timezone?: string } | null)?.timezone ?? undefined;
 }
 
 export type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
@@ -53,46 +53,46 @@ export const SERVICE_CATEGORIES = [
 ] as const;
 
 /**
- * Salons the signed-in account can manage.
- * Owners see only their own businesses, specialists see the salon they work at,
+ * Businesses the signed-in account can manage.
+ * Owners see only their own businesses, specialists see the business they work at,
  * platform admins see everything.
  */
-export function useManagedSalons() {
+export function useManagedBusinesses() {
   const { user, hasRole, loading } = useAuth();
   const allowed =
     hasRole("business_owner") || hasRole("specialist") || hasRole("admin") || hasRole("super_admin");
   const isPlatform = hasRole("admin") || hasRole("super_admin");
 
   return useQuery({
-    queryKey: ["admin-salons", user?.id, isPlatform],
+    queryKey: ["admin-businesses", user?.id, isPlatform],
     enabled: Boolean(user) && allowed && !loading,
     queryFn: async () => {
       const columns =
         "id, name, area, city, image_url, opens_at, closes_at, phone, address, status, is_active, is_listed, plan, trial_ends_at, owner_id, country_code, currency, timezone";
 
       if (isPlatform) {
-        const { data, error } = await supabase.from("salons").select(columns).order("name");
+        const { data, error } = await supabase.from("businesses").select(columns).order("name");
         if (error) throw error;
         return data;
       }
 
       const { data: owned, error } = await supabase
-        .from("salons")
+        .from("businesses")
         .select(columns)
         .eq("owner_id", user!.id)
         .order("name");
       if (error) throw error;
       if (owned && owned.length) return owned;
 
-      // Staff member: fall back to the salons they are employed at.
+      // Staff member: fall back to the businesses they are employed at.
       const { data: staffRows } = await supabase
         .from("staff")
-        .select("salon_id")
+        .select("business_id")
         .eq("user_id", user!.id);
-      const ids = [...new Set((staffRows ?? []).map((r) => r.salon_id))];
+      const ids = [...new Set((staffRows ?? []).map((r) => r.business_id))];
       if (!ids.length) return [];
       const { data: employed, error: employedError } = await supabase
-        .from("salons")
+        .from("businesses")
         .select(columns)
         .in("id", ids)
         .order("name");
@@ -102,15 +102,15 @@ export function useManagedSalons() {
   });
 }
 
-/** The salon currently being managed (first one for single-location owners). */
-export function useActiveSalon() {
-  const salons = useManagedSalons();
-  const salon = salons.data?.[0] ?? null;
+/** The business currently being managed (first one for single-location owners). */
+export function useActiveBusiness() {
+  const businesses = useManagedBusinesses();
+  const business = businesses.data?.[0] ?? null;
   return {
-    salon,
-    salonId: salon?.id ?? null,
-    isLoading: salons.isLoading,
-    salons: salons.data ?? [],
+    business,
+    businessId: business?.id ?? null,
+    isLoading: businesses.isLoading,
+    businesses: businesses.data ?? [],
   };
 }
 
@@ -132,7 +132,7 @@ export function useMyStaffRecord() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, salon_id, full_name, title, avatar_url, is_active")
+        .select("id, business_id, full_name, title, avatar_url, is_active")
         .eq("user_id", user!.id)
         .order("created_at")
         .limit(1)
@@ -146,7 +146,7 @@ export function useMyStaffRecord() {
     isStaffOnly,
     staff: query.data ?? null,
     staffId: query.data?.id ?? null,
-    salonId: query.data?.salon_id ?? null,
+    businessId: query.data?.business_id ?? null,
     isLoading: loading || query.isLoading,
   };
 }
@@ -194,15 +194,15 @@ export function useStaffDayRules(staffIds: string[]) {
 }
 
 /** Average rating + review count per specialist. */
-export function useStaffRatings(salonIds: string[]) {
+export function useStaffRatings(businessIds: string[]) {
   return useQuery({
-    queryKey: ["admin-staff-ratings", salonIds],
-    enabled: salonIds.length > 0,
+    queryKey: ["admin-staff-ratings", businessIds],
+    enabled: businessIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reviews")
         .select("staff_id, rating")
-        .in("salon_id", salonIds)
+        .in("business_id", businessIds)
         .eq("is_hidden", false)
         .not("staff_id", "is", null);
       if (error) throw error;
@@ -219,20 +219,20 @@ export function useStaffRatings(salonIds: string[]) {
   });
 }
 
-export function useManagedStaff(salonIds: string[]) {
+export function useManagedStaff(businessIds: string[]) {
   const { isStaffOnly, staffId } = useMyStaffRecord();
   const onlyMine = isStaffOnly ? staffId : null;
 
   return useQuery({
-    queryKey: ["admin-staff", salonIds, onlyMine],
-    enabled: salonIds.length > 0 && (!isStaffOnly || Boolean(onlyMine)),
+    queryKey: ["admin-staff", businessIds, onlyMine],
+    enabled: businessIds.length > 0 && (!isStaffOnly || Boolean(onlyMine)),
     queryFn: async () => {
       let query = supabase
         .from("staff")
         .select(
-          "id, salon_id, full_name, title, avatar_url, is_active, bio, experience_years, languages, certificates, portfolio, social_links, user_id, invited_at, invite_accepted_at",
+          "id, business_id, full_name, title, avatar_url, is_active, bio, experience_years, languages, certificates, portfolio, social_links, user_id, invited_at, invite_accepted_at",
         )
-        .in("salon_id", salonIds);
+        .in("business_id", businessIds);
       if (onlyMine) query = query.eq("id", onlyMine);
       const { data, error } = await query.order("full_name");
       if (error) throw error;
@@ -241,18 +241,18 @@ export function useManagedStaff(salonIds: string[]) {
   });
 }
 
-export function useManagedServices(salonIds: string[]) {
+export function useManagedServices(businessIds: string[]) {
   return useQuery({
-    queryKey: ["admin-services", salonIds],
-    enabled: salonIds.length > 0,
+    queryKey: ["admin-services", businessIds],
+    enabled: businessIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
         .select(
-          "id, salon_id, name, category, description, duration_minutes, price, discount_price, is_active, image_url, deposit, processing_minutes, cleanup_minutes, tag",
+          "id, business_id, name, category, description, duration_minutes, price, discount_price, is_active, image_url, deposit, processing_minutes, cleanup_minutes, tag",
         )
 
-        .in("salon_id", salonIds)
+        .in("business_id", businessIds)
         .order("category");
       if (error) throw error;
       return data;
@@ -260,20 +260,20 @@ export function useManagedServices(salonIds: string[]) {
   });
 }
 
-export function useManagedBookings(salonIds: string[], fromISO: string, toISO: string) {
+export function useManagedBookings(businessIds: string[], fromISO: string, toISO: string) {
   const { isStaffOnly, staffId } = useMyStaffRecord();
   const onlyMine = isStaffOnly ? staffId : null;
 
   return useQuery({
-    queryKey: ["admin-bookings", salonIds, fromISO, toISO, onlyMine],
-    enabled: salonIds.length > 0 && (!isStaffOnly || Boolean(onlyMine)),
+    queryKey: ["admin-bookings", businessIds, fromISO, toISO, onlyMine],
+    enabled: businessIds.length > 0 && (!isStaffOnly || Boolean(onlyMine)),
     queryFn: async () => {
       let query = supabase
         .from("bookings")
         .select(
-          "id, salon_id, customer_id, service_id, staff_id, starts_at, ends_at, status, total_price, payment_status, paid_at, notes, created_at",
+          "id, business_id, customer_id, service_id, staff_id, starts_at, ends_at, status, total_price, payment_status, paid_at, notes, created_at",
         )
-        .in("salon_id", salonIds)
+        .in("business_id", businessIds)
         .gte("starts_at", fromISO)
         .lte("starts_at", toISO);
       if (onlyMine) query = query.eq("staff_id", onlyMine);
@@ -309,8 +309,8 @@ export function useSetPaymentStatus() {
 
 /* ------------------------- staff ↔ service assignment ------------------------ */
 
-export function useStaffServices(salonIds: string[]) {
-  const staff = useManagedStaff(salonIds);
+export function useStaffServices(businessIds: string[]) {
+  const staff = useManagedStaff(businessIds);
   const staffIds = useMemo(() => (staff.data ?? []).map((s) => s.id), [staff.data]);
 
   return useQuery({
@@ -388,8 +388,8 @@ export function invalidateCatalogue(queryClient: ReturnType<typeof useQueryClien
   queryClient.invalidateQueries({ queryKey: ["admin-staff-services"] });
   queryClient.invalidateQueries({ queryKey: ["admin-services"] });
   queryClient.invalidateQueries({ queryKey: ["admin-staff"] });
-  queryClient.invalidateQueries({ queryKey: ["admin-salons"] });
-  queryClient.invalidateQueries({ queryKey: ["salons"] });
+  queryClient.invalidateQueries({ queryKey: ["admin-businesses"] });
+  queryClient.invalidateQueries({ queryKey: ["businesses"] });
 }
 
 /* --------------------------------- services -------------------------------- */
@@ -398,7 +398,7 @@ export const SERVICE_TAGS = ["Standard", "Top Selection", "New", "Popular", "Rec
 
 export type ServiceInput = {
   id?: string;
-  salon_id: string;
+  business_id: string;
   name: string;
   category: string;
   description: string | null;
@@ -458,7 +458,7 @@ export const SPECIALIST_ROLES = [
 
 export type StaffInput = {
   id?: string;
-  salon_id: string;
+  business_id: string;
   full_name: string;
   title: string;
   avatar_url: string | null;

@@ -4,7 +4,7 @@ import { ShieldAlert } from "lucide-react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { useAuth } from "@/hooks/use-auth";
-import { useManagedSalons, useMyStaffRecord } from "@/lib/admin";
+import { useManagedBusinesses, useMyStaffRecord } from "@/lib/admin";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
@@ -19,14 +19,14 @@ const STAFF_ALLOWED = [
   "/admin/settings",
 ];
 
-/** Owner-only pages a platform admin has no use for (they own no salon). */
+/** Owner-only pages a platform admin has no use for (they own no business). */
 const OWNER_ONLY = ["/admin/marketplace"];
 
 function AdminLayout() {
   const { hasRole, loading, rolesLoading } = useAuth();
   const isPlatformAdmin = hasRole("super_admin") || hasRole("admin");
   const { isStaffOnly, isLoading: staffLoading } = useMyStaffRecord();
-  const managedSalons = useManagedSalons();
+  const managedBusinesses = useManagedBusinesses();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const allowed =
@@ -38,16 +38,16 @@ function AdminLayout() {
   const blockedForPlatform =
     isPlatformAdmin && (pathname === "/admin" || OWNER_ONLY.includes(pathname));
 
-  // A salon owner who hasn't created a salon yet (stale bookmark, back
+  // A business owner who hasn't created a business yet (stale bookmark, back
   // button) always resumes the creation wizard instead of an empty /admin.
   const blockedForUnownedOwner =
     hasRole("business_owner") &&
     !isPlatformAdmin &&
-    !managedSalons.isLoading &&
-    (managedSalons.data?.length ?? 0) === 0;
+    !managedBusinesses.isLoading &&
+    (managedBusinesses.data?.length ?? 0) === 0;
 
   useEffect(() => {
-    if (loading || rolesLoading || staffLoading || managedSalons.isLoading) return;
+    if (loading || rolesLoading || staffLoading || managedBusinesses.isLoading) return;
     if (blockedForUnownedOwner) {
       navigate({ to: "/business/signup", replace: true });
       return;
@@ -66,7 +66,7 @@ function AdminLayout() {
     loading,
     rolesLoading,
     staffLoading,
-    managedSalons.isLoading,
+    managedBusinesses.isLoading,
     navigate,
   ]);
 

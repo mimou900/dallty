@@ -2,7 +2,7 @@ import { CalendarDays, Clock, MapPin, Navigation, Sparkles, Star, Users, Zap } f
 
 import { formatMoney } from "@/lib/countries";
 
-type SalonRow = {
+type BusinessRow = {
   id: string;
   name: string;
   description: string | null;
@@ -43,25 +43,25 @@ function shortTime(value: string) {
   return `${h12}:${m ?? "00"} ${suffix}`;
 }
 
-export function SalonOverview({
-  salon,
+export function BusinessOverview({
+  business,
   services,
   staffCount,
   onBook,
 }: {
-  salon: SalonRow;
+  business: BusinessRow;
   services: ServiceRow[];
   staffCount: number;
   onBook: (serviceId?: string) => void;
 }) {
-  const cover = salon.cover_url ?? salon.image_url ?? "/salons/hair.jpg";
-  const location = [salon.address, salon.area, salon.city, salon.district, salon.country]
+  const cover = business.cover_url ?? business.image_url ?? "/salons/hair.jpg";
+  const location = [business.address, business.area, business.city, business.district, business.country]
     .filter(Boolean)
     .join(" · ");
   const mapsHref =
-    salon.maps_url ??
+    business.maps_url ??
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      [salon.name, salon.address, salon.city, salon.country].filter(Boolean).join(" "),
+      [business.name, business.address, business.city, business.country].filter(Boolean).join(" "),
     )}`;
 
   const byCategory = services.reduce<Record<string, ServiceRow[]>>((acc, s) => {
@@ -76,7 +76,7 @@ export function SalonOverview({
         <div className="relative">
           <img
             src={cover}
-            alt={`${salon.name} interior`}
+            alt={`${business.name} interior`}
             width={1200}
             height={800}
             className="h-56 w-full object-cover sm:h-72"
@@ -84,22 +84,22 @@ export function SalonOverview({
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/85 via-foreground/30 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 space-y-2 p-5">
             <div className="flex flex-wrap items-center gap-2">
-              {salon.business_type ? (
+              {business.business_type ? (
                 <span className="rounded-full glass-soft px-3 py-1 text-xs font-bold text-background">
-                  {salon.business_type}
+                  {business.business_type}
                 </span>
               ) : null}
-              {salon.instant_booking ? (
+              {business.instant_booking ? (
                 <span className="flex items-center gap-1 rounded-full bg-gold px-3 py-1 text-xs font-bold text-gold-foreground">
                   <Zap className="size-3.5" />
                   Instant booking
                 </span>
               ) : null}
             </div>
-            <h2 className="text-2xl font-extrabold text-background sm:text-3xl">{salon.name}</h2>
+            <h2 className="text-2xl font-extrabold text-background sm:text-3xl">{business.name}</h2>
             <p className="flex items-center gap-1.5 text-sm text-background/85">
               <MapPin className="size-4" />
-              {salon.area} · {salon.city}
+              {business.area} · {business.city}
             </p>
           </div>
         </div>
@@ -108,10 +108,10 @@ export function SalonOverview({
       {/* Quick facts */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Fact icon={<Star className="size-4 fill-gold text-gold" />} label="Rating">
-          {Number(salon.rating).toFixed(1)} ({salon.review_count})
+          {Number(business.rating).toFixed(1)} ({business.review_count})
         </Fact>
         <Fact icon={<Clock className="size-4" />} label="Hours today">
-          {shortTime(salon.opens_at)} – {shortTime(salon.closes_at)}
+          {shortTime(business.opens_at)} – {shortTime(business.closes_at)}
         </Fact>
         <Fact icon={<Sparkles className="size-4" />} label="Services">
           {services.length}
@@ -121,9 +121,9 @@ export function SalonOverview({
         </Fact>
       </section>
 
-      {salon.description ? (
+      {business.description ? (
         <p className="rounded-3xl glass p-5 text-sm leading-relaxed text-muted-foreground">
-          {salon.description}
+          {business.description}
         </p>
       ) : null}
 
@@ -131,7 +131,7 @@ export function SalonOverview({
       <section>
         <div className="flex items-end justify-between gap-3">
           <h3 className="text-xl font-extrabold">Services &amp; prices</h3>
-          <span className="text-sm text-muted-foreground">{salon.price_range}</span>
+          <span className="text-sm text-muted-foreground">{business.price_range}</span>
         </div>
 
         {services.length === 0 ? (
@@ -163,10 +163,10 @@ export function SalonOverview({
                           </p>
                         </div>
                         <div className="text-end">
-                          <p className="font-extrabold">{formatMoney(price, salon.currency)}</p>
+                          <p className="font-extrabold">{formatMoney(price, business.currency)}</p>
                           {hasDiscount ? (
                             <p className="text-xs text-muted-foreground line-through">
-                              {formatMoney(Number(s.price), salon.currency)}
+                              {formatMoney(Number(s.price), business.currency)}
                             </p>
                           ) : null}
                         </div>
@@ -200,7 +200,7 @@ export function SalonOverview({
                 <li key={dayName} className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">{dayName}</span>
                   <span className="font-semibold">
-                    {shortTime(salon.opens_at)} – {shortTime(salon.closes_at)}
+                    {shortTime(business.opens_at)} – {shortTime(business.closes_at)}
                   </span>
                 </li>
               ),
@@ -217,10 +217,12 @@ export function SalonOverview({
             <MapPin className="size-5" />
             Location
           </h3>
-          <p className="mt-3 text-sm text-muted-foreground">{location || `${salon.area}, ${salon.city}`}</p>
-          {salon.amenities?.length ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            {location || `${business.area}, ${business.city}`}
+          </p>
+          {business.amenities?.length ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {salon.amenities.map((a) => (
+              {business.amenities.map((a) => (
                 <span
                   key={a}
                   className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground"

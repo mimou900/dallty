@@ -9,7 +9,7 @@ import { formatMoney } from "@/lib/countries";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { landingForRoles, resolveLanding } from "@/lib/post-login";
-import { useManagedSalons } from "@/lib/admin";
+import { useManagedBusinesses } from "@/lib/admin";
 import { claimGuestBookingsForCurrentUser } from "@/lib/account.functions";
 import { ClientShell } from "@/components/dallty/client-shell";
 import { useLocale } from "@/lib/i18n";
@@ -58,12 +58,12 @@ const ROLE_LABEL: Record<AppRole, string> = {
 
 type BookingRow = {
   id: string;
-  salon_id: string;
+  business_id: string;
   starts_at: string;
   ends_at: string;
   status: string;
   total_price: number;
-  salons: {
+  businesses: {
     name: string;
     area: string;
     currency?: string;
@@ -81,16 +81,16 @@ type WaitlistRow = {
   id: string;
   day: string;
   status: string;
-  salon_id: string;
-  salons: { name: string } | null;
+  business_id: string;
+  businesses: { name: string } | null;
   services: { name: string } | null;
   staff: { full_name: string } | null;
 };
 
-function mapsHref(salon: BookingRow["salons"]) {
-  if (!salon) return null;
-  if (salon.maps_url) return salon.maps_url;
-  const q = [salon.name, salon.address, salon.area, salon.city].filter(Boolean).join(", ");
+function mapsHref(business: BookingRow["businesses"]) {
+  if (!business) return null;
+  if (business.maps_url) return business.maps_url;
+  const q = [business.name, business.address, business.area, business.city].filter(Boolean).join(", ");
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
@@ -102,21 +102,21 @@ function BookingsPage() {
   const isManager = primaryRole !== "client";
   const [pendingCancel, setPendingCancel] = useState<BookingRow | null>(null);
   const cancelling = Boolean(pendingCancel);
-  const managedSalons = useManagedSalons();
+  const managedBusinesses = useManagedBusinesses();
 
   // Business accounts manage appointments in their own dashboard, not here.
-  // Salon owners with no salon yet resume the creation wizard instead of
-  // bouncing to an empty /admin.
+  // Business owners with no business yet resume the creation wizard instead
+  // of bouncing to an empty /admin.
   useEffect(() => {
     if (!isManager) return;
     if (primaryRole === "business_owner") {
-      if (managedSalons.isLoading) return;
-      const owns = (managedSalons.data?.length ?? 0) > 0;
+      if (managedBusinesses.isLoading) return;
+      const owns = (managedBusinesses.data?.length ?? 0) > 0;
       navigate({ to: owns ? "/admin" : "/business/signup", replace: true });
       return;
     }
     navigate({ to: landingForRoles(roles), replace: true });
-  }, [isManager, primaryRole, managedSalons.isLoading, managedSalons.data, roles, navigate]);
+  }, [isManager, primaryRole, managedBusinesses.isLoading, managedBusinesses.data, roles, navigate]);
 
   // One-time, idempotent: attach any guest bookings placed under this
   // account's email before it existed. Safe no-op when there's nothing to
@@ -146,7 +146,7 @@ function BookingsPage() {
       const query = supabase
         .from("bookings")
         .select(
-          "id, salon_id, starts_at, ends_at, status, total_price, salons(name, area, currency, timezone, address, city, maps_url, phone), services(name, duration_minutes), staff(full_name)",
+          "id, business_id, starts_at, ends_at, status, total_price, businesses(name, area, currency, timezone, address, city, maps_url, phone), services(name, duration_minutes), staff(full_name)",
         )
         .order("starts_at", { ascending: true });
       const { data, error } =
@@ -162,7 +162,7 @@ function BookingsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("waitlist_entries")
-        .select("id, day, status, salon_id, salons(name), services(name), staff(full_name)")
+        .select("id, day, status, business_id, businesses(name), services(name), staff(full_name)")
         .in("status", ["waiting", "notified"])
         .order("day");
       if (error) throw error;
@@ -245,16 +245,16 @@ function BookingsPage() {
             <p className="text-[0.7rem] font-bold uppercase tracking-wide opacity-80">Next up</p>
             <h2 className="mt-1 truncate text-lg font-extrabold">{nextUp.services?.name}</h2>
             <p className="mt-0.5 truncate text-sm opacity-90">
-              {nextUp.salons?.name} · {nextUp.staff?.full_name}
+              {nextUp.businesses?.name} · {nextUp.staff?.full_name}
             </p>
             <p className="mt-3 flex items-center gap-2 text-sm font-bold">
               <CalendarDays className="size-4" />
               {format(new Date(nextUp.starts_at), "EEE d MMM · HH:mm")}
             </p>
             <div className="mt-4 space-y-2">
-              {nextUp.salons?.phone && (
+              {nextUp.businesses?.phone && (
                 <a
-                  href={`tel:${nextUp.salons.phone}`}
+                  href={`tel:${nextUp.businesses.phone}`}
                   className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-background px-4 text-sm font-extrabold text-foreground"
                 >
                   <Phone className="size-4" />
@@ -262,9 +262,9 @@ function BookingsPage() {
                 </a>
               )}
               <div className="grid grid-cols-2 gap-2">
-                {mapsHref(nextUp.salons) && (
+                {mapsHref(nextUp.businesses) && (
                   <a
-                    href={mapsHref(nextUp.salons)!}
+                    href={mapsHref(nextUp.businesses)!}
                     target="_blank"
                     rel="noreferrer"
                     className="press flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border border-primary-foreground/40 px-3 text-sm font-bold"
@@ -274,8 +274,8 @@ function BookingsPage() {
                   </a>
                 )}
                 <Link
-                  to="/salon/$salonId"
-                  params={{ salonId: nextUp.salon_id }}
+                  to="/business/$businessId"
+                  params={{ businessId: nextUp.business_id }}
                   className="press flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border border-primary-foreground/40 px-3 text-sm font-bold"
                 >
                   <Info className="size-4" />
@@ -352,7 +352,7 @@ function BookingsPage() {
                     <div className="min-w-0">
                       <h3 className="truncate text-base font-extrabold">{w.services?.name}</h3>
                       <p className="truncate text-sm text-muted-foreground">
-                        {w.salons?.name} · {w.staff?.full_name} ·{" "}
+                        {w.businesses?.name} · {w.staff?.full_name} ·{" "}
                         {format(new Date(w.day), "EEE d MMM")}
                       </p>
                     </div>
@@ -368,8 +368,8 @@ function BookingsPage() {
                   </div>
                   <div className="mt-4 flex items-center gap-2">
                     <Link
-                      to="/salon/$salonId"
-                      params={{ salonId: w.salon_id }}
+                      to="/business/$businessId"
+                      params={{ businessId: w.business_id }}
                       className="press flex min-h-10 items-center rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
                     >
                       {w.status === "notified" ? "Book the free slot" : "View availability"}
@@ -407,7 +407,7 @@ function BookingsPage() {
                 <div className="mt-4 rounded-2xl bg-muted p-4 text-sm">
                   <p className="font-extrabold">{pendingCancel.services?.name}</p>
                   <p className="mt-0.5 text-muted-foreground">
-                    {pendingCancel.salons?.name} · {pendingCancel.staff?.full_name}
+                    {pendingCancel.businesses?.name} · {pendingCancel.staff?.full_name}
                   </p>
                   <p className="mt-2 font-semibold">
                     {format(new Date(pendingCancel.starts_at), "EEE d MMM · HH:mm")}
@@ -469,7 +469,7 @@ function Section({
               <div className="min-w-0">
                 <h3 className="truncate text-base font-extrabold">{b.services?.name}</h3>
                 <p className="truncate text-sm text-muted-foreground">
-                  {b.salons?.name} · {b.staff?.full_name}
+                  {b.businesses?.name} · {b.staff?.full_name}
                 </p>
               </div>
               <span className="shrink-0 rounded-full bg-secondary px-3 py-1 text-xs font-bold capitalize">
@@ -484,7 +484,7 @@ function Section({
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-lg font-extrabold">
-                  {formatMoney(b.total_price, b.salons?.currency ?? undefined)}
+                  {formatMoney(b.total_price, b.businesses?.currency ?? undefined)}
                 </span>
                 {b.status === "pending" && (
                   <button
@@ -496,9 +496,9 @@ function Section({
                   </button>
                 )}
               </div>
-              {b.salons?.phone && (
+              {b.businesses?.phone && (
                 <a
-                  href={`tel:${b.salons.phone}`}
+                  href={`tel:${b.businesses.phone}`}
                   className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-extrabold text-primary-foreground"
                 >
                   <Phone className="size-4" />
@@ -506,9 +506,9 @@ function Section({
                 </a>
               )}
               <div className="grid grid-cols-2 gap-2">
-                {mapsHref(b.salons) && (
+                {mapsHref(b.businesses) && (
                   <a
-                    href={mapsHref(b.salons)!}
+                    href={mapsHref(b.businesses)!}
                     target="_blank"
                     rel="noreferrer"
                     className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
@@ -518,8 +518,8 @@ function Section({
                   </a>
                 )}
                 <Link
-                  to="/salon/$salonId"
-                  params={{ salonId: b.salon_id }}
+                  to="/business/$businessId"
+                  params={{ businessId: b.business_id }}
                   className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
                 >
                   <Info className="size-4" />

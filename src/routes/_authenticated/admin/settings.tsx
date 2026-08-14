@@ -23,12 +23,12 @@ import {
 import { toast } from "sonner";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useActiveSalon, invalidateCatalogue } from "@/lib/admin";
+import { useActiveBusiness, invalidateCatalogue } from "@/lib/admin";
 import { ImageDrop } from "@/components/dallty/image-drop";
 import { MapPinPicker } from "@/components/admin/map-pin-picker";
 import { PlacesAutocomplete } from "@/components/dallty/places-autocomplete";
 import { uploadAndSign } from "@/lib/storage";
-import { getSalonSettings, saveSalonSettings } from "@/lib/salon-settings.functions";
+import { getBusinessSettings, saveBusinessSettings } from "@/lib/business-settings.functions";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
 import { useCategories, useCountries } from "@/lib/reference-data";
 
@@ -179,11 +179,11 @@ function SettingsPage() {
   const navigate = Route.useNavigate();
   const { user, hasRole } = useAuth();
   const isPlatformAdmin = hasRole("super_admin") || hasRole("admin");
-  const { salonId, isLoading } = useActiveSalon();
+  const { businessId, isLoading } = useActiveBusiness();
   const queryClient = useQueryClient();
 
-  const fetchSettings = useServerFn(getSalonSettings);
-  const persist = useServerFn(saveSalonSettings);
+  const fetchSettings = useServerFn(getBusinessSettings);
+  const persist = useServerFn(saveBusinessSettings);
 
   const [form, setForm] = useState<Record<string, any>>({});
   const [hours, setHours] = useState<Hours[]>(DEFAULT_HOURS);
@@ -191,19 +191,19 @@ function SettingsPage() {
   const [cover, setCover] = useState<File | null>(null);
 
   const settings = useQuery({
-    queryKey: ["salon-settings", salonId],
-    enabled: Boolean(salonId),
-    queryFn: () => fetchSettings({ data: { salonId: salonId! } }),
+    queryKey: ["business-settings", businessId],
+    enabled: Boolean(businessId),
+    queryFn: () => fetchSettings({ data: { businessId: businessId! } }),
   });
 
   useEffect(() => {
-    const salon = settings.data?.salon;
-    if (!salon) return;
+    const business = settings.data?.business;
+    if (!business) return;
     setForm({
-      ...salon,
-      opens_at: (salon.opens_at ?? "09:00").slice(0, 5),
-      closes_at: (salon.closes_at ?? "21:00").slice(0, 5),
-      categories: salon.categories ?? [],
+      ...business,
+      opens_at: (business.opens_at ?? "09:00").slice(0, 5),
+      closes_at: (business.closes_at ?? "21:00").slice(0, 5),
+      categories: business.categories ?? [],
     });
     const stored = settings.data?.hours ?? [];
     setHours(
@@ -218,8 +218,8 @@ function SettingsPage() {
             }
           : {
               ...base,
-              opens_at: (salon.opens_at ?? "09:00").slice(0, 5),
-              closes_at: (salon.closes_at ?? "21:00").slice(0, 5),
+              opens_at: (business.opens_at ?? "09:00").slice(0, 5),
+              closes_at: (business.closes_at ?? "21:00").slice(0, 5),
             };
       }),
     );
@@ -233,7 +233,7 @@ function SettingsPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!salonId || !user) throw new Error("No business to update");
+      if (!businessId || !user) throw new Error("No business to update");
       const patch: Record<string, any> = {
         name: form.name ?? "",
         name_ar: form.name_ar ?? null,
@@ -303,12 +303,12 @@ function SettingsPage() {
         patch.cover_url = url;
         patch.image_url = url;
       }
-      await persist({ data: { salonId, patch, hours } });
+      await persist({ data: { businessId, patch, hours } });
     },
     onSuccess: () => {
       setLogo(null);
       setCover(null);
-      queryClient.invalidateQueries({ queryKey: ["salon-settings", salonId] });
+      queryClient.invalidateQueries({ queryKey: ["business-settings", businessId] });
       invalidateCatalogue(queryClient);
       toast.success("Settings saved");
     },
@@ -323,7 +323,7 @@ function SettingsPage() {
     );
   }
 
-  if (!salonId) {
+  if (!businessId) {
     return (
       <div className="rounded-3xl glass p-6">
         {isPlatformAdmin ? (

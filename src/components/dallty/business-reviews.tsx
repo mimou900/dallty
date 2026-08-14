@@ -12,7 +12,7 @@ type Review = {
   id: string;
   booking_id: string | null;
   customer_id: string;
-  salon_id: string;
+  business_id: string;
   rating: number;
   body: string;
   photos: string[];
@@ -85,7 +85,7 @@ function ReviewPhotos({ paths }: { paths: string[] }) {
   );
 }
 
-export function SalonReviews({ salonId, isOwner }: { salonId: string; isOwner: boolean }) {
+export function BusinessReviews({ businessId, isOwner }: { businessId: string; isOwner: boolean }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -98,27 +98,27 @@ export function SalonReviews({ salonId, isOwner }: { salonId: string; isOwner: b
   const [composing, setComposing] = useState(false);
 
   const reviewsQuery = useQuery({
-    queryKey: ["reviews", salonId],
+    queryKey: ["reviews", businessId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reviews")
         .select("*")
-        .eq("salon_id", salonId)
+        .eq("business_id", businessId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Review[];
     },
   });
 
-  // A customer may review a booking they actually had at this salon.
+  // A customer may review a booking they actually had at this business.
   const eligibleQuery = useQuery({
-    queryKey: ["reviewable-bookings", salonId, user?.id],
+    queryKey: ["reviewable-bookings", businessId, user?.id],
     enabled: Boolean(user),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
         .select("id, service_id, staff_id, starts_at, status")
-        .eq("salon_id", salonId)
+        .eq("business_id", businessId)
         .eq("customer_id", user!.id)
         .in("status", ["completed", "confirmed"])
         .order("starts_at", { ascending: false });
@@ -168,7 +168,7 @@ export function SalonReviews({ salonId, isOwner }: { salonId: string; isOwner: b
       const { error } = await supabase.from("reviews").insert({
         booking_id: eligibleBooking.id,
         customer_id: user.id,
-        salon_id: salonId,
+        business_id: businessId,
         staff_id: eligibleBooking.staff_id,
         service_id: eligibleBooking.service_id,
         rating,
@@ -178,8 +178,8 @@ export function SalonReviews({ salonId, isOwner }: { salonId: string; isOwner: b
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reviews", salonId] });
-      queryClient.invalidateQueries({ queryKey: ["salon", salonId] });
+      queryClient.invalidateQueries({ queryKey: ["reviews", businessId] });
+      queryClient.invalidateQueries({ queryKey: ["business", businessId] });
       resetForm();
       toast.success("Thanks for your review");
     },
@@ -192,8 +192,8 @@ export function SalonReviews({ salonId, isOwner }: { salonId: string; isOwner: b
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reviews", salonId] });
-      queryClient.invalidateQueries({ queryKey: ["salon", salonId] });
+      queryClient.invalidateQueries({ queryKey: ["reviews", businessId] });
+      queryClient.invalidateQueries({ queryKey: ["business", businessId] });
       toast.success("Review deleted");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not delete"),
@@ -208,7 +208,7 @@ export function SalonReviews({ salonId, isOwner }: { salonId: string; isOwner: b
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reviews", salonId] });
+      queryClient.invalidateQueries({ queryKey: ["reviews", businessId] });
       setReplyFor(null);
       setReplyText("");
       toast.success("Reply posted");
@@ -221,7 +221,7 @@ export function SalonReviews({ salonId, isOwner }: { salonId: string; isOwner: b
       if (!user) throw new Error("Sign in to report a review");
       const { error } = await supabase
         .from("review_reports")
-        .insert({ review_id: id, reporter_id: user.id, reason: "Reported from salon page" });
+        .insert({ review_id: id, reporter_id: user.id, reason: "Reported from business page" });
       if (error) throw error;
     },
     onSuccess: () => toast.success("Thanks — our team will take a look."),
@@ -392,7 +392,7 @@ export function SalonReviews({ salonId, isOwner }: { salonId: string; isOwner: b
               {review.owner_reply && (
                 <div className="mt-4 rounded-2xl glass-soft p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                    Reply from the salon
+                    Reply from the business
                   </p>
                   <p className="mt-1 text-sm leading-relaxed">{review.owner_reply}</p>
                 </div>
@@ -426,7 +426,7 @@ export function SalonReviews({ salonId, isOwner }: { salonId: string; isOwner: b
                       onClick={() => setReplyFor(review.id)}
                       className="press min-h-10 w-full rounded-2xl glass-soft text-sm font-bold"
                     >
-                      Reply as the salon
+                      Reply as the business
                     </button>
                   )}
                 </div>

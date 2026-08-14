@@ -4,13 +4,13 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
- * Private contact details of a salon (business email / private business phone).
- * These columns are not readable by the Data API roles, so only the verified
- * owner or a platform admin can read them through this function.
+ * Private contact details of a business (business email / private business
+ * phone). These columns are not readable by the Data API roles, so only the
+ * verified owner or a platform admin can read them through this function.
  */
-export const getSalonPrivateContact = createServerFn({ method: "POST" })
+export const getBusinessPrivateContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ salonId: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: allowed, error: roleError } = await context.supabase.rpc("is_platform_admin", {
       _user_id: context.userId,
@@ -18,20 +18,20 @@ export const getSalonPrivateContact = createServerFn({ method: "POST" })
     if (roleError) throw new Error(roleError.message);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: salon, error } = await supabaseAdmin
-      .from("salons")
+    const { data: business, error } = await supabaseAdmin
+      .from("businesses")
       .select("id, owner_id, business_email, business_phone")
-      .eq("id", data.salonId)
+      .eq("id", data.businessId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!salon) throw new Error("Business not found");
-    if (!allowed && salon.owner_id !== context.userId) {
+    if (!business) throw new Error("Business not found");
+    if (!allowed && business.owner_id !== context.userId) {
       throw new Error("You do not manage this business");
     }
 
     return {
-      businessEmail: salon.business_email ?? "",
-      businessPhone: salon.business_phone ?? "",
+      businessEmail: business.business_email ?? "",
+      businessPhone: business.business_phone ?? "",
     };
   });
 
@@ -164,7 +164,7 @@ const patchSchema = z
   })
   .partial();
 
-export type SalonSettingsPatch = z.infer<typeof patchSchema>;
+export type BusinessSettingsPatch = z.infer<typeof patchSchema>;
 
 const hoursSchema = z
   .array(
@@ -177,72 +177,72 @@ const hoursSchema = z
   )
   .max(7);
 
-async function assertManages(context: { supabase: any; userId: string }, salonId: string) {
+async function assertManages(context: { supabase: any; userId: string }, businessId: string) {
   const { data: allowed, error } = await context.supabase.rpc("is_platform_admin", {
     _user_id: context.userId,
   });
   if (error) throw new Error(error.message);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: salon, error: salonError } = await supabaseAdmin
-    .from("salons")
+  const { data: business, error: businessError } = await supabaseAdmin
+    .from("businesses")
     .select("id, owner_id")
-    .eq("id", salonId)
+    .eq("id", businessId)
     .maybeSingle();
-  if (salonError) throw new Error(salonError.message);
-  if (!salon) throw new Error("Business not found");
-  if (!allowed && salon.owner_id !== context.userId) {
+  if (businessError) throw new Error(businessError.message);
+  if (!business) throw new Error("Business not found");
+  if (!allowed && business.owner_id !== context.userId) {
     throw new Error("You do not manage this business");
   }
   return supabaseAdmin;
 }
 
 /** Every settings field for the business the caller manages. */
-export const getSalonSettings = createServerFn({ method: "POST" })
+export const getBusinessSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ salonId: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const admin = await assertManages(context as any, data.salonId);
-    const [{ data: salon, error }, { data: hours, error: hoursError }] = await Promise.all([
-      admin.from("salons").select(SETTINGS_COLUMNS).eq("id", data.salonId).maybeSingle(),
+    const admin = await assertManages(context as any, data.businessId);
+    const [{ data: business, error }, { data: hours, error: hoursError }] = await Promise.all([
+      admin.from("businesses").select(SETTINGS_COLUMNS).eq("id", data.businessId).maybeSingle(),
       admin
-        .from("salon_hours")
+        .from("business_hours")
         .select("weekday, is_closed, opens_at, closes_at")
-        .eq("salon_id", data.salonId)
+        .eq("business_id", data.businessId)
         .order("weekday"),
     ]);
     if (error) throw new Error(error.message);
     if (hoursError) throw new Error(hoursError.message);
-    return { salon: salon as Record<string, any> | null, hours: hours ?? [] };
+    return { business: business as Record<string, any> | null, hours: hours ?? [] };
   });
 
 /** Saves an allow-listed patch of settings, plus the weekly opening hours. */
-export const saveSalonSettings = createServerFn({ method: "POST" })
+export const saveBusinessSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
-        salonId: z.string().uuid(),
+        businessId: z.string().uuid(),
         patch: patchSchema,
         hours: hoursSchema.optional(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const admin = await assertManages(context as any, data.salonId);
+    const admin = await assertManages(context as any, data.businessId);
 
     if (Object.keys(data.patch).length > 0) {
       const { error } = await admin
-        .from("salons")
+        .from("businesses")
         .update({ ...data.patch, updated_at: new Date().toISOString() })
-        .eq("id", data.salonId);
+        .eq("id", data.businessId);
       if (error) throw new Error(error.message);
     }
 
     if (data.hours && data.hours.length > 0) {
-      const rows = data.hours.map((h) => ({ ...h, salon_id: data.salonId }));
+      const rows = data.hours.map((h) => ({ ...h, business_id: data.businessId }));
       const { error } = await admin
-        .from("salon_hours")
-        .upsert(rows, { onConflict: "salon_id,weekday" });
+        .from("business_hours")
+        .upsert(rows, { onConflict: "business_id,weekday" });
       if (error) throw new Error(error.message);
     }
 

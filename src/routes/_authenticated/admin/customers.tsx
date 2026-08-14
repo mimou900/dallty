@@ -5,8 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { format } from "date-fns";
 import { Phone, Search, Users } from "lucide-react";
 
-import { money, useManagedSalons } from "@/lib/admin";
-import { listSalonCustomers } from "@/lib/salon-crm.functions";
+import { money, useManagedBusinesses } from "@/lib/admin";
+import { listBusinessCustomers } from "@/lib/business-crm.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/customers")({
   head: () => ({
@@ -27,17 +27,17 @@ export const Route = createFileRoute("/_authenticated/admin/customers")({
 });
 
 function CustomersPage() {
-  const salonsQuery = useManagedSalons();
-  const salons = salonsQuery.data ?? [];
-  const [salonId, setSalonId] = useState<string | null>(null);
-  const activeSalonId = salonId ?? salons[0]?.id ?? null;
+  const businessesQuery = useManagedBusinesses();
+  const businesses = businessesQuery.data ?? [];
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const activeBusinessId = businessId ?? businesses[0]?.id ?? null;
   const [term, setTerm] = useState("");
 
-  const fetchCustomers = useServerFn(listSalonCustomers);
+  const fetchCustomers = useServerFn(listBusinessCustomers);
   const customers = useQuery({
-    queryKey: ["salon-customers", activeSalonId],
-    enabled: Boolean(activeSalonId),
-    queryFn: () => fetchCustomers({ data: { salonId: activeSalonId! } }),
+    queryKey: ["business-customers", activeBusinessId],
+    enabled: Boolean(activeBusinessId),
+    queryFn: () => fetchCustomers({ data: { businessId: activeBusinessId! } }),
   });
 
   const rows = useMemo(() => {
@@ -51,8 +51,8 @@ function CustomersPage() {
     return [...filtered].sort((a, b) => b.totalSpent - a.totalSpent);
   }, [customers.data, term]);
 
-  if (salonsQuery.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  if (!activeSalonId)
+  if (businessesQuery.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (!activeBusinessId)
     return (
       <div className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
         No business linked to your account yet.
@@ -61,15 +61,15 @@ function CustomersPage() {
 
   return (
     <div className="space-y-5">
-      {salons.length > 1 && (
+      {businesses.length > 1 && (
         <div className="flex flex-wrap gap-2">
-          {salons.map((s) => (
+          {businesses.map((s) => (
             <button
               key={s.id}
               type="button"
-              onClick={() => setSalonId(s.id)}
+              onClick={() => setBusinessId(s.id)}
               className={`press min-h-10 rounded-2xl px-4 text-sm font-bold ${
-                s.id === activeSalonId ? "bg-primary text-primary-foreground" : "glass-soft"
+                s.id === activeBusinessId ? "bg-primary text-primary-foreground" : "glass-soft"
               }`}
             >
               {s.name}

@@ -3,25 +3,25 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const salonInput = z.object({ salonId: z.string().uuid() });
+const businessInput = z.object({ businessId: z.string().uuid() });
 
 /**
- * Customer book for a single salon: every client who ever booked there,
+ * Customer book for a single business: every client who ever booked there,
  * with spend, visit counts and contact details. Owners/managers only.
  */
-export const listSalonCustomers = createServerFn({ method: "POST" })
+export const listBusinessCustomers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { salonId: string }) => salonInput.parse(input))
+  .inputValidator((input: { businessId: string }) => businessInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { assertCanManageSalon } = await import("@/lib/salon-crm.server");
-    await assertCanManageSalon(context.supabase, context.userId, data.salonId);
+    const { assertCanManageBusiness } = await import("@/lib/business-crm.server");
+    await assertCanManageBusiness(context.supabase, context.userId, data.businessId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: bookings, error } = await supabaseAdmin
       .from("bookings")
       .select("id, customer_id, service_id, staff_id, starts_at, status, total_price")
-      .eq("salon_id", data.salonId)
+      .eq("business_id", data.businessId)
       .order("starts_at", { ascending: false })
       .limit(2000);
     if (error) throw new Error(error.message);
@@ -34,7 +34,7 @@ export const listSalonCustomers = createServerFn({ method: "POST" })
         .from("profiles")
         .select("id, full_name, phone, gender, birthday, skin_type, hair_type, allergies, beauty_notes")
         .in("id", customerIds),
-      supabaseAdmin.from("services").select("id, name").eq("salon_id", data.salonId),
+      supabaseAdmin.from("services").select("id, name").eq("business_id", data.businessId),
     ]);
 
     const serviceName = new Map((services ?? []).map((s) => [s.id, s.name]));

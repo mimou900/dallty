@@ -39,7 +39,7 @@ const AMENITY_LABELS: Record<string, string> = {
   kids: "Kids welcome",
 };
 
-type Salon = {
+type Business = {
   id: string;
   description: string | null;
   amenities: string[];
@@ -103,14 +103,14 @@ function Chips({ items, icon: Icon }: { items: string[]; icon: typeof Award }) {
   );
 }
 
-export function SalonAbout({ salon }: { salon: Salon }) {
+export function BusinessAbout({ business }: { business: Business }) {
   const galleryQuery = useQuery({
-    queryKey: ["salon-gallery", salon.id],
+    queryKey: ["business-gallery", business.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("salon_gallery")
+        .from("business_gallery")
         .select("*")
-        .eq("salon_id", salon.id)
+        .eq("business_id", business.id)
         .order("sort_order");
       if (error) throw error;
       return data as GalleryItem[];
@@ -120,33 +120,37 @@ export function SalonAbout({ salon }: { salon: Salon }) {
   const gallery = galleryQuery.data ?? [];
   const categories = Array.from(new Set(gallery.map((g) => g.category)));
   const beforeAfter = gallery.filter((g) => g.before_url);
-  const faq = Array.isArray(salon.faq)
-    ? (salon.faq as { q?: string; a?: string }[]).filter((f) => f.q && f.a)
+  const faq = Array.isArray(business.faq)
+    ? (business.faq as { q?: string; a?: string }[]).filter((f) => f.q && f.a)
     : [];
 
   return (
     <section className="mt-7 animate-fade-up space-y-6">
-      {salon.description && (
+      {business.description && (
         <div className="rounded-3xl glass p-5">
           <h2 className="text-lg font-extrabold">About</h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{salon.description}</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {business.description}
+          </p>
         </div>
       )}
 
-      {salon.owner_story && (
+      {business.owner_story && (
         <div className="rounded-3xl glass p-5">
           <h2 className="text-lg font-extrabold">Owner's story</h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{salon.owner_story}</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {business.owner_story}
+          </p>
         </div>
       )}
 
-      {(salon.video_tour_url || salon.instagram_url || salon.tiktok_url) && (
+      {(business.video_tour_url || business.instagram_url || business.tiktok_url) && (
         <div className="rounded-3xl glass p-5">
           <h2 className="text-lg font-extrabold">Take a look inside</h2>
           <div className="mt-3 flex flex-wrap gap-2">
-            {salon.video_tour_url && (
+            {business.video_tour_url && (
               <a
-                href={salon.video_tour_url}
+                href={business.video_tour_url}
                 target="_blank"
                 rel="noreferrer noopener"
                 className="press flex min-h-11 items-center gap-2 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
@@ -155,9 +159,9 @@ export function SalonAbout({ salon }: { salon: Salon }) {
                 Video tour
               </a>
             )}
-            {salon.instagram_url && (
+            {business.instagram_url && (
               <a
-                href={salon.instagram_url}
+                href={business.instagram_url}
                 target="_blank"
                 rel="noreferrer noopener"
                 className="press flex min-h-11 items-center gap-2 rounded-2xl glass-soft px-4 text-sm font-bold"
@@ -166,9 +170,9 @@ export function SalonAbout({ salon }: { salon: Salon }) {
                 Instagram
               </a>
             )}
-            {salon.tiktok_url && (
+            {business.tiktok_url && (
               <a
-                href={salon.tiktok_url}
+                href={business.tiktok_url}
                 target="_blank"
                 rel="noreferrer noopener"
                 className="press flex min-h-11 items-center gap-2 rounded-2xl glass-soft px-4 text-sm font-bold"
@@ -218,11 +222,11 @@ export function SalonAbout({ salon }: { salon: Salon }) {
         </div>
       )}
 
-      {salon.amenities.length > 0 && (
+      {business.amenities.length > 0 && (
         <div className="rounded-3xl glass p-5">
           <h2 className="text-lg font-extrabold">Amenities</h2>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {salon.amenities.map((key) => {
+            {business.amenities.map((key) => {
               const Icon = AMENITY_ICONS[key] ?? Info;
               return (
                 <div key={key} className="flex items-center gap-2.5 rounded-2xl glass-soft px-4 py-3">
@@ -237,61 +241,61 @@ export function SalonAbout({ salon }: { salon: Salon }) {
         </div>
       )}
 
-      {(salon.languages.length > 0 ||
-        salon.awards.length > 0 ||
-        salon.certifications.length > 0 ||
-        salon.brands.length > 0) && (
+      {(business.languages.length > 0 ||
+        business.awards.length > 0 ||
+        business.certifications.length > 0 ||
+        business.brands.length > 0) && (
         <div className="space-y-4 rounded-3xl glass p-5">
-          {salon.languages.length > 0 && (
+          {business.languages.length > 0 && (
             <div>
               <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
                 Languages spoken
               </h2>
-              <Chips items={salon.languages} icon={Languages} />
+              <Chips items={business.languages} icon={Languages} />
             </div>
           )}
-          {salon.awards.length > 0 && (
+          {business.awards.length > 0 && (
             <div>
               <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
                 Awards
               </h2>
-              <Chips items={salon.awards} icon={Award} />
+              <Chips items={business.awards} icon={Award} />
             </div>
           )}
-          {salon.certifications.length > 0 && (
+          {business.certifications.length > 0 && (
             <div>
               <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
                 Certifications
               </h2>
-              <Chips items={salon.certifications} icon={GraduationCap} />
+              <Chips items={business.certifications} icon={GraduationCap} />
             </div>
           )}
-          {salon.brands.length > 0 && (
+          {business.brands.length > 0 && (
             <div>
               <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
                 Products used
               </h2>
-              <Chips items={salon.brands} icon={ScrollText} />
+              <Chips items={business.brands} icon={ScrollText} />
             </div>
           )}
         </div>
       )}
 
-      {(salon.cancellation_policy || salon.house_rules) && (
+      {(business.cancellation_policy || business.house_rules) && (
         <div className="space-y-4 rounded-3xl glass p-5">
-          {salon.cancellation_policy && (
+          {business.cancellation_policy && (
             <div>
               <h2 className="text-lg font-extrabold">Cancellation policy</h2>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {salon.cancellation_policy}
+                {business.cancellation_policy}
               </p>
             </div>
           )}
-          {salon.house_rules && (
+          {business.house_rules && (
             <div>
               <h2 className="text-lg font-extrabold">House rules</h2>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {salon.house_rules}
+                {business.house_rules}
               </p>
             </div>
           )}
