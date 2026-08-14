@@ -235,7 +235,11 @@ function GlobalCommand({
       const [customers, services, staff] = await Promise.all([
         supabase.from("profiles").select("id, full_name, phone").ilike("full_name", like).limit(5),
         supabase.from("services").select("id, name, business_id").ilike("name", like).limit(5),
-        supabase.from("staff").select("id, full_name, business_id").ilike("full_name", like).limit(5),
+        supabase
+          .from("staff")
+          .select("id, full_name, business_id")
+          .ilike("full_name", like)
+          .limit(5),
       ]);
       return {
         customers: customers.data ?? [],

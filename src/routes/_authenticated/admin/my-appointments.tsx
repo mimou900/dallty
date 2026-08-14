@@ -28,7 +28,6 @@ import {
 } from "@/lib/staff-desk.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/my-appointments")({
-
   head: () => ({
     meta: [
       { title: "My appointments — Dallty Business" },
@@ -74,7 +73,6 @@ type StaffAppointment = {
 };
 
 function MyAppointmentsPage() {
-
   const queryClient = useQueryClient();
   const fetchMine = useServerFn(listMyAppointments);
   const createFn = useServerFn(createMyAppointment);
@@ -91,7 +89,6 @@ function MyAppointmentsPage() {
   const [moveFor, setMoveFor] = useState<string | null>(null);
   const [moveDraft, setMoveDraft] = useState("");
   const [pendingCancel, setPendingCancel] = useState<StaffAppointment | null>(null);
-
 
   const [draft, setDraft] = useState({ serviceId: "", customerId: "", startsAt: "", notes: "" });
 
@@ -143,9 +140,7 @@ function MyAppointmentsPage() {
       .filter((a) => status === "all" || a.status === status)
       .filter(
         (a) =>
-          !q ||
-          a.customerName.toLowerCase().includes(q) ||
-          a.serviceName.toLowerCase().includes(q),
+          !q || a.customerName.toLowerCase().includes(q) || a.serviceName.toLowerCase().includes(q),
       )
       .sort((a, b) =>
         range === "past"
@@ -478,7 +473,10 @@ function MyAppointmentsPage() {
         </div>
       )}
 
-      <AlertDialog open={Boolean(pendingCancel)} onOpenChange={(open) => !open && setPendingCancel(null)}>
+      <AlertDialog
+        open={Boolean(pendingCancel)}
+        onOpenChange={(open) => !open && setPendingCancel(null)}
+      >
         <AlertDialogContent className="rounded-3xl border-0 bg-background p-0 sm:rounded-3xl">
           <div className="p-6">
             <AlertDialogHeader className="text-start">
@@ -526,4 +524,3 @@ function MyAppointmentsPage() {
     </div>
   );
 }
-

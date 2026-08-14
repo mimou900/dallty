@@ -15,13 +15,29 @@ export type MarketplaceStatus = (typeof MARKETPLACE_STATUSES)[number];
 
 /** Readiness requirements a salon must meet before it can be submitted. */
 export const READINESS_CHECKS = [
-  { key: "profile_complete", label: "Business profile completed", labelAr: "اكتمال ملف النشاط التجاري" },
+  {
+    key: "profile_complete",
+    label: "Business profile completed",
+    labelAr: "اكتمال ملف النشاط التجاري",
+  },
   { key: "logo_uploaded", label: "Logo uploaded", labelAr: "تم رفع الشعار" },
-  { key: "location_set", label: "Exact Google Maps location", labelAr: "الموقع الدقيق على الخريطة" },
+  {
+    key: "location_set",
+    label: "Exact Google Maps location",
+    labelAr: "الموقع الدقيق على الخريطة",
+  },
   { key: "hours_set", label: "Business hours configured", labelAr: "تم ضبط ساعات العمل" },
-  { key: "has_service", label: "At least one published service", labelAr: "خدمة منشورة واحدة على الأقل" },
+  {
+    key: "has_service",
+    label: "At least one published service",
+    labelAr: "خدمة منشورة واحدة على الأقل",
+  },
   { key: "has_specialist", label: "At least one specialist", labelAr: "أخصائي واحد على الأقل" },
-  { key: "service_assigned", label: "Specialist assigned to a service", labelAr: "ربط الأخصائي بخدمة" },
+  {
+    key: "service_assigned",
+    label: "Specialist assigned to a service",
+    labelAr: "ربط الأخصائي بخدمة",
+  },
   { key: "working_hours_set", label: "Specialist working hours", labelAr: "ساعات عمل الأخصائي" },
   {
     key: "future_availability",

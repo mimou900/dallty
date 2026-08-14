@@ -50,8 +50,6 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
 });
 
-
-
 function Metric({
   title,
   value,
@@ -83,7 +81,10 @@ function DashboardPage() {
     queryKey: ["my-businesses", user?.id],
     enabled: Boolean(user) && isOwner,
     queryFn: async () => {
-      const { data, error } = await supabase.from("businesses").select("id, name, currency").order("name");
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("id, name, currency")
+        .order("name");
       if (error) throw error;
       return data;
     },
@@ -99,7 +100,9 @@ function DashboardPage() {
       const since = subDays(startOfDay(new Date()), 29).toISOString();
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, customer_id, business_id, service_id, staff_id, starts_at, status, total_price")
+        .select(
+          "id, customer_id, business_id, service_id, staff_id, starts_at, status, total_price",
+        )
         .in("business_id", businessIds)
         .gte("starts_at", since)
         .lte("starts_at", addDays(new Date(), 30).toISOString());
@@ -196,16 +199,15 @@ function DashboardPage() {
           name: member.full_name,
           bookings: mine.length,
           revenue: mine.filter(paid).reduce((sum, b) => sum + Number(b.total_price), 0),
-          today: mine.filter((b) => format(new Date(b.starts_at), "yyyy-MM-dd") === todayKey).length,
+          today: mine.filter((b) => format(new Date(b.starts_at), "yyyy-MM-dd") === todayKey)
+            .length,
         };
       })
       .sort((a, b) => b.revenue - a.revenue);
 
     const customers = new Set(bookings.map((b) => b.customer_id));
     const newCustomers = new Set(
-      bookings
-        .filter((b) => new Date(b.starts_at) >= subDays(now, 7))
-        .map((b) => b.customer_id),
+      bookings.filter((b) => new Date(b.starts_at) >= subDays(now, 7)).map((b) => b.customer_id),
     );
 
     // Occupancy: booked slots today against roughly 16 half-hour slots per specialist.
@@ -222,9 +224,7 @@ function DashboardPage() {
         .length,
       completed: bookings.filter((b) => b.status === "completed").length,
       cancelled: bookings.filter((b) => b.status === "cancelled").length,
-      noShows: bookings.filter(
-        (b) => b.status === "pending" && new Date(b.starts_at) < now,
-      ).length,
+      noShows: bookings.filter((b) => b.status === "pending" && new Date(b.starts_at) < now).length,
       revenueSeries,
       peakHours,
       serviceCounts,
@@ -265,7 +265,11 @@ function DashboardPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 pb-28 pt-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Link to="/" aria-label="Back home" className="press grid size-10 place-items-center rounded-2xl glass-soft">
+        <Link
+          to="/"
+          aria-label="Back home"
+          className="press grid size-10 place-items-center rounded-2xl glass-soft"
+        >
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-2xl font-extrabold tracking-tight">Business dashboard</h1>

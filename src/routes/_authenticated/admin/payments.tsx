@@ -72,7 +72,11 @@ function PaymentsPage() {
 
   const rows = bookings
     .filter((b) =>
-      filter === "all" ? true : filter === "paid" ? b.payment_status === "paid" : b.payment_status !== "paid",
+      filter === "all"
+        ? true
+        : filter === "paid"
+          ? b.payment_status === "paid"
+          : b.payment_status !== "paid",
     )
     .slice()
     .reverse();
@@ -163,7 +167,11 @@ function PaymentsPage() {
                       isPaid ? "bg-primary/15 text-primary" : "bg-gold/20 text-gold-foreground"
                     }`}
                   >
-                    {isPaid ? <CheckCircle2 className="size-4" /> : <CircleDashed className="size-4" />}
+                    {isPaid ? (
+                      <CheckCircle2 className="size-4" />
+                    ) : (
+                      <CircleDashed className="size-4" />
+                    )}
                     {isPaid ? "Paid" : "Mark paid"}
                   </button>
                 </li>

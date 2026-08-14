@@ -44,9 +44,7 @@ function CustomersPage() {
     const list = customers.data ?? [];
     const q = term.trim().toLowerCase();
     const filtered = q
-      ? list.filter(
-          (c) => c.fullName.toLowerCase().includes(q) || (c.phone ?? "").includes(q),
-        )
+      ? list.filter((c) => c.fullName.toLowerCase().includes(q) || (c.phone ?? "").includes(q))
       : list;
     return [...filtered].sort((a, b) => b.totalSpent - a.totalSpent);
   }, [customers.data, term]);
@@ -113,13 +111,16 @@ function CustomersPage() {
                     {c.favouriteService ?? "no favourite yet"}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Last visit:{" "}
-                    {c.lastVisit ? format(new Date(c.lastVisit), "d MMM yyyy") : "—"} · Next:{" "}
-                    {c.nextVisit ? format(new Date(c.nextVisit), "d MMM yyyy HH:mm") : "—"}
+                    Last visit: {c.lastVisit ? format(new Date(c.lastVisit), "d MMM yyyy") : "—"} ·
+                    Next: {c.nextVisit ? format(new Date(c.nextVisit), "d MMM yyyy HH:mm") : "—"}
                   </p>
                   {(c.allergies || c.skinType || c.hairType) && (
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {[c.skinType && `Skin: ${c.skinType}`, c.hairType && `Hair: ${c.hairType}`, c.allergies && `Allergies: ${c.allergies}`]
+                      {[
+                        c.skinType && `Skin: ${c.skinType}`,
+                        c.hairType && `Hair: ${c.hairType}`,
+                        c.allergies && `Allergies: ${c.allergies}`,
+                      ]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>

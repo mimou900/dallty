@@ -57,9 +57,7 @@ function ReviewsPage() {
   const stats = useMemo(() => {
     const all = reviewsQuery.data ?? [];
     const visible = all.filter((r) => !r.is_hidden);
-    const avg = visible.length
-      ? visible.reduce((s, r) => s + r.rating, 0) / visible.length
-      : 0;
+    const avg = visible.length ? visible.reduce((s, r) => s + r.rating, 0) / visible.length : 0;
     const buckets = [5, 4, 3, 2, 1].map((star) => ({
       star,
       count: visible.filter((r) => r.rating === star).length,

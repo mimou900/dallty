@@ -18,9 +18,7 @@ export function businessCategoryLabel(
   const first = businessCategories?.[0]?.trim();
   if (!first) return lang === "ar" ? "نشاط تجاري" : "Business";
 
-  const match = categories.find(
-    (c) => c.default_name.toLowerCase() === first.toLowerCase(),
-  );
+  const match = categories.find((c) => c.default_name.toLowerCase() === first.toLowerCase());
   if (match) return translate(match, lang);
 
   // No exact match in the seeded categories table — the stored free-text

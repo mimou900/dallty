@@ -2,16 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, startOfDay, subDays } from "date-fns";
-import {
-  BellRing,
-  CalendarPlus,
-  Check,
-  Copy,
-  Printer,
-  Search,
-  UserCog,
-  X,
-} from "lucide-react";
+import { BellRing, CalendarPlus, Check, Copy, Printer, Search, UserCog, X } from "lucide-react";
 import { toast } from "sonner";
 import { CallButton } from "@/components/dallty/phone-field";
 import { SearchableSelect } from "@/components/admin/searchable-select";
@@ -38,7 +29,6 @@ import {
   useManagedStaff,
   type BookingStatus,
 } from "@/lib/admin";
-
 
 export const Route = createFileRoute("/_authenticated/admin/appointments")({
   head: () => ({
@@ -83,7 +73,6 @@ type AppointmentRow = {
 };
 
 function AppointmentsPage() {
-
   const queryClient = useQueryClient();
   const { pick } = useLocale();
   const [status, setStatus] = useState<"all" | BookingStatus>("all");
@@ -91,8 +80,6 @@ function AppointmentsPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [pendingCancel, setPendingCancel] = useState<AppointmentRow | null>(null);
-
-
 
   const businessesQuery = useManagedBusinesses();
   const allBusinesses = businessesQuery.data ?? [];
@@ -321,7 +308,9 @@ function AppointmentsPage() {
                         <dd className="flex flex-wrap items-center gap-2 font-semibold">
                           <span>
                             {open.customerName}
-                            {open.customerPhone ? ` · ${formatPhoneDisplay(open.customerPhone)}` : ""}
+                            {open.customerPhone
+                              ? ` · ${formatPhoneDisplay(open.customerPhone)}`
+                              : ""}
                           </span>
                           <CallButton phone={open.customerPhone} name={open.customerName} />
                         </dd>
@@ -419,7 +408,6 @@ function AppointmentsPage() {
                             .map((s) => ({ value: s.id, label: s.full_name }))}
                         />
                       </div>
-
                     </div>
                   </div>
                 )}
@@ -428,7 +416,10 @@ function AppointmentsPage() {
           </ul>
         )}
 
-        <AlertDialog open={Boolean(pendingCancel)} onOpenChange={(open) => !open && setPendingCancel(null)}>
+        <AlertDialog
+          open={Boolean(pendingCancel)}
+          onOpenChange={(open) => !open && setPendingCancel(null)}
+        >
           <AlertDialogContent className="rounded-3xl border-0 bg-background p-0 sm:rounded-3xl">
             <div className="p-6">
               <AlertDialogHeader className="text-start">
@@ -479,4 +470,3 @@ function AppointmentsPage() {
     </div>
   );
 }
-

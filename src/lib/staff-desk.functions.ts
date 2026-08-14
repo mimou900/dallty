@@ -30,7 +30,9 @@ export const listMyAppointments = createServerFn({ method: "POST" })
         .eq("business_id", businessId),
       customerIds.length
         ? supabaseAdmin.from("profiles").select("id, full_name, phone").in("id", customerIds)
-        : Promise.resolve({ data: [] as { id: string; full_name: string; phone: string | null }[] }),
+        : Promise.resolve({
+            data: [] as { id: string; full_name: string; phone: string | null }[],
+          }),
       supabaseAdmin.from("staff_services").select("service_id").eq("staff_id", staffId),
     ]);
 
@@ -100,7 +102,8 @@ export const createMyAppointment = createServerFn({ method: "POST" })
       .eq("id", data.serviceId)
       .single();
     if (serviceError) throw new Error(serviceError.message);
-    if (service.business_id !== businessId) throw new Error("That service belongs to another business");
+    if (service.business_id !== businessId)
+      throw new Error("That service belongs to another business");
 
     const starts = new Date(data.startsAt);
     if (Number.isNaN(starts.getTime())) throw new Error("Invalid start time");

@@ -17,7 +17,10 @@ export const Route = createFileRoute("/_authenticated/reschedule/$bookingId")({
           "Move your Dallty appointment to a new time while keeping the same service and specialist, with live availability.",
       },
       { property: "og:title", content: "Reschedule your appointment — Dallty" },
-      { property: "og:description", content: "Same service, same specialist, a new time that suits you." },
+      {
+        property: "og:description",
+        content: "Same service, same specialist, a new time that suits you.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -86,7 +89,12 @@ function ReschedulePage() {
       .channel(`reschedule-${booking.business_id}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "bookings", filter: `business_id=eq.${booking.business_id}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: `business_id=eq.${booking.business_id}`,
+        },
         () => queryClient.invalidateQueries({ queryKey: ["slots"] }),
       )
       .subscribe();
@@ -147,8 +155,9 @@ function ReschedulePage() {
       <main className="mx-auto mt-7 max-w-3xl">
         {booking && (
           <p className="rounded-3xl glass-soft p-4 text-sm">
-            Keeping <strong>{booking.services?.name}</strong> with <strong>{booking.staff?.full_name}</strong> at{" "}
-            {booking.businesses?.name}. Currently {format(new Date(booking.starts_at), "EEE d MMM · HH:mm")}.
+            Keeping <strong>{booking.services?.name}</strong> with{" "}
+            <strong>{booking.staff?.full_name}</strong> at {booking.businesses?.name}. Currently{" "}
+            {format(new Date(booking.starts_at), "EEE d MMM · HH:mm")}.
           </p>
         )}
 
@@ -171,7 +180,9 @@ function ReschedulePage() {
                     active ? "bg-primary text-primary-foreground" : "glass"
                   }`}
                 >
-                  <span className="block text-xs font-semibold uppercase opacity-80">{format(d, "EEE")}</span>
+                  <span className="block text-xs font-semibold uppercase opacity-80">
+                    {format(d, "EEE")}
+                  </span>
                   <span className="mt-1 block text-xl font-extrabold">{format(d, "d")}</span>
                   <span className="block text-xs opacity-80">{format(d, "MMM")}</span>
                 </button>
@@ -243,7 +254,11 @@ function ReschedulePage() {
             onClick={() => reschedule.mutate()}
             className="press flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-50"
           >
-            {reschedule.isPending ? <Loader2 className="size-5 animate-spin" /> : <Check className="size-5" />}
+            {reschedule.isPending ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Check className="size-5" />
+            )}
             Confirm new time
           </button>
         </div>

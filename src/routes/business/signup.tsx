@@ -496,7 +496,9 @@ function BusinessSignupPage() {
       <main className="relative grid min-h-dvh place-items-center px-4 py-10">
         <div className="w-full max-w-lg rounded-4xl glass p-8 text-center">
           <CircleCheck className="mx-auto size-10 text-primary" />
-          <h1 className="mt-4 text-3xl font-extrabold">Your business has been created successfully</h1>
+          <h1 className="mt-4 text-3xl font-extrabold">
+            Your business has been created successfully
+          </h1>
           <p className="mt-3 text-sm text-muted-foreground">
             {done.needsEmailConfirm
               ? "Confirm your email to activate your login, then finish setting up your business."
@@ -917,8 +919,8 @@ function BusinessSignupPage() {
                     />
                   </Field>
                   <p className="text-xs text-muted-foreground sm:col-span-2">
-                    These are your business's default opening hours. Per-specialist shifts, breaks and
-                    days off are configured in Availability after setup.
+                    These are your business's default opening hours. Per-specialist shifts, breaks
+                    and days off are configured in Availability after setup.
                   </p>
 
                   <label className="flex items-start gap-3 text-sm font-semibold sm:col-span-2">
@@ -973,7 +975,9 @@ function BusinessSignupPage() {
                   className="press flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-8 text-sm font-bold text-primary-foreground disabled:opacity-60"
                 >
                   {busy === "business" && <Loader2 className="size-4 animate-spin" />}
-                  {busy === "business" ? busyLabel || "Creating your business…" : "Create my business"}
+                  {busy === "business"
+                    ? busyLabel || "Creating your business…"
+                    : "Create my business"}
                 </button>
               )}
             </div>

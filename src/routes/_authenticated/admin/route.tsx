@@ -30,7 +30,10 @@ function AdminLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const allowed =
-    hasRole("business_owner") || hasRole("specialist") || hasRole("admin") || hasRole("super_admin");
+    hasRole("business_owner") ||
+    hasRole("specialist") ||
+    hasRole("admin") ||
+    hasRole("super_admin");
 
   const blockedForStaff =
     isStaffOnly && !STAFF_ALLOWED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -85,7 +88,8 @@ function AdminLayout() {
           <ShieldAlert className="mx-auto size-8 text-destructive" />
           <h1 className="mt-3 text-xl font-extrabold">Business area</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            This dashboard is for business owners and specialists. Ask your business owner to invite you.
+            This dashboard is for business owners and specialists. Ask your business owner to invite
+            you.
           </p>
           <Link
             to="/"

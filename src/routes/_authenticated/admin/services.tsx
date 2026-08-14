@@ -388,9 +388,7 @@ function ServicesPage() {
                   min={5}
                   step={5}
                   value={draft.duration_minutes}
-                  onChange={(e) =>
-                    setDraft({ ...draft, duration_minutes: Number(e.target.value) })
-                  }
+                  onChange={(e) => setDraft({ ...draft, duration_minutes: Number(e.target.value) })}
                   className={field}
                 />
               </label>

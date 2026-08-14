@@ -243,7 +243,12 @@ function AdminDashboard() {
           icon={CircleDashed}
           tone="gold"
         />
-        <Widget title="Clients" value={String(stats.clients)} hint="Unique customers" icon={Users} />
+        <Widget
+          title="Clients"
+          value={String(stats.clients)}
+          hint="Unique customers"
+          icon={Users}
+        />
         <Widget
           title="Specialists"
           value={String(activeStaff.length)}

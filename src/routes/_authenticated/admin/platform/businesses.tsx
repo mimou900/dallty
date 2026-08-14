@@ -18,7 +18,10 @@ export const Route = createFileRoute("/_authenticated/admin/platform/businesses"
           "Review, approve, reject or suspend businesses registered on Dallty, with plan and trial details for every business.",
       },
       { property: "og:title", content: "Business approvals — Dallty Platform" },
-      { property: "og:description", content: "Super Admin control over every registered business." },
+      {
+        property: "og:description",
+        content: "Super Admin control over every registered business.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

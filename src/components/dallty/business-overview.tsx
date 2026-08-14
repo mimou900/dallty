@@ -62,7 +62,13 @@ export function BusinessOverview({
   onBook: (serviceId?: string) => void;
 }) {
   const cover = business.cover_url ?? business.image_url ?? "/salons/hair.jpg";
-  const location = [business.address, business.area, business.city, business.district, business.country]
+  const location = [
+    business.address,
+    business.area,
+    business.city,
+    business.district,
+    business.country,
+  ]
     .filter(Boolean)
     .join(" · ");
   const mapsHref =

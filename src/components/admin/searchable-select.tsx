@@ -70,10 +70,7 @@ export function SearchableSelect({
           <ChevronsUpDown className="size-4 shrink-0 opacity-60" />
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-[min(22rem,calc(100vw-2rem))] rounded-2xl p-0"
-      >
+      <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] rounded-2xl p-0">
         <Command>
           {options.length >= searchThreshold ? (
             <CommandInput placeholder={searchPlaceholder} className="text-sm" />

@@ -81,14 +81,19 @@ function ReportsPage() {
   const currency = useActiveCurrency();
 
   const [period, setPeriod] = useState<Period>("month");
-  const [customFrom, setCustomFrom] = useState(() => format(startOfMonth(new Date()), "yyyy-MM-dd"));
+  const [customFrom, setCustomFrom] = useState(() =>
+    format(startOfMonth(new Date()), "yyyy-MM-dd"),
+  );
   const [customTo, setCustomTo] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
   const range = useMemo(() => {
     const now = new Date();
     if (period === "today") return { from: startOfDay(now), to: endOfDay(now) };
     if (period === "week")
-      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
+      return {
+        from: startOfWeek(now, { weekStartsOn: 1 }),
+        to: endOfWeek(now, { weekStartsOn: 1 }),
+      };
     if (period === "month") return { from: startOfMonth(now), to: endOfMonth(now) };
     if (period === "year") return { from: startOfYear(now), to: endOfYear(now) };
     return { from: startOfDay(new Date(customFrom)), to: endOfDay(new Date(customTo)) };
@@ -169,7 +174,10 @@ function ReportsPage() {
 
     const revenueByMonth = [...months.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([key, value]) => ({ label: format(new Date(`${key}-01`), "MMM yyyy"), revenue: value }));
+      .map(([key, value]) => ({
+        label: format(new Date(`${key}-01`), "MMM yyyy"),
+        revenue: value,
+      }));
 
     return {
       revenue,
@@ -370,8 +378,20 @@ function ReportsPage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.busyHours}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="label" fontSize={10} tickLine={false} axisLine={false} interval={1} />
-                <YAxis fontSize={11} tickLine={false} axisLine={false} width={32} allowDecimals={false} />
+                <XAxis
+                  dataKey="label"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={1}
+                />
+                <YAxis
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  width={32}
+                  allowDecimals={false}
+                />
                 <Tooltip />
                 <Bar dataKey="bookings" fill="var(--gold)" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -435,8 +455,12 @@ function ReportsPage() {
 
 function Kpi({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-3xl p-5 ${highlight ? "bg-primary text-primary-foreground" : "glass"}`}>
-      <p className={`text-xs font-bold uppercase ${highlight ? "opacity-80" : "text-muted-foreground"}`}>
+    <div
+      className={`rounded-3xl p-5 ${highlight ? "bg-primary text-primary-foreground" : "glass"}`}
+    >
+      <p
+        className={`text-xs font-bold uppercase ${highlight ? "opacity-80" : "text-muted-foreground"}`}
+      >
         {label}
       </p>
       <p className="mt-1 text-2xl font-extrabold">{value}</p>

@@ -90,7 +90,9 @@ type WaitlistRow = {
 function mapsHref(business: BookingRow["businesses"]) {
   if (!business) return null;
   if (business.maps_url) return business.maps_url;
-  const q = [business.name, business.address, business.area, business.city].filter(Boolean).join(", ");
+  const q = [business.name, business.address, business.area, business.city]
+    .filter(Boolean)
+    .join(", ");
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
@@ -116,7 +118,14 @@ function BookingsPage() {
       return;
     }
     navigate({ to: landingForRoles(roles), replace: true });
-  }, [isManager, primaryRole, managedBusinesses.isLoading, managedBusinesses.data, roles, navigate]);
+  }, [
+    isManager,
+    primaryRole,
+    managedBusinesses.isLoading,
+    managedBusinesses.data,
+    roles,
+    navigate,
+  ]);
 
   // One-time, idempotent: attach any guest bookings placed under this
   // account's email before it existed. Safe no-op when there's nothing to

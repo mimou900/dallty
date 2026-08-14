@@ -167,7 +167,15 @@ function CalendarPage() {
           b.customerName.toLowerCase().includes(q) ||
           (b.notes ?? "").toLowerCase().includes(q),
       );
-  }, [bookingsQuery.data, staffFilter, serviceFilter, term, serviceList, staffList, customersQuery.data]);
+  }, [
+    bookingsQuery.data,
+    staffFilter,
+    serviceFilter,
+    term,
+    serviceList,
+    staffList,
+    customersQuery.data,
+  ]);
 
   const staffColor = (id: string) => {
     const idx = staffList.findIndex((s) => s.id === id);
@@ -208,7 +216,11 @@ function CalendarPage() {
 
   function step(dir: 1 | -1) {
     setAnchor((d) =>
-      view === "month" ? addDays(d, dir * 30) : view === "week" ? addDays(d, dir * 7) : addDays(d, dir),
+      view === "month"
+        ? addDays(d, dir * 30)
+        : view === "week"
+          ? addDays(d, dir * 7)
+          : addDays(d, dir),
     );
   }
 
@@ -235,7 +247,9 @@ function CalendarPage() {
 
   const days =
     view === "week"
-      ? Array.from({ length: 7 }).map((_, i) => addDays(startOfWeek(anchor, { weekStartsOn: 1 }), i))
+      ? Array.from({ length: 7 }).map((_, i) =>
+          addDays(startOfWeek(anchor, { weekStartsOn: 1 }), i),
+        )
       : [anchor];
 
   return (
@@ -415,7 +429,11 @@ function CalendarPage() {
       <p className="text-xs text-muted-foreground">
         Drag an appointment onto another time slot to reschedule it — the customer and specialist
         are notified automatically. Breaks, closed days and vacations are managed in{" "}
-        <Link to="/admin/availability" search={{ staff: undefined }} className="font-bold text-primary">
+        <Link
+          to="/admin/availability"
+          search={{ staff: undefined }}
+          className="font-bold text-primary"
+        >
           availability
         </Link>
         .
@@ -468,8 +486,7 @@ function DayColumn({
       <div className="max-h-[36rem] overflow-y-auto p-2">
         {slotsOfDay(day).map((slot) => {
           const inSlot = events.filter(
-            (b) =>
-              new Date(b.starts_at) < addMinutes(slot, SLOT) && new Date(b.ends_at) > slot,
+            (b) => new Date(b.starts_at) < addMinutes(slot, SLOT) && new Date(b.ends_at) > slot,
           );
           return (
             <div
@@ -540,7 +557,10 @@ function Timeline({
   return (
     <div className="overflow-x-auto rounded-3xl glass">
       <div className="min-w-[900px]">
-        <div className="grid" style={{ gridTemplateColumns: `10rem repeat(${slots.length}, 4rem)` }}>
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: `10rem repeat(${slots.length}, 4rem)` }}
+        >
           <div className="sticky start-0 z-10 bg-card/80 px-4 py-2 text-xs font-extrabold">
             Specialist
           </div>

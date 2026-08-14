@@ -84,8 +84,7 @@ function PlatformMarketplacePage() {
   });
 
   const rows = useMemo(
-    () =>
-      (queue.data ?? []).filter((s) => filter === "all" || s.marketplace_status === filter),
+    () => (queue.data ?? []).filter((s) => filter === "all" || s.marketplace_status === filter),
     [queue.data, filter],
   );
 
@@ -195,7 +194,11 @@ function PlatformMarketplacePage() {
                     type="button"
                     disabled={missing.length > 0 || statusMutation.isPending}
                     onClick={() =>
-                      statusMutation.mutate({ businessId: s.id, status: "approved", note: note || undefined })
+                      statusMutation.mutate({
+                        businessId: s.id,
+                        status: "approved",
+                        note: note || undefined,
+                      })
                     }
                     title={missing.length ? `${missing.length} requirement(s) missing` : undefined}
                     className="press min-h-10 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-40"
@@ -206,7 +209,11 @@ function PlatformMarketplacePage() {
                     type="button"
                     disabled={statusMutation.isPending}
                     onClick={() =>
-                      statusMutation.mutate({ businessId: s.id, status: "rejected", note: note || undefined })
+                      statusMutation.mutate({
+                        businessId: s.id,
+                        status: "rejected",
+                        note: note || undefined,
+                      })
                     }
                     className="press min-h-10 rounded-2xl bg-destructive/15 px-4 text-sm font-bold text-destructive"
                   >
@@ -216,7 +223,11 @@ function PlatformMarketplacePage() {
                     type="button"
                     disabled={statusMutation.isPending}
                     onClick={() =>
-                      statusMutation.mutate({ businessId: s.id, status: "hidden", note: note || undefined })
+                      statusMutation.mutate({
+                        businessId: s.id,
+                        status: "hidden",
+                        note: note || undefined,
+                      })
                     }
                     className="press min-h-10 rounded-2xl bg-secondary px-4 text-sm font-bold"
                   >
