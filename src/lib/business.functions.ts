@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { businessRegistrationSchema, type BusinessRegistration } from "@/lib/business-schema";
+import { slugify, resolveUniqueSlug } from "@/lib/slug-service";
 
 /**
  * Finishes a business registration: attaches the pending business record to
@@ -51,10 +52,24 @@ export const registerBusiness = createServerFn({ method: "POST" })
           .single();
     const resolvedCountry = countryRow ?? fallbackCountry!;
 
+    const { value: rawSlug, usable } = slugify(b.name);
+    const slugBase = usable
+      ? rawSlug
+      : `business-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
+    const slug = await resolveUniqueSlug({
+      supabase: supabaseAdmin,
+      table: "businesses",
+      redirectTable: "business_slug_redirects",
+      redirectColumn: "old_slug",
+      base: slugBase,
+    });
+
     const { data: business, error } = await supabaseAdmin
       .from("businesses")
       .insert({
         owner_id: ownerId,
+        slug,
+        slug_source: "auto",
         name: b.name,
         description: b.description || null,
         business_type: b.businessType || b.categories[0],

@@ -667,6 +667,30 @@ export type Database = {
           },
         ];
       };
+      reserved_slugs: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          reason: string | null;
+          slug: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          reason?: string | null;
+          slug: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          reason?: string | null;
+          slug?: string;
+        };
+        Relationships: [];
+      };
       reviews: {
         Row: {
           body: string;
@@ -835,6 +859,50 @@ export type Database = {
           },
         ];
       };
+      business_slug_redirects: {
+        Row: {
+          business_id: string;
+          created_at: string;
+          created_by: string | null;
+          hit_count: number;
+          id: string;
+          last_hit_at: string | null;
+          new_slug: string;
+          old_slug: string;
+          redirect_type: string;
+        };
+        Insert: {
+          business_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          hit_count?: number;
+          id?: string;
+          last_hit_at?: string | null;
+          new_slug: string;
+          old_slug: string;
+          redirect_type: string;
+        };
+        Update: {
+          business_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          hit_count?: number;
+          id?: string;
+          last_hit_at?: string | null;
+          new_slug?: string;
+          old_slug?: string;
+          redirect_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "business_slug_redirects_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       businesses: {
         Row: {
           accept_card: boolean;
@@ -916,6 +984,8 @@ export type Database = {
           seo_keywords: string | null;
           seo_title: string | null;
           slot_interval_minutes: number;
+          slug: string;
+          slug_source: string;
           status: Database["public"]["Enums"]["business_status"];
           submitted_at: string | null;
           tax_rate: number;
@@ -1009,6 +1079,8 @@ export type Database = {
           seo_keywords?: string | null;
           seo_title?: string | null;
           slot_interval_minutes?: number;
+          slug?: string;
+          slug_source?: string;
           status?: Database["public"]["Enums"]["business_status"];
           submitted_at?: string | null;
           tax_rate?: number;
@@ -1606,6 +1678,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      bump_slug_redirect_hit: {
+        Args: { _old_slug: string };
+        Returns: undefined;
+      };
       check_login_throttle: {
         Args: { _email: string };
         Returns: {
