@@ -25,7 +25,7 @@ import {
   money,
   useActiveCurrency,
   useManagedBookings,
-  useManagedSalons,
+  useManagedBusinesses,
   useManagedServices,
   useManagedStaff,
   useStaffServices,
@@ -89,9 +89,12 @@ const QUICK_ACTIONS = [
 
 function AdminDashboard() {
   const { user } = useAuth();
-  const salonsQuery = useManagedSalons();
-  const salonIds = useMemo(() => (salonsQuery.data ?? []).map((s) => s.id), [salonsQuery.data]);
-  const primary = salonsQuery.data?.[0] ?? null;
+  const businessesQuery = useManagedBusinesses();
+  const businessIds = useMemo(
+    () => (businessesQuery.data ?? []).map((s) => s.id),
+    [businessesQuery.data],
+  );
+  const primary = businessesQuery.data?.[0] ?? null;
   const currency = useActiveCurrency();
 
   const { from, to } = useMemo(() => {
@@ -102,19 +105,19 @@ function AdminDashboard() {
     };
   }, []);
 
-  const bookingsQuery = useManagedBookings(salonIds, from, to);
-  const staffQuery = useManagedStaff(salonIds);
-  const servicesQuery = useManagedServices(salonIds);
-  const linksQuery = useStaffServices(salonIds);
+  const bookingsQuery = useManagedBookings(businessIds, from, to);
+  const staffQuery = useManagedStaff(businessIds);
+  const servicesQuery = useManagedServices(businessIds);
+  const linksQuery = useStaffServices(businessIds);
 
   const reviewsQuery = useQuery({
-    queryKey: ["dashboard-reviews", salonIds],
-    enabled: salonIds.length > 0,
+    queryKey: ["dashboard-reviews", businessIds],
+    enabled: businessIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reviews")
         .select("id, rating, owner_reply")
-        .in("salon_id", salonIds);
+        .in("business_id", businessIds);
       if (error) throw error;
       return data;
     },
@@ -139,7 +142,7 @@ function AdminDashboard() {
     enabled: Boolean(primary?.id),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("salons")
+        .from("businesses")
         .select("id, marketplace_status, is_verified")
         .eq("id", primary!.id)
         .maybeSingle();
@@ -183,7 +186,7 @@ function AdminDashboard() {
   const unread = (notificationsQuery.data ?? []).length;
   const marketplaceStatus = (statusQuery.data?.marketplace_status ?? "draft").replace("_", " ");
 
-  if (!salonsQuery.isLoading && salonIds.length === 0) {
+  if (!businessesQuery.isLoading && businessIds.length === 0) {
     return (
       <p className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
         No salon is linked to your account yet.
@@ -283,7 +286,7 @@ function AdminDashboard() {
 
       {primary ? (
         <ListingReadiness
-          salonName={primary.name}
+          businessName={primary.name}
           isListed={Boolean(primary.is_listed)}
           status={primary.status}
           activeServices={activeServices.length}

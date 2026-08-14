@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { READINESS_CHECKS, type Readiness } from "@/lib/marketplace.functions";
-import { useManagedSalons } from "@/lib/admin";
+import { useManagedBusinesses } from "@/lib/admin";
 
 export const Route = createFileRoute("/_authenticated/admin/marketplace")({
   head: () => ({
@@ -71,16 +71,16 @@ const FIX_LINKS: Partial<Record<string, { to: string; label: string }>> = {
 
 function MarketplacePage() {
   const queryClient = useQueryClient();
-  const salonsQuery = useManagedSalons();
-  const primary = salonsQuery.data?.[0] ?? null;
+  const businessesQuery = useManagedBusinesses();
+  const primary = businessesQuery.data?.[0] ?? null;
   const [submitting, setSubmitting] = useState(false);
 
   const statusQuery = useQuery({
-    queryKey: ["salon-marketplace-status", primary?.id],
+    queryKey: ["business-marketplace-status", primary?.id],
     enabled: Boolean(primary?.id),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("salons")
+        .from("businesses")
         .select(
           "id, name, marketplace_status, marketplace_note, submitted_at, is_verified, verified_at, is_listed, status",
         )
@@ -92,7 +92,7 @@ function MarketplacePage() {
   });
 
   const readinessQuery = useQuery({
-    queryKey: ["salon-readiness", primary?.id],
+    queryKey: ["business-readiness", primary?.id],
     enabled: Boolean(primary?.id),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_marketplace_readiness", {
@@ -111,7 +111,7 @@ function MarketplacePage() {
 
   const submit = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("submit_salon_for_review", {
+      const { data, error } = await supabase.rpc("submit_business_for_review", {
         _salon_id: primary!.id,
       });
       if (error) throw error;
@@ -123,8 +123,8 @@ function MarketplacePage() {
     onSettled: () => setSubmitting(false),
     onSuccess: () => {
       toast.success("Submitted for marketplace approval");
-      queryClient.invalidateQueries({ queryKey: ["salon-marketplace-status"] });
-      queryClient.invalidateQueries({ queryKey: ["salon-readiness"] });
+      queryClient.invalidateQueries({ queryKey: ["business-marketplace-status"] });
+      queryClient.invalidateQueries({ queryKey: ["business-readiness"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not submit"),
   });
@@ -137,8 +137,8 @@ function MarketplacePage() {
     );
   }
 
-  const salon = statusQuery.data;
-  const status = salon?.marketplace_status ?? "draft";
+  const business = statusQuery.data;
+  const status = business?.marketplace_status ?? "draft";
   const copy = STATUS_COPY[status] ?? STATUS_COPY.draft;
   const canSubmit = allReady && status !== "pending_review" && status !== "approved";
   const doneCount = READINESS_CHECKS.filter((c) => readiness?.[c.key]).length;
@@ -156,12 +156,14 @@ function MarketplacePage() {
           <div className="mt-2 flex items-center gap-2">
             <p className="text-2xl font-extrabold">{copy.label}</p>
             <span className={`rounded-2xl px-3 py-1 text-xs font-bold ${copy.tone}`}>
-              {salon?.is_listed && status === "approved" ? "Listed" : "Not listed"}
+              {business?.is_listed && status === "approved" ? "Listed" : "Not listed"}
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{copy.hint}</p>
-          {salon?.marketplace_note ? (
-            <p className="mt-3 rounded-2xl bg-secondary/60 p-3 text-sm">{salon.marketplace_note}</p>
+          {business?.marketplace_note ? (
+            <p className="mt-3 rounded-2xl bg-secondary/60 p-3 text-sm">
+              {business.marketplace_note}
+            </p>
           ) : null}
           <p className="mt-3 text-xs text-muted-foreground">
             Every dashboard feature stays available regardless of approval — only marketplace
@@ -177,11 +179,11 @@ function MarketplacePage() {
             </p>
           </div>
           <p className="mt-2 text-2xl font-extrabold">
-            {salon?.is_verified ? "Verified by Dallty" : "Not verified"}
+            {business?.is_verified ? "Verified by Dallty" : "Not verified"}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {salon?.is_verified
-              ? `Badge active${salon.verified_at ? ` since ${new Date(salon.verified_at).toLocaleDateString()}` : ""}.`
+            {business?.is_verified
+              ? `Badge active${business.verified_at ? ` since ${new Date(business.verified_at).toLocaleDateString()}` : ""}.`
               : "Verification is granted by the Dallty team and is separate from marketplace approval."}
           </p>
         </div>
