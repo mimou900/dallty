@@ -1174,6 +1174,8 @@ export type Database = {
           seo_keywords?: string | null;
           seo_title?: string | null;
           slot_interval_minutes?: number;
+          slug?: string;
+          slug_source?: string;
           status?: Database["public"]["Enums"]["business_status"];
           submitted_at?: string | null;
           tax_rate?: number;
