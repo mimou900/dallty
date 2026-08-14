@@ -33,7 +33,7 @@ import {
   STATUS_STYLES,
   money,
   useManagedBookings,
-  useManagedSalons,
+  useManagedBusinesses,
   useManagedServices,
   useManagedStaff,
   type BookingStatus,
@@ -65,7 +65,7 @@ const STATUSES: BookingStatus[] = ["pending", "confirmed", "completed", "cancell
 
 type AppointmentRow = {
   id: string;
-  salon_id: string;
+  business_id: string;
   customer_id: string;
   service_id: string;
   staff_id: string;
@@ -94,15 +94,18 @@ function AppointmentsPage() {
 
 
 
-  const salonsQuery = useManagedSalons();
-  const allSalons = salonsQuery.data ?? [];
-  const [salonScope, setSalonScope] = useState("all");
-  const salonIds = useMemo(
-    () => allSalons.filter((s) => salonScope === "all" || s.id === salonScope).map((s) => s.id),
-    [allSalons, salonScope],
+  const businessesQuery = useManagedBusinesses();
+  const allBusinesses = businessesQuery.data ?? [];
+  const [businessScope, setBusinessScope] = useState("all");
+  const businessIds = useMemo(
+    () =>
+      allBusinesses
+        .filter((s) => businessScope === "all" || s.id === businessScope)
+        .map((s) => s.id),
+    [allBusinesses, businessScope],
   );
-  const staffQuery = useManagedStaff(salonIds);
-  const servicesQuery = useManagedServices(salonIds);
+  const staffQuery = useManagedStaff(businessIds);
+  const servicesQuery = useManagedServices(businessIds);
 
   // Stable day-aligned range: a raw `new Date()` here changes every render,
   // which changes the query key every render and keeps the list loading forever.
@@ -113,7 +116,7 @@ function AppointmentsPage() {
       to: addDays(today, 120).toISOString(),
     };
   }, []);
-  const bookingsQuery = useManagedBookings(salonIds, from, to);
+  const bookingsQuery = useManagedBookings(businessIds, from, to);
 
   const customerIds = [...new Set((bookingsQuery.data ?? []).map((b) => b.customer_id))];
   const customersQuery = useQuery({
@@ -189,7 +192,7 @@ function AppointmentsPage() {
     if (!source) return;
     const { error } = await supabase.from("bookings").insert({
       customer_id: source.customer_id,
-      salon_id: source.salon_id,
+      business_id: source.business_id,
       service_id: source.service_id,
       staff_id: source.staff_id,
       starts_at: addDays(new Date(source.starts_at), 7).toISOString(),
@@ -239,15 +242,15 @@ function AppointmentsPage() {
               className="min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
           </label>
-          {allSalons.length > 1 ? (
+          {allBusinesses.length > 1 ? (
             <SearchableSelect
               className="w-auto min-w-48 bg-card/70"
-              value={salonScope}
-              onChange={setSalonScope}
+              value={businessScope}
+              onChange={setBusinessScope}
               searchPlaceholder="Search salons…"
               options={[
-                { value: "all", label: `All salons (${allSalons.length})` },
-                ...allSalons.map((s) => ({ value: s.id, label: s.name, hint: s.city ?? null })),
+                { value: "all", label: `All salons (${allBusinesses.length})` },
+                ...allBusinesses.map((s) => ({ value: s.id, label: s.name, hint: s.city ?? null })),
               ]}
             />
           ) : null}
@@ -412,7 +415,7 @@ function AppointmentsPage() {
                           onChange={(next) => changeStaff(open.id, next)}
                           searchPlaceholder="Search specialists…"
                           options={(staffQuery.data ?? [])
-                            .filter((s) => s.salon_id === open.salon_id)
+                            .filter((s) => s.business_id === open.business_id)
                             .map((s) => ({ value: s.id, label: s.full_name }))}
                         />
                       </div>
