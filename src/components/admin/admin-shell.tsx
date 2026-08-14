@@ -234,8 +234,8 @@ function GlobalCommand({
       const like = `%${q}%`;
       const [customers, services, staff] = await Promise.all([
         supabase.from("profiles").select("id, full_name, phone").ilike("full_name", like).limit(5),
-        supabase.from("services").select("id, name, salon_id").ilike("name", like).limit(5),
-        supabase.from("staff").select("id, full_name, salon_id").ilike("full_name", like).limit(5),
+        supabase.from("services").select("id, name, business_id").ilike("name", like).limit(5),
+        supabase.from("staff").select("id, full_name, business_id").ilike("full_name", like).limit(5),
       ]);
       return {
         customers: customers.data ?? [],
@@ -333,7 +333,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     enabled: Boolean(user?.id) && !isPlatformAdmin,
     queryFn: async () => {
       const { data } = await supabase
-        .from("salons")
+        .from("businesses")
         .select("id, name, marketplace_status, trial_ends_at")
         .eq("owner_id", user!.id)
         .maybeSingle();

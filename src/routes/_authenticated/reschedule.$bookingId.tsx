@@ -27,14 +27,14 @@ export const Route = createFileRoute("/_authenticated/reschedule/$bookingId")({
 
 type BookingDetail = {
   id: string;
-  salon_id: string;
+  business_id: string;
   service_id: string;
   staff_id: string;
   starts_at: string;
   status: string;
   services: { name: string; duration_minutes: number } | null;
   staff: { full_name: string } | null;
-  salons: { name: string } | null;
+  businesses: { name: string } | null;
 };
 
 function ReschedulePage() {
@@ -51,7 +51,7 @@ function ReschedulePage() {
       const { data, error } = await supabase
         .from("bookings")
         .select(
-          "id, salon_id, service_id, staff_id, starts_at, status, services(name, duration_minutes), staff(full_name), salons(name)",
+          "id, business_id, service_id, staff_id, starts_at, status, services(name, duration_minutes), staff(full_name), businesses(name)",
         )
         .eq("id", bookingId)
         .single();
@@ -83,10 +83,10 @@ function ReschedulePage() {
   useEffect(() => {
     if (!booking) return;
     const channel = supabase
-      .channel(`reschedule-${booking.salon_id}`)
+      .channel(`reschedule-${booking.business_id}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "bookings", filter: `salon_id=eq.${booking.salon_id}` },
+        { event: "*", schema: "public", table: "bookings", filter: `business_id=eq.${booking.business_id}` },
         () => queryClient.invalidateQueries({ queryKey: ["slots"] }),
       )
       .subscribe();
@@ -148,7 +148,7 @@ function ReschedulePage() {
         {booking && (
           <p className="rounded-3xl glass-soft p-4 text-sm">
             Keeping <strong>{booking.services?.name}</strong> with <strong>{booking.staff?.full_name}</strong> at{" "}
-            {booking.salons?.name}. Currently {format(new Date(booking.starts_at), "EEE d MMM · HH:mm")}.
+            {booking.businesses?.name}. Currently {format(new Date(booking.starts_at), "EEE d MMM · HH:mm")}.
           </p>
         )}
 

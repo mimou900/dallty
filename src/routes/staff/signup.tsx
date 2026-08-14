@@ -172,7 +172,7 @@ function AccountPanel() {
 function JoinPanel() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [salonId, setSalonId] = useState("");
+  const [businessId, setBusinessId] = useState("");
   const [title, setTitle] = useState("Stylist");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
@@ -181,7 +181,7 @@ function JoinPanel() {
     queryKey: ["joinable-salons"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("salons")
+        .from("businesses")
         .select("id, name, city, area")
         .eq("status", "approved")
         .order("name");
@@ -196,7 +196,7 @@ function JoinPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff_join_requests")
-        .select("id, status, created_at, salon_id, salons(name)")
+        .select("id, status, created_at, business_id, businesses(name)")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -210,7 +210,7 @@ function JoinPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, salon_id")
+        .select("id, business_id")
         .eq("user_id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -225,10 +225,10 @@ function JoinPanel() {
 
   const submit = useMutation({
     mutationFn: async () => {
-      if (!salonId) throw new Error("Pick the salon you work at");
+      if (!businessId) throw new Error("Pick the salon you work at");
       const { error } = await supabase.from("staff_join_requests").insert({
         user_id: user!.id,
-        salon_id: salonId,
+        business_id: businessId,
         full_name: user!.user_metadata?.full_name || user!.email || "Specialist",
         title: title.trim() || "Specialist",
         phone: phone.trim() || null,
@@ -266,7 +266,7 @@ function JoinPanel() {
           {(myRequests.data ?? []).map((r) => (
             <div key={r.id} className="rounded-2xl glass-soft px-4 py-3 text-sm font-medium">
               <span className="font-bold">
-                {(r.salons as { name?: string } | null)?.name ?? "Salon"}
+                {(r.businesses as { name?: string } | null)?.name ?? "Salon"}
               </span>{" "}
               — {r.status}
             </div>
@@ -289,8 +289,8 @@ function JoinPanel() {
           <label className="text-sm font-bold">
             Salon you work at
             <select
-              value={salonId}
-              onChange={(e) => setSalonId(e.target.value)}
+              value={businessId}
+              onChange={(e) => setBusinessId(e.target.value)}
               className="mt-1 w-full rounded-2xl glass-soft px-4 py-2.5 text-sm font-medium"
             >
               <option value="">Select a salon…</option>

@@ -12,7 +12,7 @@ export async function notifyBusinessStatus(params: {
   ownerName?: string;
   status: Status;
   note?: string;
-  salonId: string;
+  businessId: string;
 }) {
   if (!params.to) return;
   try {
@@ -23,7 +23,7 @@ export async function notifyBusinessStatus(params: {
         status: params.status,
         note: params.note,
       },
-      idempotencyKey: `business-status-${params.salonId}-${params.status}-${Date.now()}`,
+      idempotencyKey: `business-status-${params.businessId}-${params.status}-${Date.now()}`,
     });
   } catch (error) {
     console.error("[business-status-email] send failed", error);

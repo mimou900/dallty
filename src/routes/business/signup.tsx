@@ -152,7 +152,7 @@ function BusinessSignupPage() {
     }
     let cancelled = false;
     supabase
-      .from("salons")
+      .from("businesses")
       .select("id")
       .eq("owner_id", user.id)
       .maybeSingle()

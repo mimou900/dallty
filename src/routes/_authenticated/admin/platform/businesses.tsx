@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/admin/platform/businesses"
       {
         name: "description",
         content:
-          "Review, approve, reject or suspend salons registered on Dallty, with plan and trial details for every business.",
+          "Review, approve, reject or suspend businesses registered on Dallty, with plan and trial details for every business.",
       },
       { property: "og:title", content: "Business approvals — Dallty Platform" },
       { property: "og:description", content: "Super Admin control over every registered business." },
@@ -51,8 +51,8 @@ function PlatformBusinessesPage() {
   });
 
   const mutate = useMutation({
-    mutationFn: (vars: { salonId: string; status: (typeof FILTERS)[number] }) =>
-      updateStatus({ data: { salonId: vars.salonId, status: vars.status as never } }),
+    mutationFn: (vars: { businessId: string; status: (typeof FILTERS)[number] }) =>
+      updateStatus({ data: { businessId: vars.businessId, status: vars.status as never } }),
     onSuccess: () => {
       toast.success("Business updated");
       queryClient.invalidateQueries({ queryKey: ["platform-businesses"] });
@@ -145,7 +145,7 @@ function PlatformBusinessesPage() {
                       key={s}
                       type="button"
                       disabled={mutate.isPending}
-                      onClick={() => mutate.mutate({ salonId: b.id, status: s })}
+                      onClick={() => mutate.mutate({ businessId: b.id, status: s })}
                       className={`press flex min-h-10 items-center gap-2 rounded-2xl px-4 text-sm font-bold capitalize disabled:opacity-60 ${
                         s === "approved" ? "bg-primary text-primary-foreground" : "glass-soft"
                       }`}

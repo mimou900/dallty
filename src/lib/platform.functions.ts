@@ -98,7 +98,7 @@ export const deletePlatformUser = createServerFn({ method: "POST" })
   });
 
 const statusInput = z.object({
-  salonId: z.string().uuid(),
+  businessId: z.string().uuid(),
   status: z.enum(["pending", "approved", "rejected", "suspended"]),
   note: z.string().trim().max(500).optional(),
 });
@@ -112,7 +112,7 @@ export const listPlatformBusinesses = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
 
     const { data, error } = await supabaseAdmin
-      .from("salons")
+      .from("businesses")
       .select(
         "id, name, status, plan, city, country, business_email, business_phone, employee_count, branch_count, trial_ends_at, created_at, owner_id",
       )
@@ -135,7 +135,7 @@ export const listPlatformBusinesses = createServerFn({ method: "POST" })
 /** Approves, rejects or suspends a business. Super Admin only. */
 export const setBusinessStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { salonId: string; status: string; note?: string }) =>
+  .inputValidator((input: { businessId: string; status: string; note?: string }) =>
     statusInput.parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -143,8 +143,8 @@ export const setBusinessStatus = createServerFn({ method: "POST" })
     await assertSuperAdmin(context.supabase, context.userId);
     const supabaseAdmin = await adminClient();
 
-    const { data: salon, error } = await supabaseAdmin
-      .from("salons")
+    const { data: business, error } = await supabaseAdmin
+      .from("businesses")
       .update({
         status: data.status,
         is_active: data.status === "approved",
@@ -158,22 +158,22 @@ export const setBusinessStatus = createServerFn({ method: "POST" })
                 : "pending_review",
         marketplace_note: data.note ?? null,
       })
-      .eq("id", data.salonId)
+      .eq("id", data.businessId)
       .select("id, name, business_email, owner_id")
       .single();
     if (error) throw new Error(error.message);
 
     let ownerName: string | undefined;
-    let ownerEmail = salon?.business_email ?? null;
-    if (salon?.owner_id) {
+    let ownerEmail = business?.business_email ?? null;
+    if (business?.owner_id) {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
         .select("full_name")
-        .eq("id", salon.owner_id)
+        .eq("id", business.owner_id)
         .maybeSingle();
       ownerName = profile?.full_name || undefined;
       if (!ownerEmail) {
-        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(salon.owner_id);
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(business.owner_id);
         ownerEmail = authUser?.user?.email ?? null;
       }
     }
@@ -181,11 +181,11 @@ export const setBusinessStatus = createServerFn({ method: "POST" })
     const { notifyBusinessStatus } = await import("@/lib/business-status-email.server");
     await notifyBusinessStatus({
       to: ownerEmail,
-      businessName: salon?.name ?? "Your business",
+      businessName: business?.name ?? "Your business",
       ownerName,
       status: data.status,
       note: data.note,
-      salonId: data.salonId,
+      businessId: data.businessId,
     });
 
     await logAdminAction(
@@ -193,7 +193,7 @@ export const setBusinessStatus = createServerFn({ method: "POST" })
       context.userId,
       `business.${data.status}`,
       "salon",
-      data.salonId,
+      data.businessId,
       {
         note: data.note ?? "",
       },
@@ -211,23 +211,23 @@ export const platformOverview = createServerFn({ method: "POST" })
 
     const [salons, services, staff, bookings, reviews, users] = await Promise.all([
       supabaseAdmin
-        .from("salons")
+        .from("businesses")
         .select(
           "id, name, city, country, status, plan, is_listed, is_active, rating, review_count, created_at",
         ),
-      supabaseAdmin.from("services").select("id, salon_id, is_active, price, discount_price"),
-      supabaseAdmin.from("staff").select("id, salon_id, is_active"),
+      supabaseAdmin.from("services").select("id, business_id, is_active, price, discount_price"),
+      supabaseAdmin.from("staff").select("id, business_id, is_active"),
       supabaseAdmin
         .from("bookings")
-        .select("id, salon_id, status, total_price, starts_at, customer_id")
+        .select("id, business_id, status, total_price, starts_at, customer_id")
         .order("starts_at", { ascending: false })
         .limit(5000),
-      supabaseAdmin.from("reviews").select("id, salon_id, rating, is_hidden"),
+      supabaseAdmin.from("reviews").select("id, business_id, rating, is_hidden"),
       supabaseAdmin.from("user_roles").select("user_id, role"),
     ]);
 
     const rows = (salons.data ?? []).map((s) => {
-      const shopBookings = (bookings.data ?? []).filter((b) => b.salon_id === s.id);
+      const shopBookings = (bookings.data ?? []).filter((b) => b.business_id === s.id);
       const completed = shopBookings.filter((b) => b.status === "completed");
       return {
         id: s.id,
@@ -239,8 +239,8 @@ export const platformOverview = createServerFn({ method: "POST" })
         isListed: Boolean(s.is_listed),
         rating: Number(s.rating ?? 0),
         reviewCount: s.review_count ?? 0,
-        services: (services.data ?? []).filter((v) => v.salon_id === s.id && v.is_active).length,
-        staff: (staff.data ?? []).filter((v) => v.salon_id === s.id && v.is_active).length,
+        services: (services.data ?? []).filter((v) => v.business_id === s.id && v.is_active).length,
+        staff: (staff.data ?? []).filter((v) => v.business_id === s.id && v.is_active).length,
         bookings: shopBookings.length,
         cancelled: shopBookings.filter((b) => b.status === "cancelled").length,
         customers: new Set(shopBookings.map((b) => b.customer_id)).size,

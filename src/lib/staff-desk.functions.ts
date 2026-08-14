@@ -8,13 +8,13 @@ export const listMyAppointments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { requireStaffRecord } = await import("@/lib/staff-desk.server");
-    const { staffId, salonId } = await requireStaffRecord(context.supabase, context.userId);
+    const { staffId, businessId } = await requireStaffRecord(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: bookings, error } = await supabaseAdmin
       .from("bookings")
       .select(
-        "id, customer_id, salon_id, service_id, staff_id, starts_at, ends_at, status, total_price, notes, created_at",
+        "id, customer_id, business_id, service_id, staff_id, starts_at, ends_at, status, total_price, notes, created_at",
       )
       .eq("staff_id", staffId)
       .order("starts_at", { ascending: false })
@@ -27,7 +27,7 @@ export const listMyAppointments = createServerFn({ method: "POST" })
       supabaseAdmin
         .from("services")
         .select("id, name, duration_minutes, price, discount_price, is_active")
-        .eq("salon_id", salonId),
+        .eq("business_id", businessId),
       customerIds.length
         ? supabaseAdmin.from("profiles").select("id, full_name, phone").in("id", customerIds)
         : Promise.resolve({ data: [] as { id: string; full_name: string; phone: string | null }[] }),
@@ -41,7 +41,7 @@ export const listMyAppointments = createServerFn({ method: "POST" })
 
     return {
       staffId,
-      salonId,
+      businessId,
       appointments: (bookings ?? []).map((b) => {
         const s = serviceById.get(b.service_id);
         const p = profileById.get(b.customer_id);
@@ -91,16 +91,16 @@ export const createMyAppointment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { requireStaffRecord } = await import("@/lib/staff-desk.server");
-    const { staffId, salonId } = await requireStaffRecord(context.supabase, context.userId);
+    const { staffId, businessId } = await requireStaffRecord(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: service, error: serviceError } = await supabaseAdmin
       .from("services")
-      .select("id, duration_minutes, price, discount_price, salon_id")
+      .select("id, duration_minutes, price, discount_price, business_id")
       .eq("id", data.serviceId)
       .single();
     if (serviceError) throw new Error(serviceError.message);
-    if (service.salon_id !== salonId) throw new Error("That service belongs to another business");
+    if (service.business_id !== businessId) throw new Error("That service belongs to another business");
 
     const starts = new Date(data.startsAt);
     if (Number.isNaN(starts.getTime())) throw new Error("Invalid start time");
@@ -120,7 +120,7 @@ export const createMyAppointment = createServerFn({ method: "POST" })
       .from("bookings")
       .insert({
         customer_id: data.customerId,
-        salon_id: salonId,
+        business_id: businessId,
         service_id: service.id,
         staff_id: staffId,
         starts_at: starts.toISOString(),

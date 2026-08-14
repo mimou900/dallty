@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/admin/platform/marketplace
       {
         name: "description",
         content:
-          "Review salons submitted to the Dallty marketplace, approve or reject listings and grant the Verified by Dallty badge.",
+          "Review businesses submitted to the Dallty marketplace, approve or reject listings and grant the Verified by Dallty badge.",
       },
       { property: "og:title", content: "Marketplace approvals — Dallty Platform" },
       {
@@ -65,7 +65,7 @@ function PlatformMarketplacePage() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["platform-marketplace"] });
 
   const statusMutation = useMutation({
-    mutationFn: (vars: { salonId: string; status: MarketplaceStatus; note?: string }) =>
+    mutationFn: (vars: { businessId: string; status: MarketplaceStatus; note?: string }) =>
       updateStatus({ data: vars }),
     onSuccess: () => {
       toast.success("Marketplace status updated");
@@ -75,7 +75,7 @@ function PlatformMarketplacePage() {
   });
 
   const verifyMutation = useMutation({
-    mutationFn: (vars: { salonId: string; verified: boolean }) => updateVerified({ data: vars }),
+    mutationFn: (vars: { businessId: string; verified: boolean }) => updateVerified({ data: vars }),
     onSuccess: (_d, vars) => {
       toast.success(vars.verified ? "Verification granted" : "Verification removed");
       invalidate();
@@ -195,7 +195,7 @@ function PlatformMarketplacePage() {
                     type="button"
                     disabled={missing.length > 0 || statusMutation.isPending}
                     onClick={() =>
-                      statusMutation.mutate({ salonId: s.id, status: "approved", note: note || undefined })
+                      statusMutation.mutate({ businessId: s.id, status: "approved", note: note || undefined })
                     }
                     title={missing.length ? `${missing.length} requirement(s) missing` : undefined}
                     className="press min-h-10 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-40"
@@ -206,7 +206,7 @@ function PlatformMarketplacePage() {
                     type="button"
                     disabled={statusMutation.isPending}
                     onClick={() =>
-                      statusMutation.mutate({ salonId: s.id, status: "rejected", note: note || undefined })
+                      statusMutation.mutate({ businessId: s.id, status: "rejected", note: note || undefined })
                     }
                     className="press min-h-10 rounded-2xl bg-destructive/15 px-4 text-sm font-bold text-destructive"
                   >
@@ -216,7 +216,7 @@ function PlatformMarketplacePage() {
                     type="button"
                     disabled={statusMutation.isPending}
                     onClick={() =>
-                      statusMutation.mutate({ salonId: s.id, status: "hidden", note: note || undefined })
+                      statusMutation.mutate({ businessId: s.id, status: "hidden", note: note || undefined })
                     }
                     className="press min-h-10 rounded-2xl bg-secondary px-4 text-sm font-bold"
                   >
@@ -225,7 +225,7 @@ function PlatformMarketplacePage() {
                   <button
                     type="button"
                     disabled={statusMutation.isPending}
-                    onClick={() => statusMutation.mutate({ salonId: s.id, status: "draft" })}
+                    onClick={() => statusMutation.mutate({ businessId: s.id, status: "draft" })}
                     className="press min-h-10 rounded-2xl bg-secondary px-4 text-sm font-bold"
                   >
                     Send back to draft
@@ -234,7 +234,7 @@ function PlatformMarketplacePage() {
                     type="button"
                     disabled={verifyMutation.isPending}
                     onClick={() =>
-                      verifyMutation.mutate({ salonId: s.id, verified: !s.is_verified })
+                      verifyMutation.mutate({ businessId: s.id, verified: !s.is_verified })
                     }
                     className="press min-h-10 rounded-2xl bg-gold/20 px-4 text-sm font-bold"
                   >

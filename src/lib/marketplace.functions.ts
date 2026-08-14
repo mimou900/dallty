@@ -42,7 +42,7 @@ export const listMarketplaceQueue = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
 
     const { data, error } = await supabaseAdmin
-      .from("salons")
+      .from("businesses")
       .select(
         "id, name, city, country, logo_url, marketplace_status, marketplace_note, submitted_at, is_verified, verified_at, is_listed, status, owner_id, created_at",
       )
@@ -66,10 +66,10 @@ export const listMarketplaceQueue = createServerFn({ method: "POST" })
 /** Approve, reject, hide or reopen a marketplace listing. Super Admin only. */
 export const setMarketplaceStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { salonId: string; status: MarketplaceStatus; note?: string }) =>
+  .inputValidator((input: { businessId: string; status: MarketplaceStatus; note?: string }) =>
     z
       .object({
-        salonId: z.string().uuid(),
+        businessId: z.string().uuid(),
         status: z.enum(MARKETPLACE_STATUSES),
         note: z.string().trim().max(500).optional(),
       })
@@ -81,14 +81,14 @@ export const setMarketplaceStatus = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
 
     const { error } = await supabaseAdmin
-      .from("salons")
+      .from("businesses")
       .update({
         marketplace_status: data.status,
         marketplace_note: data.note ?? null,
         reviewed_at: new Date().toISOString(),
         reviewed_by: context.userId,
       })
-      .eq("id", data.salonId);
+      .eq("id", data.businessId);
     if (error) throw new Error(error.message);
 
     await logAdminAction(
@@ -96,7 +96,7 @@ export const setMarketplaceStatus = createServerFn({ method: "POST" })
       context.userId,
       `marketplace.${data.status}`,
       "salon",
-      data.salonId,
+      data.businessId,
       { note: data.note ?? "" },
     );
     return { ok: true };
@@ -108,8 +108,8 @@ export const setMarketplaceStatus = createServerFn({ method: "POST" })
  */
 export const setSalonVerified = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { salonId: string; verified: boolean }) =>
-    z.object({ salonId: z.string().uuid(), verified: z.boolean() }).parse(input),
+  .inputValidator((input: { businessId: string; verified: boolean }) =>
+    z.object({ businessId: z.string().uuid(), verified: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
@@ -117,13 +117,13 @@ export const setSalonVerified = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
 
     const { error } = await supabaseAdmin
-      .from("salons")
+      .from("businesses")
       .update({
         is_verified: data.verified,
         verified_at: data.verified ? new Date().toISOString() : null,
         verified_by: data.verified ? context.userId : null,
       })
-      .eq("id", data.salonId);
+      .eq("id", data.businessId);
     if (error) throw new Error(error.message);
 
     await logAdminAction(
@@ -131,7 +131,7 @@ export const setSalonVerified = createServerFn({ method: "POST" })
       context.userId,
       data.verified ? "salon.verify" : "salon.unverify",
       "salon",
-      data.salonId,
+      data.businessId,
     );
     return { ok: true };
   });

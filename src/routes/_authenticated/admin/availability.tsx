@@ -64,9 +64,9 @@ type StaffRow = {
   id: string;
   full_name: string;
   title: string;
-  salon_id: string;
+  business_id: string;
   user_id: string | null;
-  salons?: { name: string } | null;
+  businesses?: { name: string } | null;
 };
 
 const toMin = (v: string) => {
@@ -99,20 +99,20 @@ function AdminAvailabilityPage() {
     queryFn: async (): Promise<StaffRow[]> => {
       let query = supabase
         .from("staff")
-        .select("id, full_name, title, salon_id, user_id, salons(name)")
+        .select("id, full_name, title, business_id, user_id, businesses(name)")
         .order("full_name");
 
       if (isStaffOnly) {
         query = query.eq("user_id", user!.id);
       } else if (!isPlatformAdmin) {
         const { data: owned, error: ownedError } = await supabase
-          .from("salons")
+          .from("businesses")
           .select("id")
           .eq("owner_id", user!.id);
         if (ownedError) throw ownedError;
-        const salonIds = (owned ?? []).map((s) => s.id);
-        query = salonIds.length
-          ? query.or(`user_id.eq.${user!.id},salon_id.in.(${salonIds.join(",")})`)
+        const businessIds = (owned ?? []).map((s) => s.id);
+        query = businessIds.length
+          ? query.or(`user_id.eq.${user!.id},business_id.in.(${businessIds.join(",")})`)
           : query.eq("user_id", user!.id);
       }
 
@@ -388,7 +388,7 @@ function AdminAvailabilityPage() {
               options={staffList.map((m) => ({
                 value: m.id,
                 label: m.full_name,
-                hint: m.salons?.name ?? m.title,
+                hint: m.businesses?.name ?? m.title,
               }))}
             />
           ) : (
@@ -411,7 +411,7 @@ function AdminAvailabilityPage() {
           {current && (
             <p className="mt-2 text-xs text-muted-foreground">
               {current.title}
-              {current.salons?.name ? ` · ${current.salons.name}` : ""}
+              {current.businesses?.name ? ` · ${current.businesses.name}` : ""}
             </p>
           )}
         </section>

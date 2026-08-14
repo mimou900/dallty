@@ -4,9 +4,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { businessRegistrationSchema, type BusinessRegistration } from "@/lib/business-schema";
 
 /**
- * Finishes a business registration: attaches the pending salon record to the
- * signed-in owner. Ownership always comes from the verified session, never
- * from the request body. Refuses if the account already owns a business.
+ * Finishes a business registration: attaches the pending business record to
+ * the signed-in owner. Ownership always comes from the verified session,
+ * never from the request body. Refuses if the account already owns a business.
  */
 export const registerBusiness = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -16,19 +16,19 @@ export const registerBusiness = createServerFn({ method: "POST" })
 
     const ownerId = context.userId;
 
-    // Platform admins manage every salon; they never own one themselves.
+    // Platform admins manage every business; they never own one themselves.
     const { data: isPlatformAdmin } = await context.supabase.rpc("is_platform_admin", {
       _user_id: ownerId,
     });
     if (isPlatformAdmin) {
-      throw new Error("Platform admin accounts manage salons — they cannot own one.");
+      throw new Error("Platform admin accounts manage businesses — they cannot own one.");
     }
 
     const { data: found, error: userError } = await supabaseAdmin.auth.admin.getUserById(ownerId);
     if (userError || !found?.user) throw new Error("Account not found — sign up again.");
 
     const { data: existing } = await supabaseAdmin
-      .from("salons")
+      .from("businesses")
       .select("id")
       .eq("owner_id", ownerId)
       .maybeSingle();
@@ -51,8 +51,8 @@ export const registerBusiness = createServerFn({ method: "POST" })
           .single();
     const resolvedCountry = countryRow ?? fallbackCountry!;
 
-    const { data: salon, error } = await supabaseAdmin
-      .from("salons")
+    const { data: business, error } = await supabaseAdmin
+      .from("businesses")
       .insert({
         owner_id: ownerId,
         name: b.name,
@@ -99,7 +99,7 @@ export const registerBusiness = createServerFn({ method: "POST" })
     if (b.services.length) {
       await supabaseAdmin.from("services").insert(
         b.services.slice(0, 20).map((name) => ({
-          salon_id: salon.id,
+          business_id: business.id,
           name,
           category: "general",
           duration_minutes: 60,
@@ -109,11 +109,11 @@ export const registerBusiness = createServerFn({ method: "POST" })
     }
 
     if (b.galleryUrls.length) {
-      await supabaseAdmin.from("salon_gallery").insert(
+      await supabaseAdmin.from("business_gallery").insert(
         b.galleryUrls.slice(0, 12).map((url, index) => ({
-          salon_id: salon.id,
+          business_id: business.id,
           url,
-          category: "salon",
+          category: "interior",
           sort_order: index,
         })),
       );
@@ -125,8 +125,8 @@ export const registerBusiness = createServerFn({ method: "POST" })
       businessName: b.name,
       ownerName: found.user.user_metadata?.full_name as string | undefined,
       status: "pending",
-      salonId: salon.id,
+      businessId: business.id,
     });
 
-    return { salonId: salon.id, trialEndsAt: trialEnds };
+    return { businessId: business.id, trialEndsAt: trialEnds };
   });

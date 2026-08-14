@@ -83,24 +83,24 @@ function DashboardPage() {
     queryKey: ["my-salons", user?.id],
     enabled: Boolean(user) && isOwner,
     queryFn: async () => {
-      const { data, error } = await supabase.from("salons").select("id, name, currency").order("name");
+      const { data, error } = await supabase.from("businesses").select("id, name, currency").order("name");
       if (error) throw error;
       return data;
     },
   });
 
-  const salonIds = (salonsQuery.data ?? []).map((s) => s.id);
+  const businessIds = (salonsQuery.data ?? []).map((s) => s.id);
   const currency = salonsQuery.data?.[0]?.currency ?? "AED";
 
   const bookingsQuery = useQuery({
-    queryKey: ["dashboard-bookings", salonIds],
-    enabled: salonIds.length > 0,
+    queryKey: ["dashboard-bookings", businessIds],
+    enabled: businessIds.length > 0,
     queryFn: async () => {
       const since = subDays(startOfDay(new Date()), 29).toISOString();
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, customer_id, salon_id, service_id, staff_id, starts_at, status, total_price")
-        .in("salon_id", salonIds)
+        .select("id, customer_id, business_id, service_id, staff_id, starts_at, status, total_price")
+        .in("business_id", businessIds)
         .gte("starts_at", since)
         .lte("starts_at", addDays(new Date(), 30).toISOString());
       if (error) throw error;
@@ -109,26 +109,26 @@ function DashboardPage() {
   });
 
   const servicesQuery = useQuery({
-    queryKey: ["dashboard-services", salonIds],
-    enabled: salonIds.length > 0,
+    queryKey: ["dashboard-services", businessIds],
+    enabled: businessIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
         .select("id, name")
-        .in("salon_id", salonIds);
+        .in("business_id", businessIds);
       if (error) throw error;
       return data;
     },
   });
 
   const staffQuery = useQuery({
-    queryKey: ["dashboard-staff", salonIds],
-    enabled: salonIds.length > 0,
+    queryKey: ["dashboard-staff", businessIds],
+    enabled: businessIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
         .select("id, full_name")
-        .in("salon_id", salonIds)
+        .in("business_id", businessIds)
         .eq("is_active", true);
       if (error) throw error;
       return data;
@@ -136,13 +136,13 @@ function DashboardPage() {
   });
 
   const reviewsQuery = useQuery({
-    queryKey: ["dashboard-reviews", salonIds],
-    enabled: salonIds.length > 0,
+    queryKey: ["dashboard-reviews", businessIds],
+    enabled: businessIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reviews")
         .select("id, rating, body, owner_reply, created_at")
-        .in("salon_id", salonIds)
+        .in("business_id", businessIds)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -279,13 +279,13 @@ function DashboardPage() {
         </Link>
       </div>
 
-      {!salonIds.length && !salonsQuery.isLoading && (
+      {!businessIds.length && !salonsQuery.isLoading && (
         <p className="mt-8 rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
           No salon is linked to your account yet.
         </p>
       )}
 
-      {salonIds.length > 0 && (
+      {businessIds.length > 0 && (
         <>
           <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Metric
