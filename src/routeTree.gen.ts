@@ -50,6 +50,7 @@ import { Route as AuthenticatedAdminPlatformCountriesRouteImport } from './route
 import { Route as AuthenticatedAdminPlatformDirectoryRouteImport } from './routes/_authenticated/admin/platform/directory'
 import { Route as AuthenticatedAdminPlatformMarketplaceRouteImport } from './routes/_authenticated/admin/platform/marketplace'
 import { Route as AuthenticatedAdminPlatformOverviewRouteImport } from './routes/_authenticated/admin/platform/overview'
+import { Route as AuthenticatedAdminPlatformReservedSlugsRouteImport } from './routes/_authenticated/admin/platform/reserved-slugs'
 import { Route as AuthenticatedAdminPlatformUsersRouteImport } from './routes/_authenticated/admin/platform/users'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
@@ -280,6 +281,12 @@ const AuthenticatedAdminPlatformOverviewRoute =
     path: '/platform/overview',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminPlatformReservedSlugsRoute =
+  AuthenticatedAdminPlatformReservedSlugsRouteImport.update({
+    id: '/platform/reserved-slugs',
+    path: '/platform/reserved-slugs',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminPlatformUsersRoute =
   AuthenticatedAdminPlatformUsersRouteImport.update({
     id: '/platform/users',
@@ -344,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/admin/platform/directory': typeof AuthenticatedAdminPlatformDirectoryRoute
   '/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
+  '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
   '/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -389,6 +397,7 @@ export interface FileRoutesByTo {
   '/admin/platform/directory': typeof AuthenticatedAdminPlatformDirectoryRoute
   '/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
+  '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
   '/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -437,6 +446,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/platform/directory': typeof AuthenticatedAdminPlatformDirectoryRoute
   '/_authenticated/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/_authenticated/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
+  '/_authenticated/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
   '/_authenticated/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -485,6 +495,7 @@ export interface FileRouteTypes {
     | '/admin/platform/directory'
     | '/admin/platform/marketplace'
     | '/admin/platform/overview'
+    | '/admin/platform/reserved-slugs'
     | '/admin/platform/users'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -530,6 +541,7 @@ export interface FileRouteTypes {
     | '/admin/platform/directory'
     | '/admin/platform/marketplace'
     | '/admin/platform/overview'
+    | '/admin/platform/reserved-slugs'
     | '/admin/platform/users'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -577,6 +589,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/platform/directory'
     | '/_authenticated/admin/platform/marketplace'
     | '/_authenticated/admin/platform/overview'
+    | '/_authenticated/admin/platform/reserved-slugs'
     | '/_authenticated/admin/platform/users'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -890,6 +903,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPlatformOverviewRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/platform/reserved-slugs': {
+      id: '/_authenticated/admin/platform/reserved-slugs'
+      path: '/platform/reserved-slugs'
+      fullPath: '/admin/platform/reserved-slugs'
+      preLoaderRoute: typeof AuthenticatedAdminPlatformReservedSlugsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/platform/users': {
       id: '/_authenticated/admin/platform/users'
       path: '/platform/users'
@@ -943,6 +963,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminPlatformDirectoryRoute: typeof AuthenticatedAdminPlatformDirectoryRoute
   AuthenticatedAdminPlatformMarketplaceRoute: typeof AuthenticatedAdminPlatformMarketplaceRoute
   AuthenticatedAdminPlatformOverviewRoute: typeof AuthenticatedAdminPlatformOverviewRoute
+  AuthenticatedAdminPlatformReservedSlugsRoute: typeof AuthenticatedAdminPlatformReservedSlugsRoute
   AuthenticatedAdminPlatformUsersRoute: typeof AuthenticatedAdminPlatformUsersRoute
 }
 
@@ -977,6 +998,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
       AuthenticatedAdminPlatformMarketplaceRoute,
     AuthenticatedAdminPlatformOverviewRoute:
       AuthenticatedAdminPlatformOverviewRoute,
+    AuthenticatedAdminPlatformReservedSlugsRoute:
+      AuthenticatedAdminPlatformReservedSlugsRoute,
     AuthenticatedAdminPlatformUsersRoute: AuthenticatedAdminPlatformUsersRoute,
   }
 
