@@ -594,9 +594,7 @@ function BookingFlow() {
       if (!guestInfoReady) throw new Error("Add your name and phone number to confirm");
       return await createGuestBooking({
         data: {
-          // createGuestBooking's input field is still named businessId until
-          // Task 14 renames account.functions.ts's schema to match.
-          businessId: businessId,
+          businessId,
           serviceId: service.id,
           staffId,
           slot,

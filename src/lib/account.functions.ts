@@ -420,7 +420,7 @@ export const notifyPhoneChanged = createServerFn({ method: "POST" })
 export const createGuestBooking = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
-      salonId: string;
+      businessId: string;
       serviceId: string;
       staffId: string;
       slot: string;
@@ -431,7 +431,7 @@ export const createGuestBooking = createServerFn({ method: "POST" })
     }) =>
       z
         .object({
-          salonId: z.string().uuid(),
+          businessId: z.string().uuid(),
           serviceId: z.string().uuid(),
           staffId: z.string().uuid(),
           slot: z.string().min(1),
@@ -450,9 +450,9 @@ export const createGuestBooking = createServerFn({ method: "POST" })
 
     const { data: service, error: svcErr } = await supabaseAdmin
       .from("services")
-      .select("id, price, discount_price, duration_minutes, is_active, salon_id")
+      .select("id, price, discount_price, duration_minutes, is_active, business_id")
       .eq("id", data.serviceId)
-      .eq("salon_id", data.salonId)
+      .eq("business_id", data.businessId)
       .maybeSingle();
     if (svcErr) throw new Error(svcErr.message);
     if (!service || !service.is_active) throw new Error("Service not found");
@@ -464,7 +464,7 @@ export const createGuestBooking = createServerFn({ method: "POST" })
 
     if (data.couponCode) {
       const { data: rows, error } = await supabaseAdmin.rpc("check_promo_code", {
-        _salon_id: data.salonId,
+        _salon_id: data.businessId,
         _code: data.couponCode,
         _amount: totalPrice,
       });
@@ -487,7 +487,7 @@ export const createGuestBooking = createServerFn({ method: "POST" })
         customer_name: data.name,
         customer_phone: data.phone,
         customer_email: data.email ?? null,
-        salon_id: data.salonId,
+        business_id: data.businessId,
         service_id: service.id,
         staff_id: data.staffId,
         starts_at: starts.toISOString(),

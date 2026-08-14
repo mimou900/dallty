@@ -8,7 +8,7 @@
  * the booking is created, abandoned, or expired.
  */
 export type PendingBooking = {
-  salonId: string;
+  businessId: string;
   serviceId: string | null;
   staffId: string | null;
   day: string;
@@ -41,12 +41,12 @@ export function savePendingBooking(value: PendingBooking) {
 }
 
 /** Reads the intent without consuming it. Returns null when missing/stale. */
-export function readPendingBooking(salonId: string): PendingBooking | null {
+export function readPendingBooking(businessId: string): PendingBooking | null {
   try {
     const raw = store()?.getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PendingBooking;
-    if (parsed.salonId !== salonId) return null;
+    if (parsed.businessId !== businessId) return null;
     if (parsed.savedAt && Date.now() - parsed.savedAt > MAX_AGE_MS) {
       clearPendingBooking();
       return null;
@@ -60,8 +60,8 @@ export function readPendingBooking(salonId: string): PendingBooking | null {
 }
 
 /** Reads and consumes the intent in one go. */
-export function takePendingBooking(salonId: string): PendingBooking | null {
-  const parsed = readPendingBooking(salonId);
+export function takePendingBooking(businessId: string): PendingBooking | null {
+  const parsed = readPendingBooking(businessId);
   if (parsed) clearPendingBooking();
   return parsed;
 }
