@@ -20,12 +20,12 @@ export const Route = createFileRoute("/_authenticated/admin/payments")({
       {
         name: "description",
         content:
-          "Mark salon bookings as paid or unpaid and track paid, unpaid and estimated revenue in real time.",
+          "Mark business bookings as paid or unpaid and track paid, unpaid and estimated revenue in real time.",
       },
       { property: "og:title", content: "Payments — Dallty Business" },
       {
         property: "og:description",
-        content: "Track paid and unpaid revenue for every booking in your salon.",
+        content: "Track paid and unpaid revenue for every booking in your business.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -92,7 +92,7 @@ function PaymentsPage() {
   if (businessIds.length === 0) {
     return (
       <p className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
-        No salon linked to your account yet.
+        No business linked to your account yet.
       </p>
     );
   }

@@ -32,16 +32,16 @@ import { useAuth } from "@/hooks/use-auth";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Salon dashboard — Dallty" },
+      { title: "Business dashboard — Dallty" },
       {
         name: "description",
         content:
-          "Track today's revenue, appointments, staff occupancy, popular services and peak hours for your salon in one live dashboard.",
+          "Track today's revenue, appointments, staff occupancy, popular services and peak hours for your business in one live dashboard.",
       },
-      { property: "og:title", content: "Salon dashboard — Dallty" },
+      { property: "og:title", content: "Business dashboard — Dallty" },
       {
         property: "og:description",
-        content: "Live revenue, bookings and staff performance for your salon.",
+        content: "Live revenue, bookings and staff performance for your business.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -79,8 +79,8 @@ function DashboardPage() {
   const { user, hasRole, loading } = useAuth();
   const isOwner = hasRole("business_owner") || hasRole("admin");
 
-  const salonsQuery = useQuery({
-    queryKey: ["my-salons", user?.id],
+  const businessesQuery = useQuery({
+    queryKey: ["my-businesses", user?.id],
     enabled: Boolean(user) && isOwner,
     queryFn: async () => {
       const { data, error } = await supabase.from("businesses").select("id, name, currency").order("name");
@@ -89,8 +89,8 @@ function DashboardPage() {
     },
   });
 
-  const businessIds = (salonsQuery.data ?? []).map((s) => s.id);
-  const currency = salonsQuery.data?.[0]?.currency ?? "AED";
+  const businessIds = (businessesQuery.data ?? []).map((s) => s.id);
+  const currency = businessesQuery.data?.[0]?.currency ?? "AED";
 
   const bookingsQuery = useQuery({
     queryKey: ["dashboard-bookings", businessIds],
@@ -250,7 +250,7 @@ function DashboardPage() {
       <main className="mx-auto max-w-md px-4 pt-16 text-center">
         <h1 className="text-2xl font-extrabold">Owners only</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          This dashboard is available to salon owners. Head to your bookings instead.
+          This dashboard is available to business owners. Head to your bookings instead.
         </p>
         <Link
           to="/bookings"
@@ -268,7 +268,7 @@ function DashboardPage() {
         <Link to="/" aria-label="Back home" className="press grid size-10 place-items-center rounded-2xl glass-soft">
           <ArrowLeft className="size-5" />
         </Link>
-        <h1 className="text-2xl font-extrabold tracking-tight">Salon dashboard</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">Business dashboard</h1>
         <Link
           to="/admin/availability"
           search={{ staff: undefined }}
@@ -279,9 +279,9 @@ function DashboardPage() {
         </Link>
       </div>
 
-      {!businessIds.length && !salonsQuery.isLoading && (
+      {!businessIds.length && !businessesQuery.isLoading && (
         <p className="mt-8 rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
-          No salon is linked to your account yet.
+          No business is linked to your account yet.
         </p>
       )}
 

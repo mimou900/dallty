@@ -16,7 +16,7 @@ export type SelectOption = {
   value: string;
   label: string;
   hint?: string | null;
-  /** Optional grouping key — used by ScopedSelect (salon → item). */
+  /** Optional grouping key — used by ScopedSelect (business → item). */
   groupId?: string | null;
 };
 
@@ -114,7 +114,7 @@ export function SearchableSelect({
 }
 
 type ScopedSelectProps = {
-  /** Step 1 — usually the salon list. */
+  /** Step 1 — usually the business list. */
   scopes: SelectOption[];
   scopeValue: string;
   onScopeChange: (value: string) => void;
@@ -130,14 +130,14 @@ type ScopedSelectProps = {
 };
 
 /**
- * Two-step picker: choose the salon first, then only that salon's items are
- * offered. Keeps long cross-salon lists (staff, services) manageable.
+ * Two-step picker: choose the business first, then only that business's items are
+ * offered. Keeps long cross-business lists (staff, services) manageable.
  */
 export function ScopedSelect({
   scopes,
   scopeValue,
   onScopeChange,
-  scopeLabel = "Salon",
+  scopeLabel = "Business",
   options,
   value,
   onChange,
@@ -167,7 +167,7 @@ export function ScopedSelect({
               if (!stillValid) onChange("");
             }}
             options={scopes}
-            placeholder="Select salon"
+            placeholder="Select business"
           />
         </label>
       ) : null}

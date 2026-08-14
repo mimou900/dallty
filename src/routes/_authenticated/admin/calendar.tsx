@@ -30,13 +30,13 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/calendar")({
   head: () => ({
     meta: [
-      { title: "Salon calendar — Dallty Business" },
+      { title: "Business calendar — Dallty Business" },
       {
         name: "description",
         content:
           "Day, week, month and timeline scheduling with drag & drop rescheduling, staff filters and live updates.",
       },
-      { property: "og:title", content: "Salon calendar — Dallty Business" },
+      { property: "og:title", content: "Business calendar — Dallty Business" },
       {
         property: "og:description",
         content: "Drag & drop scheduling for your whole team, updating in real time.",
@@ -325,9 +325,9 @@ function CalendarPage() {
                 setStaffFilter("all");
                 setServiceFilter("all");
               }}
-              searchPlaceholder="Search salons…"
+              searchPlaceholder="Search businesses…"
               options={[
-                { value: "all", label: `All salons (${allBusinesses.length})` },
+                { value: "all", label: `All businesses (${allBusinesses.length})` },
                 ...allBusinesses.map((s) => ({ value: s.id, label: s.name, hint: s.city ?? null })),
               ]}
             />

@@ -38,12 +38,12 @@ export const Route = createFileRoute("/_authenticated/admin/")({
       {
         name: "description",
         content:
-          "Today's bookings, estimated, paid and unpaid revenue, clients, specialists, services, reviews and marketplace status for your salon.",
+          "Today's bookings, estimated, paid and unpaid revenue, clients, specialists, services, reviews and marketplace status for your business.",
       },
       { property: "og:title", content: "Business dashboard — Dallty" },
       {
         property: "og:description",
-        content: "A complete daily overview of your salon business on Dallty.",
+        content: "A complete daily overview of your business on Dallty.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -189,7 +189,7 @@ function AdminDashboard() {
   if (!businessesQuery.isLoading && businessIds.length === 0) {
     return (
       <p className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
-        No salon is linked to your account yet.
+        No business is linked to your account yet.
       </p>
     );
   }

@@ -42,7 +42,7 @@ export const Route = createFileRoute("/_authenticated/admin/services")({
       {
         name: "description",
         content:
-          "Create, price and publish the services your salon offers, and choose which specialists perform each one.",
+          "Create, price and publish the services your business offers, and choose which specialists perform each one.",
       },
       { property: "og:title", content: "Service catalogue — Dallty Business" },
       { property: "og:description", content: "Build and price your full menu of services." },

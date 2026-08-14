@@ -13,12 +13,12 @@ export const Route = createFileRoute("/_authenticated/admin/notifications")({
       {
         name: "description",
         content:
-          "Every booking, cancellation and review alert for your salon in one place, with read tracking.",
+          "Every booking, cancellation and review alert for your business in one place, with read tracking.",
       },
       { property: "og:title", content: "Notifications — Dallty Business" },
       {
         property: "og:description",
-        content: "Booking, cancellation and review alerts for your salon.",
+        content: "Booking, cancellation and review alerts for your business.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

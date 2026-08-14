@@ -15,12 +15,12 @@ export const Route = createFileRoute("/_authenticated/admin/marketplace")({
       {
         name: "description",
         content:
-          "Track your marketplace approval status, complete the listing requirements and submit your salon for review by the Dallty team.",
+          "Track your marketplace approval status, complete the listing requirements and submit your business for review by the Dallty team.",
       },
       { property: "og:title", content: "Marketplace approval — Dallty Business" },
       {
         property: "og:description",
-        content: "Listing requirements, approval status and verification badge for your salon.",
+        content: "Listing requirements, approval status and verification badge for your business.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -37,12 +37,12 @@ const STATUS_COPY: Record<string, { label: string; hint: string; tone: string }>
   },
   pending_review: {
     label: "Pending review",
-    hint: "Our team is reviewing your salon. You keep full access to every feature meanwhile.",
+    hint: "Our team is reviewing your business. You keep full access to every feature meanwhile.",
     tone: "bg-gold/20 text-foreground",
   },
   approved: {
     label: "Approved",
-    hint: "Your salon is live on the Dallty marketplace.",
+    hint: "Your business is live on the Dallty marketplace.",
     tone: "bg-primary/15 text-primary",
   },
   rejected: {
@@ -52,16 +52,16 @@ const STATUS_COPY: Record<string, { label: string; hint: string; tone: string }>
   },
   hidden: {
     label: "Hidden",
-    hint: "Your salon is temporarily hidden from marketplace search.",
+    hint: "Your business is temporarily hidden from marketplace search.",
     tone: "bg-secondary text-muted-foreground",
   },
 };
 
 const FIX_LINKS: Partial<Record<string, { to: string; label: string }>> = {
-  profile_complete: { to: "/admin/settings", label: "Salon settings" },
-  logo_uploaded: { to: "/admin/settings", label: "Salon settings" },
-  location_set: { to: "/admin/settings", label: "Salon settings" },
-  hours_set: { to: "/admin/settings", label: "Salon settings" },
+  profile_complete: { to: "/admin/settings", label: "Business settings" },
+  logo_uploaded: { to: "/admin/settings", label: "Business settings" },
+  location_set: { to: "/admin/settings", label: "Business settings" },
+  hours_set: { to: "/admin/settings", label: "Business settings" },
   has_service: { to: "/admin/services", label: "Services" },
   has_specialist: { to: "/admin/staff", label: "Specialists" },
   service_assigned: { to: "/admin/staff", label: "Specialists" },
@@ -132,7 +132,7 @@ function MarketplacePage() {
   if (!primary) {
     return (
       <p className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
-        No salon linked to your account yet.
+        No business linked to your account yet.
       </p>
     );
   }
@@ -248,9 +248,9 @@ function reasonCopy(reason?: string | null) {
     case "incomplete":
       return "Complete every requirement before submitting.";
     case "already_submitted":
-      return "This salon is already submitted or approved.";
+      return "This business is already submitted or approved.";
     case "forbidden":
-      return "You cannot submit this salon.";
+      return "You cannot submit this business.";
     default:
       return "Could not submit for approval.";
   }

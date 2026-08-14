@@ -52,7 +52,7 @@ export const Route = createFileRoute("/_authenticated/admin/reports")({
       { property: "og:title", content: "Reports — Dallty Business" },
       {
         property: "og:description",
-        content: "Revenue, growth and performance analytics for your salon.",
+        content: "Revenue, growth and performance analytics for your business.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -250,7 +250,7 @@ function ReportsPage() {
   if (businessIds.length === 0) {
     return (
       <p className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
-        No salon linked to your account yet.
+        No business linked to your account yet.
       </p>
     );
   }

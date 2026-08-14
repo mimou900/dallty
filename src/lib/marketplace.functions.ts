@@ -15,7 +15,7 @@ export type MarketplaceStatus = (typeof MARKETPLACE_STATUSES)[number];
 
 /** Readiness requirements a salon must meet before it can be submitted. */
 export const READINESS_CHECKS = [
-  { key: "profile_complete", label: "Salon profile completed", labelAr: "اكتمال ملف الصالون" },
+  { key: "profile_complete", label: "Business profile completed", labelAr: "اكتمال ملف النشاط التجاري" },
   { key: "logo_uploaded", label: "Logo uploaded", labelAr: "تم رفع الشعار" },
   { key: "location_set", label: "Exact Google Maps location", labelAr: "الموقع الدقيق على الخريطة" },
   { key: "hours_set", label: "Business hours configured", labelAr: "تم ضبط ساعات العمل" },

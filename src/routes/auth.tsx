@@ -45,7 +45,7 @@ export const Route = createFileRoute("/auth")({
       {
         name: "description",
         content:
-          "Sign in with your email and password. Create your Dallty account as a customer, salon owner or specialist.",
+          "Sign in with your email and password. Create your Dallty account as a customer, business owner or specialist.",
       },
       { property: "og:title", content: "Sign in to Dallty" },
       { property: "og:description", content: "Book salons, barbers, nails and spa in seconds." },
@@ -56,8 +56,8 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-// Client-only sign-up. Salon owners register through /business/signup and
-// specialists are invited by their salon owner (or request to join a team
+// Client-only sign-up. Business owners register through /business/signup and
+// specialists are invited by their business owner (or request to join a team
 // via /staff/signup).
 const roleOptions = [{ value: "client", label: "Client", hint: "Book appointments" }] as const;
 
@@ -96,8 +96,8 @@ const copy = {
     haveAccount: "Already have an account?",
     switchSignUp: "Create an account",
     switchSignIn: "Sign in",
-    business: "Salon owner? Register your business",
-    joinTeam: "I work at a salon",
+    business: "Business owner? Register your business",
+    joinTeam: "I work at a business",
     checkEmail: "Check your email to confirm your account.",
     signedIn: "Signed in",
     welcome: "Welcome to Dallty",
@@ -127,7 +127,7 @@ const copy = {
     switchSignUp: "أنشئ حساباً",
     switchSignIn: "تسجيل الدخول",
     business: "صاحب صالون؟ سجّل نشاطك التجاري",
-    joinTeam: "أعمل في صالون",
+    joinTeam: "أعمل في نشاط تجاري",
     checkEmail: "تحقق من بريدك لتأكيد الحساب.",
     signedIn: "تم تسجيل الدخول",
     welcome: "أهلاً بك في دلّتي",
@@ -498,7 +498,7 @@ function AuthPage() {
                 to="/business/signup"
                 className="flex min-h-12 items-center justify-between rounded-2xl glass-soft px-4 py-3 text-sm font-semibold"
               >
-                <span>Salon owner</span>
+                <span>Business owner</span>
                 <span className="text-xs font-medium text-muted-foreground">
                   Register your business
                 </span>

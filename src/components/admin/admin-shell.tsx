@@ -59,7 +59,7 @@ type NavItem = {
 
 type NavSection = { label: string; items: NavItem[] };
 
-/** Owner / manager back-office, grouped by the way a salon actually runs. */
+/** Owner / manager back-office, grouped by the way a business actually runs. */
 export const ADMIN_SECTIONS: NavSection[] = [
   {
     label: "Today",
@@ -104,8 +104,8 @@ export const ADMIN_SECTIONS: NavSection[] = [
       { to: "/admin/notifications", label: "Notifications", labelAr: "الإشعارات", icon: Bell },
       {
         to: "/admin/settings",
-        label: "Salon settings",
-        labelAr: "إعدادات الصالون",
+        label: "Business settings",
+        labelAr: "إعدادات النشاط التجاري",
         icon: Settings,
       },
       {
@@ -327,9 +327,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const isPlatformAdmin = hasRole("super_admin") || hasRole("admin");
   const { isStaffOnly } = useMyStaffRecord();
 
-  // Owners see a review banner until the platform team approves their salon.
-  const ownedSalon = useQuery({
-    queryKey: ["owned-salon-status", user?.id, isPlatformAdmin],
+  // Owners see a review banner until the platform team approves their business.
+  const ownedBusiness = useQuery({
+    queryKey: ["owned-business-status", user?.id, isPlatformAdmin],
     enabled: Boolean(user?.id) && !isPlatformAdmin,
     queryFn: async () => {
       const { data } = await supabase
@@ -428,9 +428,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
     </span>
   );
 
-  // Platform admins own no salon: they get the platform console first, then the
-  // salon modules scoped to whichever business they pick.
-  const salonSections = isStaffOnly
+  // Platform admins own no business: they get the platform console first, then the
+  // business modules scoped to whichever business they pick.
+  const businessSections = isStaffOnly
     ? STAFF_SECTIONS
     : isPlatformAdmin
       ? ADMIN_SECTIONS.map((section) =>
@@ -454,9 +454,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       )}
       {isPlatformAdmin
-        ? sectionHeading(locale === "ar" ? "إدارة أي صالون" : "Manage any salon")
+        ? sectionHeading(locale === "ar" ? "إدارة أي نشاط تجاري" : "Manage any business")
         : null}
-      {salonSections.map((section) => (
+      {businessSections.map((section) => (
         <div key={section.label} className="flex flex-col gap-1">
           {sectionHeading(section.label)}
           {section.items.map(renderLink)}
@@ -602,22 +602,22 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="px-4 pb-16 pt-6 sm:px-6">
-          {ownedSalon.data && ownedSalon.data.marketplace_status !== "approved" && (
+          {ownedBusiness.data && ownedBusiness.data.marketplace_status !== "approved" && (
             <div className="mb-5 rounded-3xl glass p-5">
               <p className="text-sm font-extrabold">
-                {ownedSalon.data.marketplace_status === "pending_review"
-                  ? "Your salon is under marketplace review"
-                  : ownedSalon.data.marketplace_status === "rejected"
-                    ? "Your salon was not approved for the marketplace"
-                    : ownedSalon.data.marketplace_status === "hidden"
-                      ? "Your salon is hidden from the marketplace"
-                      : "Your salon is not listed yet"}
+                {ownedBusiness.data.marketplace_status === "pending_review"
+                  ? "Your business is under marketplace review"
+                  : ownedBusiness.data.marketplace_status === "rejected"
+                    ? "Your business was not approved for the marketplace"
+                    : ownedBusiness.data.marketplace_status === "hidden"
+                      ? "Your business is hidden from the marketplace"
+                      : "Your business is not listed yet"}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 You have full access to your dashboard — only public marketplace visibility is
                 affected.
-                {ownedSalon.data.trial_ends_at
-                  ? ` Trial ends ${new Date(ownedSalon.data.trial_ends_at).toLocaleDateString()}.`
+                {ownedBusiness.data.trial_ends_at
+                  ? ` Trial ends ${new Date(ownedBusiness.data.trial_ends_at).toLocaleDateString()}.`
                   : ""}
               </p>
             </div>

@@ -14,13 +14,13 @@ export const Route = createFileRoute("/staff/signup")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Join a salon team — Dallty for specialists" },
+      { title: "Join a business team — Dallty for specialists" },
       {
         name: "description",
         content:
-          "Create your Dallty specialist account, pick the salon you work at and request access to your own appointment dashboard.",
+          "Create your Dallty specialist account, pick the business you work at and request access to your own appointment dashboard.",
       },
-      { property: "og:title", content: "Join a salon team — Dallty for specialists" },
+      { property: "og:title", content: "Join a business team — Dallty for specialists" },
       {
         property: "og:description",
         content: "Specialist sign-up: manage your appointments and working hours on Dallty.",
@@ -53,10 +53,10 @@ function Shell({ children }: { children: React.ReactNode }) {
         <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-primary">
           <Sparkles className="size-4" /> For specialists
         </p>
-        <h1 className="mt-2 text-2xl font-extrabold">Join your salon on Dallty</h1>
+        <h1 className="mt-2 text-2xl font-extrabold">Join your business on Dallty</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Create an account, choose where you work and the owner approves you. Already invited by
-          your salon? Use the link in your email instead.
+          your business? Use the link in your email instead.
         </p>
         <div className="mt-5">{children}</div>
       </div>
@@ -98,13 +98,13 @@ function AccountPanel() {
       setSent(true);
       return;
     }
-    toast.success("Account created — now pick your salon");
+    toast.success("Account created — now pick your business");
   }
 
   if (sent)
     return (
       <p className="rounded-2xl glass-soft p-4 text-sm font-medium">
-        Check your inbox and confirm your email, then come back to this page to pick your salon.
+        Check your inbox and confirm your email, then come back to this page to pick your business.
       </p>
     );
 
@@ -177,8 +177,8 @@ function JoinPanel() {
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
 
-  const salons = useQuery({
-    queryKey: ["joinable-salons"],
+  const businesses = useQuery({
+    queryKey: ["joinable-businesses"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("businesses")
@@ -225,7 +225,7 @@ function JoinPanel() {
 
   const submit = useMutation({
     mutationFn: async () => {
-      if (!businessId) throw new Error("Pick the salon you work at");
+      if (!businessId) throw new Error("Pick the business you work at");
       const { error } = await supabase.from("staff_join_requests").insert({
         user_id: user!.id,
         business_id: businessId,
@@ -237,7 +237,7 @@ function JoinPanel() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Request sent — the salon owner will review it");
+      toast.success("Request sent — the business owner will review it");
       void myRequests.refetch();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not send request"),
@@ -266,7 +266,7 @@ function JoinPanel() {
           {(myRequests.data ?? []).map((r) => (
             <div key={r.id} className="rounded-2xl glass-soft px-4 py-3 text-sm font-medium">
               <span className="font-bold">
-                {(r.businesses as { name?: string } | null)?.name ?? "Salon"}
+                {(r.businesses as { name?: string } | null)?.name ?? "Business"}
               </span>{" "}
               — {r.status}
             </div>
@@ -287,14 +287,14 @@ function JoinPanel() {
           className="grid gap-3"
         >
           <label className="text-sm font-bold">
-            Salon you work at
+            Business you work at
             <select
               value={businessId}
               onChange={(e) => setBusinessId(e.target.value)}
               className="mt-1 w-full rounded-2xl glass-soft px-4 py-2.5 text-sm font-medium"
             >
-              <option value="">Select a salon…</option>
-              {(salons.data ?? []).map((s) => (
+              <option value="">Select a business…</option>
+              {(businesses.data ?? []).map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} — {s.area}, {s.city}
                 </option>

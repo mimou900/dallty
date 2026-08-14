@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/admin/customers")({
       {
         name: "description",
         content:
-          "Every client who booked with your salon: spend, visits, favourite service, beauty notes and contact details.",
+          "Every client who booked with your business: spend, visits, favourite service, beauty notes and contact details.",
       },
       { property: "og:title", content: "Customers CRM — Dallty Business" },
       { property: "og:description", content: "Know every client before they walk in." },

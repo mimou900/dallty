@@ -52,7 +52,7 @@ export const Route = createFileRoute("/_authenticated/admin/appointments")({
       { property: "og:title", content: "Appointments — Dallty Business" },
       {
         property: "og:description",
-        content: "One place to run every appointment in your salon.",
+        content: "One place to run every appointment in your business.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -247,9 +247,9 @@ function AppointmentsPage() {
               className="w-auto min-w-48 bg-card/70"
               value={businessScope}
               onChange={setBusinessScope}
-              searchPlaceholder="Search salons…"
+              searchPlaceholder="Search businesses…"
               options={[
-                { value: "all", label: `All salons (${allBusinesses.length})` },
+                { value: "all", label: `All businesses (${allBusinesses.length})` },
                 ...allBusinesses.map((s) => ({ value: s.id, label: s.name, hint: s.city ?? null })),
               ]}
             />

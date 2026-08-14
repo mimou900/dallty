@@ -222,7 +222,7 @@ function BookingsPage() {
 
   return (
     <ClientShell
-      title={isManager ? "Salon calendar" : "Your bookings"}
+      title={isManager ? "Business calendar" : "Your bookings"}
       subtitle={
         isManager
           ? "Every appointment you can manage, updating live."
@@ -258,7 +258,7 @@ function BookingsPage() {
                   className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-background px-4 text-sm font-extrabold text-foreground"
                 >
                   <Phone className="size-4" />
-                  Call salon
+                  Call business
                 </a>
               )}
               <div className="grid grid-cols-2 gap-2">
@@ -279,7 +279,7 @@ function BookingsPage() {
                   className="press flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border border-primary-foreground/40 px-3 text-sm font-bold"
                 >
                   <Info className="size-4" />
-                  Salon details
+                  Business details
                 </Link>
                 <Link
                   to="/reschedule/$bookingId"
@@ -502,7 +502,7 @@ function Section({
                   className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-extrabold text-primary-foreground"
                 >
                   <Phone className="size-4" />
-                  Call salon
+                  Call business
                 </a>
               )}
               <div className="grid grid-cols-2 gap-2">
@@ -523,7 +523,7 @@ function Section({
                   className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
                 >
                   <Info className="size-4" />
-                  Salon details
+                  Business details
                 </Link>
                 {b.status !== "cancelled" && b.status !== "completed" && (
                   <>

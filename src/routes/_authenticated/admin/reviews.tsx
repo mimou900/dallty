@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/admin/reviews")({
           "Read, reply to, hide and share customer reviews, and track your rating trend over time.",
       },
       { property: "og:title", content: "Reviews — Dallty Business" },
-      { property: "og:description", content: "Protect and grow your salon's reputation." },
+      { property: "og:description", content: "Protect and grow your business's reputation." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

@@ -67,14 +67,14 @@ export const Route = createFileRoute("/_authenticated/admin/settings")({
   }),
   head: () => ({
     meta: [
-      { title: "Salon settings — Dallty Business" },
+      { title: "Business settings — Dallty Business" },
       {
         name: "description",
         content:
-          "Manage your salon profile, exact map location, opening hours, booking rules, photos, policies, notifications, payments and SEO on Dallty.",
+          "Manage your business profile, exact map location, opening hours, booking rules, photos, policies, notifications, payments and SEO on Dallty.",
       },
-      { property: "og:title", content: "Salon settings — Dallty Business" },
-      { property: "og:description", content: "Configure how your salon runs on Dallty." },
+      { property: "og:title", content: "Business settings — Dallty Business" },
+      { property: "og:description", content: "Configure how your business runs on Dallty." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -328,9 +328,9 @@ function SettingsPage() {
       <div className="rounded-3xl glass p-6">
         {isPlatformAdmin ? (
           <>
-            <p className="text-sm font-bold">Pick a salon to manage.</p>
+            <p className="text-sm font-bold">Pick a business to manage.</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Platform admin accounts don’t own a salon — choose any business from the salon
+              Platform admin accounts don’t own a business — choose any business from the business
               selector above, or browse them in the platform directory.
             </p>
             <Link
@@ -344,7 +344,7 @@ function SettingsPage() {
           <>
             <p className="text-sm font-bold">No business linked to this account yet.</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Register your salon to unlock business settings.
+              Register your business to unlock business settings.
             </p>
             <Link
               to="/business/signup"
@@ -376,7 +376,7 @@ function SettingsPage() {
     >
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:justify-between">
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-black sm:text-2xl">Salon settings</h1>
+          <h1 className="truncate text-xl font-black sm:text-2xl">Business settings</h1>
           <p className="truncate text-sm text-muted-foreground">
             {form.name || "Your business"} · {form.city || "—"}
           </p>
@@ -423,7 +423,7 @@ function SettingsPage() {
       {tab === "general" && (
         <Section title="General" description="The basics clients see first.">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Salon name">
+            <Field label="Business name">
               <input
                 className={inputClass}
                 value={form.name ?? ""}
@@ -431,7 +431,7 @@ function SettingsPage() {
                 required
               />
             </Field>
-            <Field label="Salon name (Arabic)">
+            <Field label="Business name (Arabic)">
               <input
                 dir="rtl"
                 className={inputClass}
@@ -518,7 +518,7 @@ function SettingsPage() {
             </div>
           </Section>
 
-          <Section title="Categories" description="Pick everything your salon offers.">
+          <Section title="Categories" description="Pick everything your business offers.">
             <div className="flex flex-wrap gap-2">
               {(categoryOptions.data ?? []).map((category) => {
                 const value = category.default_name;
@@ -684,7 +684,7 @@ function SettingsPage() {
       {tab === "hours" && (
         <Section
           title="Opening hours"
-          description="Salon-level hours. Specialist shifts live in availability."
+          description="Business-level hours. Specialist shifts live in availability."
         >
           <div className="space-y-2">
             {hours.map((day, index) => (
@@ -947,7 +947,7 @@ function SettingsPage() {
               onChange={(v) => set("accept_cash", v)}
             />
             <Toggle
-              label="Card in salon"
+              label="Card in business"
               checked={Boolean(form.accept_card)}
               onChange={(v) => set("accept_card", v)}
             />
@@ -1004,7 +1004,7 @@ function SettingsPage() {
       )}
 
       {tab === "seo" && (
-        <Section title="SEO" description="How your salon appears on Google and when shared.">
+        <Section title="SEO" description="How your business appears on Google and when shared.">
           <div className="grid gap-4">
             <Field label="Page title" hint="Keep it under 60 characters.">
               <input
@@ -1073,9 +1073,9 @@ function SettingsPage() {
             </div>
           </Section>
 
-          <Section title="Visibility" description="Pause your salon without deleting anything.">
+          <Section title="Visibility" description="Pause your business without deleting anything.">
             <Toggle
-              label="Salon is open for business"
+              label="Business is open"
               description="Turning this off hides you from the marketplace and stops new bookings."
               checked={form.is_active !== false}
               onChange={(v) => set("is_active", v)}

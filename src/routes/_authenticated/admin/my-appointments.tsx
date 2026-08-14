@@ -278,7 +278,7 @@ function MyAppointmentsPage() {
           </label>
           {services.length === 0 && (
             <p className="text-sm text-muted-foreground sm:col-span-2">
-              You aren't assigned to any service yet — ask your salon owner to assign one.
+              You aren't assigned to any service yet — ask your business owner to assign one.
             </p>
           )}
           {customers.length === 0 && (

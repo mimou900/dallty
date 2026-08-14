@@ -38,13 +38,13 @@ import { friendlyError } from "@/lib/friendly-error";
 export const Route = createFileRoute("/business/signup")({
   head: () => ({
     meta: [
-      { title: "Create your salon — Dallty Business" },
+      { title: "Create your business — Dallty Business" },
       {
         name: "description",
         content:
-          "Set up your salon on Dallty in three simple steps: business details and address, branding, and your opening hours.",
+          "Set up your business on Dallty in three simple steps: business details and address, branding, and your opening hours.",
       },
-      { property: "og:title", content: "Create your salon — Dallty Business" },
+      { property: "og:title", content: "Create your business — Dallty Business" },
       {
         property: "og:description",
         content: "Take online bookings, manage your team and grow with Dallty Business.",
@@ -56,7 +56,7 @@ export const Route = createFileRoute("/business/signup")({
   component: BusinessSignupPage,
 });
 
-/** Platform admin accounts manage salons instead of owning one. */
+/** Platform admin accounts manage businesses instead of owning one. */
 function usePlatformAdminRedirect() {
   const { hasRole, loading, rolesLoading } = useAuth();
   const navigate = useNavigate();
@@ -132,22 +132,22 @@ function BusinessSignupPage() {
    */
   const [hasAccountStep, setHasAccountStep] = useState<boolean | null>(null);
   const [accountCreated, setAccountCreated] = useState(false);
-  const [checkingSalon, setCheckingSalon] = useState(true);
+  const [checkingBusiness, setCheckingBusiness] = useState(true);
 
   useEffect(() => {
     if (authLoading || hasAccountStep !== null) return;
     setHasAccountStep(!user);
   }, [authLoading, user, hasAccountStep]);
 
-  // An owner who already has a salon belongs in the dashboard, not here.
+  // An owner who already has a business belongs in the dashboard, not here.
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      setCheckingSalon(false);
+      setCheckingBusiness(false);
       return;
     }
     if (accountCreated) {
-      setCheckingSalon(false);
+      setCheckingBusiness(false);
       return;
     }
     let cancelled = false;
@@ -159,7 +159,7 @@ function BusinessSignupPage() {
       .then(({ data }) => {
         if (cancelled) return;
         if (data) navigate({ to: "/admin", replace: true });
-        else setCheckingSalon(false);
+        else setCheckingBusiness(false);
       });
     return () => {
       cancelled = true;
@@ -171,7 +171,7 @@ function BusinessSignupPage() {
   const steps = useMemo(
     () => [
       ...(needsAccount ? [{ title: "Account", icon: UserRound }] : []),
-      { title: "Salon details", icon: Store },
+      { title: "Business details", icon: Store },
       { title: "Branding", icon: ImageIcon },
       { title: "Business hours", icon: Clock },
     ],
@@ -182,7 +182,7 @@ function BusinessSignupPage() {
   const countries = useCountries();
   const categoryOptions = useCategories();
   const [step, setStep] = useState(0);
-  const [busy, setBusy] = useState<null | "account" | "salon">(null);
+  const [busy, setBusy] = useState<null | "account" | "business">(null);
   const [busyLabel, setBusyLabel] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [done, setDone] = useState<null | { needsEmailConfirm: boolean }>(null);
@@ -278,7 +278,7 @@ function BusinessSignupPage() {
     if (needsAccount && index === 0) return validateAccount();
     if (index === offset) {
       const next: FieldErrors = {};
-      if (b.name.trim().length < 2) next.name = "Salon name is required";
+      if (b.name.trim().length < 2) next.name = "Business name is required";
       if (!categories.length) next.categories = "Pick at least one category";
       if (!phoneSchema.safeParse(b.businessPhone).success)
         next.businessPhone = "Enter a valid business phone, e.g. +9714xxxxxxx";
@@ -317,7 +317,7 @@ function BusinessSignupPage() {
 
   /**
    * Creates the owner account as soon as step 1 is completed, signs them in and
-   * moves straight on to the salon wizard — no second login, ever.
+   * moves straight on to the business wizard — no second login, ever.
    */
   async function createAccount() {
     if (busy) return;
@@ -376,7 +376,7 @@ function BusinessSignupPage() {
 
       setAccountCreated(true);
       if (session) {
-        toast.success("Account created — let's set up your salon.");
+        toast.success("Account created — let's set up your business.");
       } else {
         toast.message("Check your email to confirm your address, then continue here.");
       }
@@ -431,13 +431,13 @@ function BusinessSignupPage() {
       return;
     }
 
-    setBusy("salon");
-    setBusyLabel("Creating your salon…");
+    setBusy("business");
+    setBusyLabel("Creating your business…");
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData.session;
       if (!session) {
-        toast.error("Please confirm your email address to finish setting up your salon.");
+        toast.error("Please confirm your email address to finish setting up your business.");
         return;
       }
       const userId = session.user.id;
@@ -456,14 +456,14 @@ function BusinessSignupPage() {
         toast.message("Some photos could not be uploaded — you can add them from your dashboard.");
       }
 
-      setBusyLabel("Creating your salon…");
+      setBusyLabel("Creating your business…");
       await registerBusiness({
         data: { userId, business: { ...parsed.data, logoUrl, coverUrl, galleryUrls } },
       });
       setDone({ needsEmailConfirm: false });
-      toast.success("Your salon has been created successfully.");
+      toast.success("Your business has been created successfully.");
     } catch (err) {
-      const message = friendlyError(err, "We couldn't create your salon. Please try again.");
+      const message = friendlyError(err, "We couldn't create your business. Please try again.");
       if (message.toLowerCase().includes("already has a business")) {
         navigate({ to: "/admin", replace: true });
         return;
@@ -478,12 +478,12 @@ function BusinessSignupPage() {
   if (isPlatformAdmin) {
     return (
       <main className="grid min-h-dvh place-items-center px-4 text-sm text-muted-foreground">
-        Platform admin accounts manage salons — taking you to the console…
+        Platform admin accounts manage businesses — taking you to the console…
       </main>
     );
   }
 
-  if (hasAccountStep === null || checkingSalon) {
+  if (hasAccountStep === null || checkingBusiness) {
     return (
       <main className="grid min-h-dvh place-items-center px-4">
         <Loader2 className="size-6 animate-spin text-primary" />
@@ -496,10 +496,10 @@ function BusinessSignupPage() {
       <main className="relative grid min-h-dvh place-items-center px-4 py-10">
         <div className="w-full max-w-lg rounded-4xl glass p-8 text-center">
           <CircleCheck className="mx-auto size-10 text-primary" />
-          <h1 className="mt-4 text-3xl font-extrabold">Your salon has been created successfully</h1>
+          <h1 className="mt-4 text-3xl font-extrabold">Your business has been created successfully</h1>
           <p className="mt-3 text-sm text-muted-foreground">
             {done.needsEmailConfirm
-              ? "Confirm your email to activate your login, then finish setting up your salon."
+              ? "Confirm your email to activate your login, then finish setting up your business."
               : "Here are the next steps to get you ready for bookings."}
           </p>
 
@@ -602,7 +602,7 @@ function BusinessSignupPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   {accountCreated && (
                     <p className="sm:col-span-2 rounded-2xl glass-soft p-3.5 text-sm font-semibold">
-                      Your account is ready — continue to your salon details.
+                      Your account is ready — continue to your business details.
                     </p>
                   )}
                   <Field label="Full name" error={errors.fullName}>
@@ -678,7 +678,7 @@ function BusinessSignupPage() {
               {step === offset && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <Field label="Salon name" error={errors.name}>
+                    <Field label="Business name" error={errors.name}>
                       <input
                         className={inputClass}
                         value={b.name}
@@ -719,7 +719,7 @@ function BusinessSignupPage() {
                       </p>
                     ) : (
                       <p className="mt-1.5 text-xs text-muted-foreground">
-                        Pick every category your salon offers — clients filter by these.
+                        Pick every category your business offers — clients filter by these.
                       </p>
                     )}
                   </div>
@@ -769,13 +769,13 @@ function BusinessSignupPage() {
                   <Field label="City" error={errors.city}>
                     <input
                       className={inputClass}
-                      list="salon-city-options"
+                      list="business-city-options"
                       placeholder="Start typing your city"
                       value={b.city}
                       onChange={(e) => set("city", e.target.value)}
                       autoComplete="address-level2"
                     />
-                    <datalist id="salon-city-options">
+                    <datalist id="business-city-options">
                       {citiesFor(b.countryCode).map((c) => (
                         <option key={c.en} value={c.en}>
                           {c.ar}
@@ -843,7 +843,7 @@ function BusinessSignupPage() {
                   <ImageDrop
                     label="Cover image (optional)"
                     aspect="wide"
-                    hint="Shown at the top of your salon page"
+                    hint="Shown at the top of your business page"
                     file={coverFile}
                     onChange={setCoverFile}
                   />
@@ -917,7 +917,7 @@ function BusinessSignupPage() {
                     />
                   </Field>
                   <p className="text-xs text-muted-foreground sm:col-span-2">
-                    These are your salon's default opening hours. Per-specialist shifts, breaks and
+                    These are your business's default opening hours. Per-specialist shifts, breaks and
                     days off are configured in Availability after setup.
                   </p>
 
@@ -972,8 +972,8 @@ function BusinessSignupPage() {
                   disabled={busy !== null}
                   className="press flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-8 text-sm font-bold text-primary-foreground disabled:opacity-60"
                 >
-                  {busy === "salon" && <Loader2 className="size-4 animate-spin" />}
-                  {busy === "salon" ? busyLabel || "Creating your salon…" : "Create my salon"}
+                  {busy === "business" && <Loader2 className="size-4 animate-spin" />}
+                  {busy === "business" ? busyLabel || "Creating your business…" : "Create my business"}
                 </button>
               )}
             </div>
