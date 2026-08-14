@@ -8,7 +8,7 @@ import {
   money,
   useActiveCurrency,
   useManagedBookings,
-  useManagedSalons,
+  useManagedBusinesses,
   useManagedServices,
   useSetPaymentStatus,
 } from "@/lib/admin";
@@ -37,8 +37,11 @@ export const Route = createFileRoute("/_authenticated/admin/payments")({
 type Filter = "all" | "paid" | "unpaid";
 
 function PaymentsPage() {
-  const salonsQuery = useManagedSalons();
-  const salonIds = useMemo(() => (salonsQuery.data ?? []).map((s) => s.id), [salonsQuery.data]);
+  const businessesQuery = useManagedBusinesses();
+  const businessIds = useMemo(
+    () => (businessesQuery.data ?? []).map((s) => s.id),
+    [businessesQuery.data],
+  );
   const currency = useActiveCurrency();
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -50,8 +53,8 @@ function PaymentsPage() {
     };
   }, []);
 
-  const bookingsQuery = useManagedBookings(salonIds, from, to);
-  const servicesQuery = useManagedServices(salonIds);
+  const bookingsQuery = useManagedBookings(businessIds, from, to);
+  const servicesQuery = useManagedServices(businessIds);
   const setPayment = useSetPaymentStatus();
 
   const bookings = useMemo(
@@ -86,7 +89,7 @@ function PaymentsPage() {
     }
   }
 
-  if (salonIds.length === 0) {
+  if (businessIds.length === 0) {
     return (
       <p className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
         No salon linked to your account yet.

@@ -29,7 +29,7 @@ import {
   money,
   useActiveCurrency,
   useManagedBookings,
-  useManagedSalons,
+  useManagedBusinesses,
   useManagedServices,
   useManagedStaff,
 } from "@/lib/admin";
@@ -73,8 +73,11 @@ const PERIOD_LABELS: Record<Period, string> = {
 };
 
 function ReportsPage() {
-  const salonsQuery = useManagedSalons();
-  const salonIds = useMemo(() => (salonsQuery.data ?? []).map((s) => s.id), [salonsQuery.data]);
+  const businessesQuery = useManagedBusinesses();
+  const businessIds = useMemo(
+    () => (businessesQuery.data ?? []).map((s) => s.id),
+    [businessesQuery.data],
+  );
   const currency = useActiveCurrency();
 
   const [period, setPeriod] = useState<Period>("month");
@@ -97,9 +100,9 @@ function ReportsPage() {
     () => ({ from: new Date("2015-01-01").toISOString(), to: endOfYear(new Date()).toISOString() }),
     [],
   );
-  const bookingsQuery = useManagedBookings(salonIds, historyWindow.from, historyWindow.to);
-  const servicesQuery = useManagedServices(salonIds);
-  const staffQuery = useManagedStaff(salonIds);
+  const bookingsQuery = useManagedBookings(businessIds, historyWindow.from, historyWindow.to);
+  const servicesQuery = useManagedServices(businessIds);
+  const staffQuery = useManagedStaff(businessIds);
 
   const stats = useMemo(() => {
     const all = bookingsQuery.data ?? [];
@@ -244,7 +247,7 @@ function ReportsPage() {
     }
   }
 
-  if (salonIds.length === 0) {
+  if (businessIds.length === 0) {
     return (
       <p className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
         No salon linked to your account yet.

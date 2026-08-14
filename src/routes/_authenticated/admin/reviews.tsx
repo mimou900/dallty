@@ -6,7 +6,7 @@ import { Eye, EyeOff, Flag, Send, Share2, Star } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import { useManagedSalons } from "@/lib/admin";
+import { useManagedBusinesses } from "@/lib/admin";
 
 export const Route = createFileRoute("/_authenticated/admin/reviews")({
   head: () => ({
@@ -28,22 +28,22 @@ export const Route = createFileRoute("/_authenticated/admin/reviews")({
 
 function ReviewsPage() {
   const queryClient = useQueryClient();
-  const salonsQuery = useManagedSalons();
-  const salonIds = (salonsQuery.data ?? []).map((s) => s.id);
+  const businessesQuery = useManagedBusinesses();
+  const businessIds = (businessesQuery.data ?? []).map((s) => s.id);
   const [filter, setFilter] = useState<"all" | "unanswered" | "hidden">("all");
   const [replyFor, setReplyFor] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
   const reviewsQuery = useQuery({
-    queryKey: ["admin-reviews", salonIds],
-    enabled: salonIds.length > 0,
+    queryKey: ["admin-reviews", businessIds],
+    enabled: businessIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reviews")
         .select(
-          "id, salon_id, rating, body, photos, owner_reply, owner_replied_at, is_hidden, report_count, created_at",
+          "id, business_id, rating, body, photos, owner_reply, owner_replied_at, is_hidden, report_count, created_at",
         )
-        .in("salon_id", salonIds)
+        .in("business_id", businessIds)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
