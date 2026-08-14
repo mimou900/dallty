@@ -14,6 +14,7 @@ import {
   KeyRound,
   LayoutDashboard,
   LifeBuoy,
+  Link2,
   LogOut,
   Menu,
   Moon,
@@ -170,6 +171,12 @@ export const PLATFORM_NAV: NavItem[] = [
     icon: ShieldCheck,
   },
   { to: "/admin/platform/categories", label: "Categories", labelAr: "الفئات", icon: Tags },
+  {
+    to: "/admin/platform/reserved-slugs",
+    label: "Reserved URLs",
+    labelAr: "الروابط المحجوزة",
+    icon: Link2,
+  },
   { to: "/admin/platform/countries", label: "Countries", labelAr: "الدول", icon: Globe },
   {
     to: "/admin/platform/auth-policies",
