@@ -324,3 +324,31 @@ a human explicitly chooses to change them).
   suffix), attempt a 4th change within 30 days (rejected), attempt a 2nd change within 24h
   (rejected), Super Admin correction bypasses both limits, Super Admin
   `reserved-slugs.tsx` CRUD works end-to-end.
+
+## 13. Post-Implementation Hardening
+
+Implementation shipped with the schema above (Section 2). A subsequent design review
+found three real gaps in that schema, fixed in a forward-only migration
+(`20260814090000_business_slugs_hardening.sql`) rather than editing the historical one:
+
+1. **`business_slug_redirects.business_id` was `ON DELETE CASCADE`**, contradicting "never
+   deleted" (Section 1) — deleting a business would have silently wiped its redirect
+   history. No code path currently hard-deletes a business, but the constraint now says
+   what's actually intended: `ON DELETE RESTRICT`, so a future hard-delete feature is
+   *forced* to explicitly handle a business's redirect history rather than silently losing
+   it.
+2. **`business_slug_redirects_old_slug_idx` was case-sensitive**, unlike
+   `businesses.slug` (which has both an exact and a `lower(slug)` unique index). Added
+   `business_slug_redirects_old_slug_lower_idx UNIQUE (lower(old_slug))` to match, closing
+   a gap where two case-variant retirements of the same slug could otherwise coexist.
+3. **The cross-table uniqueness triggers (Section 2) were not race-condition safe.** Each
+   does a plain `SELECT` against the other table; two concurrent transactions could both
+   pass the check before either commits (classic TOCTOU). Fixed by taking a
+   `pg_advisory_xact_lock(hashtext(lower(<slug>)))` at the top of both trigger functions,
+   keyed by the same value on both sides — this serializes any two transactions contending
+   for the *same* slug string (different slugs never contend), and auto-releases at
+   commit/rollback with no separate unlock step to forget. Same-table collisions
+   (two businesses claiming the same live slug, or two redirects retiring to the same
+   `old_slug`) were already fully protected by the existing unique indexes regardless —
+   Postgres unique indexes are always atomic within one table; the gap was specifically the
+   *cross*-table case the triggers exist to cover.
