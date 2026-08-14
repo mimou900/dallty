@@ -338,7 +338,7 @@ export const getAuthRolePolicies = createServerFn({ method: "POST" })
   });
 
 const authRolePolicyInput = z.object({
-  role: z.enum(["client", "specialist", "salon_owner", "admin", "super_admin"]),
+  role: z.enum(["client", "specialist", "business_owner", "admin", "super_admin"]),
   otpEnabled: z.boolean(),
 });
 

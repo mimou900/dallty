@@ -3,7 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { clearOtpPending, installEphemeralSessionGuard } from "@/lib/session";
 
-export type AppRole = "client" | "salon_owner" | "specialist" | "admin" | "super_admin";
+export type AppRole = "client" | "business_owner" | "specialist" | "admin" | "super_admin";
 
 type AuthState = {
   user: User | null;
@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthState>({
   primaryRole: "client",
 });
 
-const PRIORITY: AppRole[] = ["super_admin", "admin", "salon_owner", "specialist", "client"];
+const PRIORITY: AppRole[] = ["super_admin", "admin", "business_owner", "specialist", "client"];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);

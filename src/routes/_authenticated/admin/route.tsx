@@ -30,7 +30,7 @@ function AdminLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const allowed =
-    hasRole("salon_owner") || hasRole("specialist") || hasRole("admin") || hasRole("super_admin");
+    hasRole("business_owner") || hasRole("specialist") || hasRole("admin") || hasRole("super_admin");
 
   const blockedForStaff =
     isStaffOnly && !STAFF_ALLOWED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -41,7 +41,7 @@ function AdminLayout() {
   // A salon owner who hasn't created a salon yet (stale bookmark, back
   // button) always resumes the creation wizard instead of an empty /admin.
   const blockedForUnownedOwner =
-    hasRole("salon_owner") &&
+    hasRole("business_owner") &&
     !isPlatformAdmin &&
     !managedSalons.isLoading &&
     (managedSalons.data?.length ?? 0) === 0;

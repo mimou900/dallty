@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/admin/platform/auth-polici
 const ROLE_LABEL: Record<string, string> = {
   client: "Client",
   specialist: "Specialist",
-  salon_owner: "Salon owner",
+  business_owner: "Business owner",
   admin: "Admin",
   super_admin: "Super admin",
 };

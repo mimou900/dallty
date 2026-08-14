@@ -77,7 +77,7 @@ function Metric({
 
 function DashboardPage() {
   const { user, hasRole, loading } = useAuth();
-  const isOwner = hasRole("salon_owner") || hasRole("admin");
+  const isOwner = hasRole("business_owner") || hasRole("admin");
 
   const salonsQuery = useQuery({
     queryKey: ["my-salons", user?.id],

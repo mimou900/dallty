@@ -7,23 +7,24 @@ export type Landing =
   | "/admin/platform/overview"
   | "/business/signup";
 
-/** Does this user already own at least one salon? */
-export async function hasOwnedSalon(userId: string): Promise<boolean> {
-  const { data } = await supabase.from("salons").select("id").eq("owner_id", userId).limit(1);
+/** Does this user already own at least one business? */
+export async function hasOwnedBusiness(userId: string): Promise<boolean> {
+  const { data } = await supabase.from("businesses").select("id").eq("owner_id", userId).limit(1);
   return Boolean(data?.length);
 }
 
 /**
  * Where a user should land after signing in.
  * Clients keep /bookings; business accounts go straight to their dashboard.
- * Salon owners who haven't created a salon yet resume the creation wizard
- * instead of hitting the (otherwise empty) owner dashboard.
+ * Business owners who haven't created a business yet resume the creation
+ * wizard instead of hitting the (otherwise empty) owner dashboard.
  */
 export async function resolveLanding(userId: string): Promise<Landing> {
   const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
   const roles = (data ?? []).map((r) => r.role as string);
   if (roles.includes("super_admin") || roles.includes("admin")) return "/admin/platform/overview";
-  if (roles.includes("salon_owner")) return (await hasOwnedSalon(userId)) ? "/admin" : "/business/signup";
+  if (roles.includes("business_owner"))
+    return (await hasOwnedBusiness(userId)) ? "/admin" : "/business/signup";
   if (roles.includes("specialist")) return "/admin/my-appointments";
   return "/bookings";
 }
@@ -38,7 +39,7 @@ export async function resolveLandingForSession(): Promise<Landing> {
 /** Landing derived from already-loaded roles (client-side, no request). */
 export function landingForRoles(roles: string[]): Landing {
   if (roles.includes("super_admin") || roles.includes("admin")) return "/admin/platform/overview";
-  if (roles.includes("salon_owner")) return "/admin";
+  if (roles.includes("business_owner")) return "/admin";
   if (roles.includes("specialist")) return "/admin/my-appointments";
   return "/bookings";
 }

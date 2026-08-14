@@ -22,7 +22,7 @@ export type PasswordRule = {
 
 /** Roles that must use the stronger policy. */
 export const PRIVILEGED_ROLES = [
-  "salon_owner",
+  "business_owner",
   "specialist",
   "receptionist",
   "manager",

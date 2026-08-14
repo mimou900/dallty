@@ -50,7 +50,7 @@ export const Route = createFileRoute("/_authenticated/bookings")({
 
 const ROLE_LABEL: Record<AppRole, string> = {
   client: "Client",
-  salon_owner: "Salon owner",
+  business_owner: "Business owner",
   specialist: "Specialist",
   admin: "Administrator",
   super_admin: "Super Admin",
@@ -109,7 +109,7 @@ function BookingsPage() {
   // bouncing to an empty /admin.
   useEffect(() => {
     if (!isManager) return;
-    if (primaryRole === "salon_owner") {
+    if (primaryRole === "business_owner") {
       if (managedSalons.isLoading) return;
       const owns = (managedSalons.data?.length ?? 0) > 0;
       navigate({ to: owns ? "/admin" : "/business/signup", replace: true });

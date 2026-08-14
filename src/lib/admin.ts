@@ -60,7 +60,7 @@ export const SERVICE_CATEGORIES = [
 export function useManagedSalons() {
   const { user, hasRole, loading } = useAuth();
   const allowed =
-    hasRole("salon_owner") || hasRole("specialist") || hasRole("admin") || hasRole("super_admin");
+    hasRole("business_owner") || hasRole("specialist") || hasRole("admin") || hasRole("super_admin");
   const isPlatform = hasRole("admin") || hasRole("super_admin");
 
   return useQuery({
@@ -122,7 +122,7 @@ export function useMyStaffRecord() {
   const { user, hasRole, loading } = useAuth();
   const isStaffOnly =
     hasRole("specialist") &&
-    !hasRole("salon_owner") &&
+    !hasRole("business_owner") &&
     !hasRole("admin") &&
     !hasRole("super_admin");
 

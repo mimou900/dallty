@@ -357,7 +357,7 @@ function BusinessSignupPage() {
             full_name: account.fullName.trim(),
             phone: phoneE164,
             country_code: account.phone.countryCode,
-            role: "salon_owner",
+            role: "business_owner",
           },
         },
       });
