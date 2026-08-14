@@ -65,6 +65,7 @@ type BookingRow = {
   total_price: number;
   businesses: {
     name: string;
+    slug: string;
     area: string;
     currency?: string;
     timezone?: string;
@@ -82,7 +83,7 @@ type WaitlistRow = {
   day: string;
   status: string;
   business_id: string;
-  businesses: { name: string } | null;
+  businesses: { name: string; slug: string } | null;
   services: { name: string } | null;
   staff: { full_name: string } | null;
 };
@@ -155,7 +156,7 @@ function BookingsPage() {
       const query = supabase
         .from("bookings")
         .select(
-          "id, business_id, starts_at, ends_at, status, total_price, businesses(name, area, currency, timezone, address, city, maps_url, phone), services(name, duration_minutes), staff(full_name)",
+          "id, business_id, starts_at, ends_at, status, total_price, businesses(name, slug, area, currency, timezone, address, city, maps_url, phone), services(name, duration_minutes), staff(full_name)",
         )
         .order("starts_at", { ascending: true });
       const { data, error } =
@@ -171,7 +172,9 @@ function BookingsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("waitlist_entries")
-        .select("id, day, status, business_id, businesses(name), services(name), staff(full_name)")
+        .select(
+          "id, day, status, business_id, businesses(name, slug), services(name), staff(full_name)",
+        )
         .in("status", ["waiting", "notified"])
         .order("day");
       if (error) throw error;
@@ -283,8 +286,8 @@ function BookingsPage() {
                   </a>
                 )}
                 <Link
-                  to="/business/$businessId"
-                  params={{ businessId: nextUp.business_id }}
+                  to="/business/$businessSlug"
+                  params={{ businessSlug: nextUp.businesses?.slug ?? "" }}
                   className="press flex min-h-10 items-center justify-center gap-1.5 rounded-2xl border border-primary-foreground/40 px-3 text-sm font-bold"
                 >
                   <Info className="size-4" />
@@ -377,8 +380,8 @@ function BookingsPage() {
                   </div>
                   <div className="mt-4 flex items-center gap-2">
                     <Link
-                      to="/business/$businessId"
-                      params={{ businessId: w.business_id }}
+                      to="/business/$businessSlug"
+                      params={{ businessSlug: w.businesses?.slug ?? "" }}
                       className="press flex min-h-10 items-center rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
                     >
                       {w.status === "notified" ? "Book the free slot" : "View availability"}
@@ -527,8 +530,8 @@ function Section({
                   </a>
                 )}
                 <Link
-                  to="/business/$businessId"
-                  params={{ businessId: b.business_id }}
+                  to="/business/$businessSlug"
+                  params={{ businessSlug: b.businesses?.slug ?? "" }}
                   className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
                 >
                   <Info className="size-4" />

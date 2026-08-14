@@ -101,7 +101,7 @@ function Index() {
       const { data, error } = await supabase
         .from("businesses")
         .select(
-          "id, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, amenities, languages, awards, certifications, brands, cancellation_policy, cancellation_policy_ar, house_rules, house_rules_ar, owner_story, owner_story_ar, faq, video_tour_url, instagram_url, tiktok_url, address, status, business_type, website_url, facebook_url, country, country_code, district, postal_code, maps_url, employee_count, branch_count, logo_url, cover_url, is_listed",
+          "id, slug, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, amenities, languages, awards, certifications, brands, cancellation_policy, cancellation_policy_ar, house_rules, house_rules_ar, owner_story, owner_story_ar, faq, video_tour_url, instagram_url, tiktok_url, address, status, business_type, website_url, facebook_url, country, country_code, district, postal_code, maps_url, employee_count, branch_count, logo_url, cover_url, is_listed",
         )
         .eq("is_active", true)
         .eq("is_listed", true)
@@ -109,6 +109,7 @@ function Index() {
       if (error) throw error;
       return (data ?? []).map((s) => ({
         id: s.id,
+        slug: s.slug,
         image: s.image_url ?? "/salons/hair.jpg",
         en: { name: s.name, area: s.area, tags: `${s.area} · ${s.city}` },
         ar: { name: s.name_ar ?? s.name, area: s.area_ar ?? s.area, tags: s.area_ar ?? s.area },

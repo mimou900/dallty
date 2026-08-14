@@ -58,8 +58,8 @@ export function BusinessCard({
       <div className="space-y-3 p-5">
         <div className="flex items-start justify-between gap-3">
           <Link
-            to="/business/$businessId"
-            params={{ businessId: business.id }}
+            to="/business/$businessSlug"
+            params={{ businessSlug: business.slug }}
             className="min-w-0 outline-none focus-visible:underline"
           >
             <h2 className="truncate text-lg font-bold hover:underline">{s.name}</h2>
@@ -101,15 +101,15 @@ export function BusinessCard({
 
         <div className="grid grid-cols-2 gap-2">
           <Link
-            to="/business/$businessId"
-            params={{ businessId: business.id }}
+            to="/business/$businessSlug"
+            params={{ businessSlug: business.slug }}
             className="press block rounded-2xl glass-soft py-3 text-center text-sm font-semibold"
           >
             {lang === "ar" ? "التفاصيل" : "Details"}
           </Link>
           <Link
-            to="/business/$businessId"
-            params={{ businessId: business.id }}
+            to="/business/$businessSlug"
+            params={{ businessSlug: business.slug }}
             search={{ book: true }}
             className="press block rounded-2xl bg-primary py-3 text-center text-sm font-semibold text-primary-foreground"
           >

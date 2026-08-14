@@ -16,6 +16,7 @@ export const categories = [
 
 export type Business = {
   id: string;
+  slug: string;
   image: string;
   en: { name: string; area: string; tags: string };
   ar: { name: string; area: string; tags: string };
@@ -30,6 +31,7 @@ export type Business = {
 export const businesses: Business[] = [
   {
     id: "1",
+    slug: "maison-vert",
     image: hair,
     en: { name: "Maison Vert", area: "Al Olaya", tags: "Hair · Color · Keratin" },
     ar: { name: "ميزون فير", area: "العليا", tags: "شعر · صبغة · كيراتين" },
@@ -42,6 +44,7 @@ export const businesses: Business[] = [
   },
   {
     id: "2",
+    slug: "the-gentleman-room",
     image: barber,
     en: { name: "The Gentleman Room", area: "Jumeirah", tags: "Barber · Fade · Beard" },
     ar: { name: "غرفة الأناقة", area: "جميرا", tags: "حلاقة · تدرج · لحية" },
@@ -54,6 +57,7 @@ export const businesses: Business[] = [
   },
   {
     id: "3",
+    slug: "rose-nail-studio",
     image: nails,
     en: { name: "Rosé Nail Studio", area: "City Walk", tags: "Nails · Gel · Nail Art" },
     ar: { name: "استوديو روزيه", area: "سيتي ووك", tags: "أظافر · جل · رسم" },
@@ -66,6 +70,7 @@ export const businesses: Business[] = [
   },
   {
     id: "4",
+    slug: "amber-spa-wellness",
     image: spa,
     en: { name: "Amber Spa & Wellness", area: "Corniche", tags: "Massage · Facial" },
     ar: { name: "أمبر سبا", area: "الكورنيش", tags: "مساج · عناية بالبشرة" },

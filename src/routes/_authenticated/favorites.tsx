@@ -44,7 +44,7 @@ function FavoritesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("businesses")
-        .select("id, name, area, city, image_url, rating, review_count, price_range")
+        .select("id, name, slug, area, city, image_url, rating, review_count, price_range")
         .in("id", businessIds);
       if (error) throw error;
       return data;
@@ -57,7 +57,7 @@ function FavoritesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff")
-        .select("id, full_name, title, business_id")
+        .select("id, full_name, title, business_id, businesses(slug)")
         .in("id", staffIds);
       if (error) throw error;
       return data;
@@ -70,7 +70,9 @@ function FavoritesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("id, name, price, discount_price, duration_minutes, business_id, businesses(currency)")
+        .select(
+          "id, name, price, discount_price, duration_minutes, business_id, businesses(currency, slug)",
+        )
         .in("id", serviceIds);
       if (error) throw error;
       return data;
@@ -83,7 +85,7 @@ function FavoritesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recently_viewed")
-        .select("business_id, viewed_at, businesses(id, name, area, image_url, rating)")
+        .select("business_id, viewed_at, businesses(id, name, slug, area, image_url, rating)")
         .eq("user_id", user!.id)
         .order("viewed_at", { ascending: false })
         .limit(8);
@@ -123,8 +125,8 @@ function FavoritesPage() {
             {businessesQuery.data.map((business) => (
               <div key={business.id} className="flex items-center gap-3 rounded-3xl glass p-3">
                 <Link
-                  to="/business/$businessId"
-                  params={{ businessId: business.id }}
+                  to="/business/$businessSlug"
+                  params={{ businessSlug: business.slug }}
                   className="flex min-w-0 flex-1 items-center gap-3"
                 >
                   <img
@@ -158,8 +160,8 @@ function FavoritesPage() {
             {staffQuery.data.map((member) => (
               <div key={member.id} className="flex items-center gap-3 rounded-3xl glass p-4">
                 <Link
-                  to="/business/$businessId"
-                  params={{ businessId: member.business_id }}
+                  to="/business/$businessSlug"
+                  params={{ businessSlug: member.businesses?.slug ?? "" }}
                   className="min-w-0 flex-1"
                 >
                   <span className="block truncate text-sm font-extrabold">{member.full_name}</span>
@@ -181,8 +183,11 @@ function FavoritesPage() {
             {servicesQuery.data.map((service) => (
               <div key={service.id} className="flex items-center gap-3 rounded-3xl glass p-4">
                 <Link
-                  to="/business/$businessId"
-                  params={{ businessId: service.business_id }}
+                  to="/business/$businessSlug"
+                  params={{
+                    businessSlug:
+                      (service as { businesses?: { slug?: string } }).businesses?.slug ?? "",
+                  }}
                   className="min-w-0 flex-1"
                 >
                   <span className="block truncate text-sm font-extrabold">{service.name}</span>
@@ -211,6 +216,7 @@ function FavoritesPage() {
               const business = row.businesses as {
                 id: string;
                 name: string;
+                slug: string;
                 area: string;
                 image_url: string | null;
               } | null;
@@ -218,8 +224,8 @@ function FavoritesPage() {
               return (
                 <Link
                   key={business.id}
-                  to="/business/$businessId"
-                  params={{ businessId: business.id }}
+                  to="/business/$businessSlug"
+                  params={{ businessSlug: business.slug }}
                   className="w-40 shrink-0 rounded-3xl glass p-3"
                 >
                   <img

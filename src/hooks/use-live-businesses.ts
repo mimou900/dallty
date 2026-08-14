@@ -14,7 +14,7 @@ export type LiveBusiness = Business & {
 };
 
 const BUSINESS_COLUMNS =
-  "id, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, address, status, business_type, country, country_code, district, logo_url, cover_url, is_listed, latitude, longitude";
+  "id, slug, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, address, status, business_type, country, country_code, district, logo_url, cover_url, is_listed, latitude, longitude";
 
 export function useLiveBusinesses() {
   return useQuery({
@@ -29,6 +29,7 @@ export function useLiveBusinesses() {
       if (error) throw error;
       return (data ?? []).map((b) => ({
         id: b.id,
+        slug: b.slug,
         image: b.image_url ?? "/salons/hair.jpg",
         en: { name: b.name, area: b.area, tags: `${b.area} · ${b.city}` },
         ar: { name: b.name_ar ?? b.name, area: b.area_ar ?? b.area, tags: b.area_ar ?? b.area },
