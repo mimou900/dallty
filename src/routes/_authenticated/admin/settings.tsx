@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useActiveBusiness, invalidateCatalogue } from "@/lib/admin";
 import { ImageDrop } from "@/components/dallty/image-drop";
+import { SlugEditDialog } from "@/components/dallty/slug-edit-dialog";
 import { MapPinPicker } from "@/components/admin/map-pin-picker";
 import { PlacesAutocomplete } from "@/components/dallty/places-autocomplete";
 import { uploadAndSign } from "@/lib/storage";
@@ -189,6 +190,7 @@ function SettingsPage() {
   const [hours, setHours] = useState<Hours[]>(DEFAULT_HOURS);
   const [logo, setLogo] = useState<File | null>(null);
   const [cover, setCover] = useState<File | null>(null);
+  const [slugDialogOpen, setSlugDialogOpen] = useState(false);
 
   const settings = useQuery({
     queryKey: ["business-settings", businessId],
@@ -469,6 +471,40 @@ function SettingsPage() {
               />
             </Field>
           </div>
+        </Section>
+      )}
+
+      {tab === "general" && businessId && (
+        <Section title="Public URL" description="Where clients find your business online.">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="min-w-0 truncate text-sm font-medium text-muted-foreground">
+              dallty.com/business/
+              <span className="font-bold text-foreground">{form.slug ?? ""}</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setSlugDialogOpen(true)}
+              className="press min-h-10 shrink-0 rounded-2xl border border-border/70 px-4 text-sm font-bold"
+            >
+              Edit
+            </button>
+          </div>
+          {form.slug_source === "auto" ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              This URL was generated automatically from your business name.
+            </p>
+          ) : null}
+          <SlugEditDialog
+            open={slugDialogOpen}
+            onOpenChange={setSlugDialogOpen}
+            businessId={businessId}
+            currentSlug={form.slug ?? ""}
+            redirectType="owner_rename"
+            onUpdated={(newSlug) => {
+              set("slug", newSlug);
+              set("slug_source", "custom");
+            }}
+          />
         </Section>
       )}
 

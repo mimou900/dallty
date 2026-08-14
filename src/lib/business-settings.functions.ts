@@ -37,6 +37,8 @@ export const getBusinessPrivateContact = createServerFn({ method: "POST" })
 
 const SETTINGS_COLUMNS = [
   "id",
+  "slug",
+  "slug_source",
   "name",
   "name_ar",
   "description",
