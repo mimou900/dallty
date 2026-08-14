@@ -21,7 +21,7 @@ import {
   STATUS_DOT,
   STATUS_STYLES,
   useManagedBookings,
-  useManagedSalons,
+  useManagedBusinesses,
   useManagedServices,
   useManagedStaff,
   type BookingStatus,
@@ -75,15 +75,18 @@ function CalendarPage() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
-  const salonsQuery = useManagedSalons();
-  const allSalons = salonsQuery.data ?? [];
-  const [salonScope, setSalonScope] = useState("all");
-  const salonIds = useMemo(
-    () => allSalons.filter((s) => salonScope === "all" || s.id === salonScope).map((s) => s.id),
-    [allSalons, salonScope],
+  const businessesQuery = useManagedBusinesses();
+  const allBusinesses = businessesQuery.data ?? [];
+  const [businessScope, setBusinessScope] = useState("all");
+  const businessIds = useMemo(
+    () =>
+      allBusinesses
+        .filter((s) => businessScope === "all" || s.id === businessScope)
+        .map((s) => s.id),
+    [allBusinesses, businessScope],
   );
-  const staffQuery = useManagedStaff(salonIds);
-  const servicesQuery = useManagedServices(salonIds);
+  const staffQuery = useManagedStaff(businessIds);
+  const servicesQuery = useManagedServices(businessIds);
 
   const range = useMemo(() => {
     if (view === "month") return { from: startOfMonth(anchor), to: endOfMonth(anchor) };
@@ -105,7 +108,7 @@ function CalendarPage() {
     return d.toISOString();
   }, [range.to]);
 
-  const bookingsQuery = useManagedBookings(salonIds, fromISO, toISO);
+  const bookingsQuery = useManagedBookings(businessIds, fromISO, toISO);
 
   const customerIds = useMemo(
     () => [...new Set((bookingsQuery.data ?? []).map((b) => b.customer_id))],
@@ -125,7 +128,7 @@ function CalendarPage() {
   });
 
   useEffect(() => {
-    if (salonIds.length === 0) return;
+    if (businessIds.length === 0) return;
     const channel = supabase
       .channel("admin-calendar")
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
@@ -136,7 +139,7 @@ function CalendarPage() {
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [salonIds.join(","), queryClient]);
+  }, [businessIds.join(","), queryClient]);
 
   const staffList = staffQuery.data ?? [];
   const serviceList = servicesQuery.data ?? [];
@@ -313,19 +316,19 @@ function CalendarPage() {
               className="min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
           </label>
-          {allSalons.length > 1 ? (
+          {allBusinesses.length > 1 ? (
             <SearchableSelect
               className="min-h-9 w-auto min-w-44 bg-card/70"
-              value={salonScope}
+              value={businessScope}
               onChange={(next) => {
-                setSalonScope(next);
+                setBusinessScope(next);
                 setStaffFilter("all");
                 setServiceFilter("all");
               }}
               searchPlaceholder="Search salons…"
               options={[
-                { value: "all", label: `All salons (${allSalons.length})` },
-                ...allSalons.map((s) => ({ value: s.id, label: s.name, hint: s.city ?? null })),
+                { value: "all", label: `All salons (${allBusinesses.length})` },
+                ...allBusinesses.map((s) => ({ value: s.id, label: s.name, hint: s.city ?? null })),
               ]}
             />
           ) : null}
@@ -405,7 +408,7 @@ function CalendarPage() {
         staffOptions={staffList.map((s) => ({
           id: s.id,
           full_name: s.full_name,
-          salon_id: s.salon_id,
+          business_id: s.business_id,
         }))}
       />
 
@@ -423,7 +426,7 @@ function CalendarPage() {
 
 type EventRow = {
   id: string;
-  salon_id: string;
+  business_id: string;
   starts_at: string;
   ends_at: string;
   status: string;

@@ -14,7 +14,7 @@ import { STATUS_STYLES, money, type BookingStatus } from "@/lib/admin";
 
 export type BookingDetails = {
   id: string;
-  salon_id: string;
+  business_id: string;
   staff_id: string;
   starts_at: string;
   ends_at: string;
@@ -38,7 +38,7 @@ export function BookingDetailsDialog({
 }: {
   booking: BookingDetails | null;
   onClose: () => void;
-  staffOptions?: { id: string; full_name: string; salon_id: string }[];
+  staffOptions?: { id: string; full_name: string; business_id: string }[];
 }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -139,7 +139,7 @@ export function BookingDetailsDialog({
               onChange={(next) => patch({ staff_id: next }, "Specialist updated")}
               searchPlaceholder="Search specialists…"
               options={staffOptions
-                .filter((s) => s.salon_id === booking.salon_id)
+                .filter((s) => s.business_id === booking.business_id)
                 .map((s) => ({ value: s.id, label: s.full_name }))}
             />
             <div className="flex flex-wrap gap-2">
