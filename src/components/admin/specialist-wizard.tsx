@@ -34,7 +34,7 @@ export type WizardService = {
 
 export type SpecialistDraft = {
   id?: string;
-  salonId: string;
+  businessId: string;
   firstName: string;
   lastName: string;
   title: string;
@@ -53,9 +53,9 @@ export type SpecialistDraft = {
   assignments: StaffServiceAssignment[];
 };
 
-export function emptyDraft(salonId: string): SpecialistDraft {
+export function emptyDraft(businessId: string): SpecialistDraft {
   return {
-    salonId,
+    businessId,
     firstName: "",
     lastName: "",
     title: "Stylist",
@@ -177,7 +177,7 @@ export function SpecialistWizard({ draft, services, currency, onClose, onSaved }
 
       const payload: StaffInput = {
         id: form.id,
-        salon_id: form.salonId,
+        business_id: form.businessId,
         full_name: `${form.firstName.trim()} ${form.lastName.trim()}`.trim(),
         title: form.title.trim() || "Specialist",
         avatar_url: avatar,

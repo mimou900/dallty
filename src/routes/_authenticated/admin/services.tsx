@@ -26,7 +26,7 @@ import {
   SERVICE_TAGS,
   money,
   useDeleteService,
-  useManagedSalons,
+  useManagedBusinesses,
   useManagedServices,
   useManagedStaff,
   useSaveService,
@@ -53,8 +53,8 @@ export const Route = createFileRoute("/_authenticated/admin/services")({
   component: ServicesPage,
 });
 
-const EMPTY = (salonId: string): ServiceInput => ({
-  salon_id: salonId,
+const EMPTY = (businessId: string): ServiceInput => ({
+  business_id: businessId,
   name: "",
   category: "hair",
   description: "",
@@ -90,12 +90,12 @@ const DEFAULT_FILTERS: Filters = {
 
 function ServicesPage() {
   const { user } = useAuth();
-  const salonsQuery = useManagedSalons();
-  const salons = salonsQuery.data ?? [];
-  const [salonId, setSalonId] = useState<string | null>(null);
-  const activeSalonId = salonId ?? salons[0]?.id ?? null;
-  const salon = salons.find((s) => s.id === activeSalonId) ?? null;
-  const ids = activeSalonId ? [activeSalonId] : [];
+  const businessesQuery = useManagedBusinesses();
+  const businesses = businessesQuery.data ?? [];
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const activeBusinessId = businessId ?? businesses[0]?.id ?? null;
+  const business = businesses.find((s) => s.id === activeBusinessId) ?? null;
+  const ids = activeBusinessId ? [activeBusinessId] : [];
 
   const services = useManagedServices(ids);
   const staff = useManagedStaff(ids);
@@ -139,8 +139,8 @@ function ServicesPage() {
     });
   }, [services.data, filters]);
 
-  if (salonsQuery.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  if (!activeSalonId)
+  if (businessesQuery.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (!activeBusinessId)
     return (
       <div className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
         No business linked to your account yet.
@@ -180,7 +180,7 @@ function ServicesPage() {
 
       const serviceId = await save.mutateAsync({
         ...draft,
-        salon_id: activeSalonId,
+        business_id: activeBusinessId,
         name: draft.name.trim(),
         image_url: imageUrl,
         tag: draft.tag || "Standard",
@@ -210,15 +210,15 @@ function ServicesPage() {
 
   return (
     <div className="space-y-5">
-      {salons.length > 1 && (
+      {businesses.length > 1 && (
         <div className="flex flex-wrap gap-2">
-          {salons.map((s) => (
+          {businesses.map((s) => (
             <button
               key={s.id}
               type="button"
-              onClick={() => setSalonId(s.id)}
+              onClick={() => setBusinessId(s.id)}
               className={`press min-h-10 rounded-2xl px-4 text-sm font-bold ${
-                s.id === activeSalonId ? "bg-primary text-primary-foreground" : "glass-soft"
+                s.id === activeBusinessId ? "bg-primary text-primary-foreground" : "glass-soft"
               }`}
             >
               {s.name}
@@ -227,11 +227,11 @@ function ServicesPage() {
         </div>
       )}
 
-      {salon && (
+      {business && (
         <ListingReadiness
-          salonName={salon.name}
-          isListed={Boolean(salon.is_listed)}
-          status={salon.status}
+          businessName={business.name}
+          isListed={Boolean(business.is_listed)}
+          status={business.status}
           activeServices={(services.data ?? []).filter((s) => s.is_active).length}
           activeStaff={(staff.data ?? []).filter((s) => s.is_active).length}
           linkedPairs={linkedPairs}
@@ -245,7 +245,7 @@ function ServicesPage() {
         </h2>
         <button
           type="button"
-          onClick={() => openWizard(EMPTY(activeSalonId))}
+          onClick={() => openWizard(EMPTY(activeBusinessId))}
           className="press flex min-h-10 items-center gap-2 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
         >
           <Plus className="size-4" /> Add service
@@ -591,7 +591,7 @@ function ServicesPage() {
             const assigned = (links.data ?? []).filter((l) => l.service_id === s.id);
             const toInput = (id?: string): ServiceInput => ({
               ...(id ? { id } : {}),
-              salon_id: s.salon_id,
+              business_id: s.business_id,
               name: id ? s.name : `${s.name} (copy)`,
               category: s.category,
               description: s.description,

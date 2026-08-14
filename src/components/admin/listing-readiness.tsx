@@ -2,12 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { CheckCircle2, CircleAlert } from "lucide-react";
 
 /**
- * Shows whether a salon meets the marketplace listing requirements:
+ * Shows whether a business meets the marketplace listing requirements:
  * approved status, at least one active service, and at least one active
  * staff member assigned to that service.
  */
 export function ListingReadiness({
-  salonName,
+  businessName,
   isListed,
   status,
   activeServices,
@@ -15,7 +15,7 @@ export function ListingReadiness({
   linkedPairs,
   staffWithHours,
 }: {
-  salonName: string;
+  businessName: string;
   isListed: boolean;
   status: string | null;
   activeServices: number;
@@ -40,7 +40,7 @@ export function ListingReadiness({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-extrabold">
-            {salonName} · {live ? "Live on Dallty" : "Not visible to customers yet"}
+            {businessName} · {live ? "Live on Dallty" : "Not visible to customers yet"}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             A shop only appears in search once it has a service and a specialist who performs it.

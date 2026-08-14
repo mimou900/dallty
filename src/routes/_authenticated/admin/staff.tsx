@@ -38,7 +38,7 @@ import {
   money,
   useActiveCurrency,
   useDeleteStaff,
-  useManagedSalons,
+  useManagedBusinesses,
   useManagedServices,
   useManagedStaff,
   useStaffDayRules,
@@ -72,12 +72,12 @@ function isoDay(date: Date) {
 }
 
 function SpecialistsPage() {
-  const salonsQuery = useManagedSalons();
-  const salons = salonsQuery.data ?? [];
-  const [salonId, setSalonId] = useState<string | null>(null);
-  const activeSalonId = salonId ?? salons[0]?.id ?? null;
-  const salon = salons.find((s) => s.id === activeSalonId) ?? null;
-  const ids = useMemo(() => (activeSalonId ? [activeSalonId] : []), [activeSalonId]);
+  const businessesQuery = useManagedBusinesses();
+  const businesses = businessesQuery.data ?? [];
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const activeBusinessId = businessId ?? businesses[0]?.id ?? null;
+  const business = businesses.find((s) => s.id === activeBusinessId) ?? null;
+  const ids = useMemo(() => (activeBusinessId ? [activeBusinessId] : []), [activeBusinessId]);
   const currency = useActiveCurrency();
 
   const staff = useManagedStaff(ids);
@@ -103,9 +103,9 @@ function SpecialistsPage() {
   const review = useServerFn(reviewStaffRequest);
 
   const access = useQuery({
-    queryKey: ["staff-access", activeSalonId],
-    enabled: Boolean(activeSalonId),
-    queryFn: () => fetchAccess({ data: { salonId: activeSalonId! } }),
+    queryKey: ["staff-access", activeBusinessId],
+    enabled: Boolean(activeBusinessId),
+    queryFn: () => fetchAccess({ data: { businessId: activeBusinessId! } }),
   });
 
   const accountByStaff = useMemo(
@@ -231,8 +231,8 @@ function SpecialistsPage() {
     });
   }, [staff.data, search, roleFilter, statusFilter, availabilityFilter, serviceFilter, availability, links.data]);
 
-  if (salonsQuery.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  if (!activeSalonId)
+  if (businessesQuery.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (!activeBusinessId)
     return (
       <div className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
         No business linked to your account yet.
@@ -247,7 +247,7 @@ function SpecialistsPage() {
     setViewing(null);
     setDraft({
       id: m.id,
-      salonId: m.salon_id,
+      businessId: m.business_id,
       firstName: firstName ?? "",
       lastName: rest.join(" "),
       title: m.title,
@@ -278,15 +278,15 @@ function SpecialistsPage() {
 
   return (
     <div className="space-y-5">
-      {salons.length > 1 && (
+      {businesses.length > 1 && (
         <div className="flex flex-wrap gap-2">
-          {salons.map((s) => (
+          {businesses.map((s) => (
             <button
               key={s.id}
               type="button"
-              onClick={() => setSalonId(s.id)}
+              onClick={() => setBusinessId(s.id)}
               className={`press min-h-10 rounded-2xl px-4 text-sm font-bold ${
-                s.id === activeSalonId ? "bg-primary text-primary-foreground" : "glass-soft"
+                s.id === activeBusinessId ? "bg-primary text-primary-foreground" : "glass-soft"
               }`}
             >
               {s.name}
@@ -295,11 +295,11 @@ function SpecialistsPage() {
         </div>
       )}
 
-      {salon && (
+      {business && (
         <ListingReadiness
-          salonName={salon.name}
-          isListed={Boolean(salon.is_listed)}
-          status={salon.status}
+          businessName={business.name}
+          isListed={Boolean(business.is_listed)}
+          status={business.status}
           activeServices={(services.data ?? []).filter((s) => s.is_active).length}
           activeStaff={(staff.data ?? []).filter((s) => s.is_active).length}
           linkedPairs={linkedPairs}
@@ -365,7 +365,7 @@ function SpecialistsPage() {
         <h2 className="text-lg font-extrabold">Specialists ({staff.data?.length ?? 0})</h2>
         <button
           type="button"
-          onClick={() => setDraft(emptyDraft(activeSalonId))}
+          onClick={() => setDraft(emptyDraft(activeBusinessId))}
           className="press flex min-h-10 items-center gap-2 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
         >
           <Plus className="size-4" /> Add specialist

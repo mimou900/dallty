@@ -6,21 +6,21 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 /** Owner view: login state of each team member + pending join requests. */
 export const listStaffAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ salonId: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { assertManagesSalon } = await import("@/lib/staff-access.server");
-    await assertManagesSalon(context.supabase, context.userId, data.salonId);
+    await assertManagesSalon(context.supabase, context.userId, data.businessId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: staff }, { data: requests }] = await Promise.all([
       supabaseAdmin
         .from("staff")
         .select("id, full_name, email, phone, user_id, invited_at, invite_accepted_at")
-        .eq("salon_id", data.salonId),
+        .eq("business_id", data.businessId),
       supabaseAdmin
         .from("staff_join_requests")
         .select("id, user_id, full_name, title, phone, message, status, created_at")
-        .eq("salon_id", data.salonId)
+        .eq("business_id", data.businessId)
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
     ]);
@@ -73,16 +73,16 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
 
     const { data: member, error } = await supabaseAdmin
       .from("staff")
-      .select("id, salon_id, full_name, user_id")
+      .select("id, business_id, full_name, user_id")
       .eq("id", data.staffId)
       .single();
     if (error) throw new Error(error.message);
-    await assertManagesSalon(context.supabase, context.userId, member.salon_id);
+    await assertManagesSalon(context.supabase, context.userId, member.business_id);
 
-    const { data: salon } = await supabaseAdmin
-      .from("salons")
+    const { data: business } = await supabaseAdmin
+      .from("businesses")
       .select("name")
-      .eq("id", member.salon_id)
+      .eq("id", member.business_id)
       .single();
 
     const email = data.email.trim().toLowerCase();
@@ -102,7 +102,7 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
     const result = await sendTemplateEmail("staff-invite", email, {
       templateData: {
         staffName: member.full_name,
-        salonName: salon?.name ?? "Your salon",
+        salonName: business?.name ?? "Your salon",
         actionUrl: url,
         mode: "invite",
       },
@@ -126,24 +126,24 @@ export const sendStaffPasswordLink = createServerFn({ method: "POST" })
 
     const { data: member, error } = await supabaseAdmin
       .from("staff")
-      .select("id, salon_id, full_name, email, user_id")
+      .select("id, business_id, full_name, email, user_id")
       .eq("id", data.staffId)
       .single();
     if (error) throw new Error(error.message);
-    await assertManagesSalon(context.supabase, context.userId, member.salon_id);
+    await assertManagesSalon(context.supabase, context.userId, member.business_id);
     if (!member.email) throw new Error("Add a login email for this team member first");
 
-    const { data: salon } = await supabaseAdmin
-      .from("salons")
+    const { data: business } = await supabaseAdmin
+      .from("businesses")
       .select("name")
-      .eq("id", member.salon_id)
+      .eq("id", member.business_id)
       .single();
 
     const url = await passwordLink(supabaseAdmin, member.email, safeOrigin(data.origin));
     const result = await sendTemplateEmail("staff-invite", member.email, {
       templateData: {
         staffName: member.full_name,
-        salonName: salon?.name ?? "Your salon",
+        salonName: business?.name ?? "Your salon",
         actionUrl: url,
         mode: "reset",
       },
@@ -164,17 +164,17 @@ export const reviewStaffRequest = createServerFn({ method: "POST" })
 
     const { data: request, error } = await supabaseAdmin
       .from("staff_join_requests")
-      .select("id, user_id, salon_id, full_name, title, status")
+      .select("id, user_id, business_id, full_name, title, status")
       .eq("id", data.requestId)
       .single();
     if (error) throw new Error(error.message);
-    await assertManagesSalon(context.supabase, context.userId, request.salon_id);
+    await assertManagesSalon(context.supabase, context.userId, request.business_id);
     if (request.status !== "pending") throw new Error("That request was already reviewed");
 
-    const { data: salon } = await supabaseAdmin
-      .from("salons")
+    const { data: business } = await supabaseAdmin
+      .from("businesses")
       .select("name")
-      .eq("id", request.salon_id)
+      .eq("id", request.business_id)
       .single();
 
     let staffId: string | null = null;
@@ -183,7 +183,7 @@ export const reviewStaffRequest = createServerFn({ method: "POST" })
       const { data: existing } = await supabaseAdmin
         .from("staff")
         .select("id")
-        .eq("salon_id", request.salon_id)
+        .eq("business_id", request.business_id)
         .eq("user_id", request.user_id)
         .maybeSingle();
 
@@ -194,7 +194,7 @@ export const reviewStaffRequest = createServerFn({ method: "POST" })
         const { data: created, error: createError } = await supabaseAdmin
           .from("staff")
           .insert({
-            salon_id: request.salon_id,
+            business_id: request.business_id,
             user_id: request.user_id,
             full_name: request.full_name,
             title: request.title,
@@ -229,8 +229,8 @@ export const reviewStaffRequest = createServerFn({ method: "POST" })
       kind: data.approve ? "staff_request_approved" : "staff_request_rejected",
       title: data.approve ? "You joined the team" : "Join request declined",
       body: data.approve
-        ? `${salon?.name ?? "The salon"} approved your request — open your specialist dashboard to set your working hours.`
-        : `${salon?.name ?? "The salon"} declined your request to join their team.`,
+        ? `${business?.name ?? "The salon"} approved your request — open your specialist dashboard to set your working hours.`
+        : `${business?.name ?? "The salon"} declined your request to join their team.`,
     });
 
     return { ok: true, staffId };

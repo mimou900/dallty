@@ -63,10 +63,12 @@ export async function passwordLink(admin: any, email: string, origin: string) {
   return link;
 }
 
-/** Throws unless the caller owns the salon (or is a platform admin). */
-export async function assertManagesSalon(supabase: AnySupabase, userId: string, salonId: string) {
+/** Throws unless the caller owns the business (or is a platform admin). */
+export async function assertManagesSalon(supabase: AnySupabase, userId: string, businessId: string) {
   const [{ data: owns }, { data: isAdmin }] = await Promise.all([
-    supabase.rpc("owns_salon", { _user_id: userId, _salon_id: salonId }),
+    // owns_business's parameter is still named _salon_id (see the
+    // business-rename plan's Task 3 correction note).
+    supabase.rpc("owns_business", { _user_id: userId, _salon_id: businessId }),
     supabase.rpc("is_platform_admin", { _user_id: userId }),
   ]);
   if (!owns && !isAdmin) throw new Error("Forbidden: you do not manage this business");
