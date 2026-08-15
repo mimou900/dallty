@@ -1,1 +1,13 @@
-{}
+{
+  "cancel_confirm_body": "Are you sure you want to cancel this appointment? This action cannot be undone.",
+  "customer": {
+    "cancel_title": "Cancel booking?",
+    "keep": "Keep booking",
+    "confirm": "Cancel appointment"
+  },
+  "admin": {
+    "cancel_title": "Cancel appointment?",
+    "keep": "Keep appointment",
+    "confirm": "Cancel appointment"
+  }
+}

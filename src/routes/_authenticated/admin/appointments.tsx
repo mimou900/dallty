@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { CallButton } from "@/components/dallty/phone-field";
 import { SearchableSelect } from "@/components/admin/searchable-select";
 import { formatPhoneDisplay } from "@/lib/phone";
-import { useLocale } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,7 +74,7 @@ type AppointmentRow = {
 
 function AppointmentsPage() {
   const queryClient = useQueryClient();
-  const { pick } = useLocale();
+  const { t } = useTranslation("booking");
   const [status, setStatus] = useState<"all" | BookingStatus>("all");
   const [term, setTerm] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -424,13 +424,10 @@ function AppointmentsPage() {
             <div className="p-6">
               <AlertDialogHeader className="text-start">
                 <AlertDialogTitle className="text-xl font-extrabold">
-                  {pick("Cancel appointment?", "إلغاء الموعد؟")}
+                  {t("admin.cancel_title")}
                 </AlertDialogTitle>
                 <AlertDialogDescription className="text-sm leading-relaxed">
-                  {pick(
-                    "Are you sure you want to cancel this appointment? This action cannot be undone.",
-                    "هل أنت متأكد من إلغاء هذا الموعد؟ لا يمكن التراجع عن هذا الإجراء.",
-                  )}
+                  {t("cancel_confirm_body")}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               {pendingCancel && (
@@ -450,7 +447,7 @@ function AppointmentsPage() {
                 onClick={() => setPendingCancel(null)}
                 className="min-h-12 w-full rounded-2xl border-0 bg-muted font-bold text-foreground hover:bg-muted/80"
               >
-                {pick("Keep appointment", "احتفظ بالموعد")}
+                {t("admin.keep")}
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={async () => {
@@ -461,7 +458,7 @@ function AppointmentsPage() {
                 }}
                 className="min-h-12 w-full rounded-2xl bg-destructive font-bold text-destructive-foreground hover:bg-destructive/90"
               >
-                {pick("Cancel appointment", "إلغاء الموعد")}
+                {t("admin.confirm")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

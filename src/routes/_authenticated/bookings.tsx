@@ -12,7 +12,7 @@ import { landingForRoles, resolveLanding } from "@/lib/post-login";
 import { useManagedBusinesses } from "@/lib/admin";
 import { claimGuestBookingsForCurrentUser } from "@/lib/account.functions";
 import { ClientShell } from "@/components/dallty/client-shell";
-import { useLocale } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,7 +101,7 @@ function BookingsPage() {
   const { user, primaryRole, roles } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { pick } = useLocale();
+  const { t } = useTranslation("booking");
   const isManager = primaryRole !== "client";
   const [pendingCancel, setPendingCancel] = useState<BookingRow | null>(null);
   const cancelling = Boolean(pendingCancel);
@@ -406,13 +406,10 @@ function BookingsPage() {
             <div className="p-6">
               <AlertDialogHeader className="text-start">
                 <AlertDialogTitle className="text-xl font-extrabold">
-                  {pick("Cancel booking?", "إلغاء الحجز؟")}
+                  {t("customer.cancel_title")}
                 </AlertDialogTitle>
                 <AlertDialogDescription className="text-sm leading-relaxed">
-                  {pick(
-                    "Are you sure you want to cancel this appointment? This action cannot be undone.",
-                    "هل أنت متأكد من إلغاء هذا الموعد؟ لا يمكن التراجع عن هذا الإجراء.",
-                  )}
+                  {t("cancel_confirm_body")}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               {pendingCancel && (
@@ -432,7 +429,7 @@ function BookingsPage() {
                 onClick={() => setPendingCancel(null)}
                 className="min-h-12 w-full rounded-2xl border-0 bg-muted font-bold text-foreground hover:bg-muted/80"
               >
-                {pick("Keep booking", "احتفظ بالحجز")}
+                {t("customer.keep")}
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={async () => {
@@ -443,7 +440,7 @@ function BookingsPage() {
                 }}
                 className="min-h-12 w-full rounded-2xl bg-destructive font-bold text-destructive-foreground hover:bg-destructive/90"
               >
-                {pick("Cancel appointment", "إلغاء الموعد")}
+                {t("customer.confirm")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

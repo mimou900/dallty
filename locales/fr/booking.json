@@ -1,1 +1,13 @@
-{}
+{
+  "cancel_confirm_body": "Voulez-vous vraiment annuler ce rendez-vous ? Cette action est irréversible.",
+  "customer": {
+    "cancel_title": "Annuler la réservation ?",
+    "keep": "Conserver la réservation",
+    "confirm": "Annuler le rendez-vous"
+  },
+  "admin": {
+    "cancel_title": "Annuler le rendez-vous ?",
+    "keep": "Conserver le rendez-vous",
+    "confirm": "Annuler le rendez-vous"
+  }
+}

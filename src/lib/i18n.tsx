@@ -110,12 +110,6 @@ type LocaleValue = {
   lang: Lang;
   dir: "ltr" | "rtl";
   isRtl: boolean;
-  /**
-   * Inline helper: pick(englishText, arabicText) — retired incrementally;
-   * still consumed by bookings.tsx/admin/appointments.tsx/admin/my-appointments.tsx
-   * until that migration lands.
-   */
-  pick: <T>(en: T, ar: T) => T;
   setLang: (next: Lang) => Promise<void>;
   /** Retired incrementally; still consumed by admin-shell.tsx until it migrates. */
   toggleLang: () => void;
@@ -184,7 +178,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       lang,
       dir: dirFor(lang),
       isRtl: dirFor(lang) === "rtl",
-      pick: <T,>(en: T, ar: T) => (lang === "ar" ? ar : en),
       setLang,
       toggleLang: () => {
         const order: Lang[] = ["en", "fr", "ar"];
@@ -207,7 +200,6 @@ export function useLocale(): LocaleValue {
     lang: DEFAULT_LANG,
     dir: "ltr",
     isRtl: false,
-    pick: <T,>(en: T) => en,
     setLang: async () => {},
     toggleLang: () => {},
     registerNamespaces: () => {},
