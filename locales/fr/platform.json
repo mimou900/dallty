@@ -1,1 +1,13 @@
-{}
+{
+  "nav_section_label": "Plateforme",
+  "manage_any_business": "Gérer n'importe quel établissement",
+  "nav_overview": "Données globales",
+  "nav_directory": "Annuaire",
+  "nav_businesses": "Établissements",
+  "nav_marketplace_approvals": "Approbations marketplace",
+  "nav_users": "Utilisateurs de la plateforme",
+  "nav_categories": "Catégories",
+  "nav_reserved_slugs": "URL réservées",
+  "nav_countries": "Pays",
+  "nav_auth_policies": "Politiques d'authentification"
+}

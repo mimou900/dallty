@@ -1,1 +1,10 @@
-{}
+{
+  "nav_business_settings": "Paramètres du salon",
+  "nav_marketplace_status": "Statut sur la marketplace",
+  "banner_pending_review": "Votre établissement est en cours d'examen pour la marketplace",
+  "banner_rejected": "Votre établissement n'a pas été approuvé pour la marketplace",
+  "banner_hidden": "Votre établissement est masqué sur la marketplace",
+  "banner_not_listed": "Votre établissement n'est pas encore répertorié",
+  "banner_helper": "Vous avez un accès complet à votre tableau de bord — seule la visibilité publique sur la marketplace est concernée.",
+  "banner_trial_ends": "L'essai se termine le {{date}}."
+}

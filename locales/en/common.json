@@ -27,5 +27,26 @@
     "business_dashboard": "Business dashboard",
     "create_account": "Create account",
     "sign_out": "Sign out"
-  }
+  },
+  "section_today": "Today",
+  "section_business": "Business",
+  "section_finance": "Finance",
+  "section_account": "Account",
+  "section_my_work": "My work",
+  "section_feedback": "Feedback",
+  "soon": "Soon",
+  "palette_placeholder": "Search customers, bookings, services, staff…",
+  "palette_no_matches": "No matches.",
+  "palette_go_to": "Go to",
+  "palette_unnamed": "Unnamed",
+  "close_menu": "Close menu",
+  "open_menu": "Open menu",
+  "quick_create_label": "Quick create",
+  "quick_create": "Create",
+  "switch_language": "Switch language",
+  "toggle_dark_mode": "Toggle dark mode",
+  "live_support": "Live support",
+  "customer_app": "Customer app",
+  "brand_business": "Dallty Business",
+  "brand_business_subtitle": "Business"
 }

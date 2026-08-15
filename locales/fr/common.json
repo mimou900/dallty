@@ -27,5 +27,26 @@
     "business_dashboard": "Tableau de bord professionnel",
     "create_account": "Créer un compte",
     "sign_out": "Déconnexion"
-  }
+  },
+  "section_today": "Aujourd'hui",
+  "section_business": "Établissement",
+  "section_finance": "Finances",
+  "section_account": "Compte",
+  "section_my_work": "Mon travail",
+  "section_feedback": "Avis",
+  "soon": "Bientôt",
+  "palette_placeholder": "Rechercher clients, réservations, services, employés…",
+  "palette_no_matches": "Aucun résultat.",
+  "palette_go_to": "Aller à",
+  "palette_unnamed": "Sans nom",
+  "close_menu": "Fermer le menu",
+  "open_menu": "Ouvrir le menu",
+  "quick_create_label": "Création rapide",
+  "quick_create": "Créer",
+  "switch_language": "Changer de langue",
+  "toggle_dark_mode": "Basculer le mode sombre",
+  "live_support": "Support en direct",
+  "customer_app": "Application client",
+  "brand_business": "Dallty Business",
+  "brand_business_subtitle": "Professionnel"
 }

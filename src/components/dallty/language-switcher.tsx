@@ -3,7 +3,7 @@ import { Languages } from "lucide-react";
 import { LANGUAGES, useLocale, type Lang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-const SHORT_LABEL: Record<Lang, string> = { en: "EN", fr: "FR", ar: "ع" };
+export const SHORT_LABEL: Record<Lang, string> = { en: "EN", fr: "FR", ar: "ع" };
 
 /**
  * Language switcher (English / Français / العربية).

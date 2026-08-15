@@ -9,5 +9,11 @@
     "cancel_title": "Annuler le rendez-vous ?",
     "keep": "Conserver le rendez-vous",
     "confirm": "Annuler le rendez-vous"
-  }
+  },
+  "nav_calendar": "Calendrier",
+  "nav_my_calendar": "Mon calendrier",
+  "nav_appointments": "Réservations",
+  "nav_my_appointments": "Mes rendez-vous",
+  "quick_open_calendar": "Ouvrir le calendrier",
+  "quick_new_booking": "Nouvelle réservation"
 }

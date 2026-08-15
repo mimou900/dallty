@@ -9,5 +9,11 @@
     "cancel_title": "Cancel appointment?",
     "keep": "Keep appointment",
     "confirm": "Cancel appointment"
-  }
+  },
+  "nav_calendar": "Calendar",
+  "nav_my_calendar": "My calendar",
+  "nav_appointments": "Bookings",
+  "nav_my_appointments": "My appointments",
+  "quick_open_calendar": "Open calendar",
+  "quick_new_booking": "New booking"
 }

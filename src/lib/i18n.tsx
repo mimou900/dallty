@@ -111,8 +111,6 @@ type LocaleValue = {
   dir: "ltr" | "rtl";
   isRtl: boolean;
   setLang: (next: Lang) => Promise<void>;
-  /** Retired incrementally; still consumed by admin-shell.tsx until it migrates. */
-  toggleLang: () => void;
   /** Registers namespaces the active route/component needs, so a language switch re-preloads them before committing. */
   registerNamespaces: (namespaces: ActiveNamespace[]) => void;
 };
@@ -179,11 +177,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       dir: dirFor(lang),
       isRtl: dirFor(lang) === "rtl",
       setLang,
-      toggleLang: () => {
-        const order: Lang[] = ["en", "fr", "ar"];
-        const next = order[(order.indexOf(lang) + 1) % order.length];
-        void setLang(next);
-      },
       registerNamespaces,
     }),
     [lang, setLang, registerNamespaces],
@@ -201,7 +194,6 @@ export function useLocale(): LocaleValue {
     dir: "ltr",
     isRtl: false,
     setLang: async () => {},
-    toggleLang: () => {},
     registerNamespaces: () => {},
   };
 }

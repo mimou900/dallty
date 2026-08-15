@@ -27,5 +27,26 @@
     "business_dashboard": "لوحة تحكم النشاط",
     "create_account": "إنشاء حساب",
     "sign_out": "تسجيل الخروج"
-  }
+  },
+  "section_today": "اليوم",
+  "section_business": "النشاط التجاري",
+  "section_finance": "المالية",
+  "section_account": "الحساب",
+  "section_my_work": "عملي",
+  "section_feedback": "الآراء",
+  "soon": "قريباً",
+  "palette_placeholder": "ابحث عن عملاء، حجوزات، خدمات، موظفين…",
+  "palette_no_matches": "لا توجد نتائج.",
+  "palette_go_to": "الانتقال إلى",
+  "palette_unnamed": "بدون اسم",
+  "close_menu": "إغلاق القائمة",
+  "open_menu": "فتح القائمة",
+  "quick_create_label": "إنشاء سريع",
+  "quick_create": "إنشاء",
+  "switch_language": "تبديل اللغة",
+  "toggle_dark_mode": "تبديل الوضع الداكن",
+  "live_support": "الدعم المباشر",
+  "customer_app": "تطبيق العملاء",
+  "brand_business": "دلّتي بزنس",
+  "brand_business_subtitle": "الأعمال"
 }

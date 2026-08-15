@@ -9,5 +9,11 @@
     "cancel_title": "إلغاء الموعد؟",
     "keep": "احتفظ بالموعد",
     "confirm": "إلغاء الموعد"
-  }
+  },
+  "nav_calendar": "التقويم",
+  "nav_my_calendar": "تقويمي",
+  "nav_appointments": "الحجوزات",
+  "nav_my_appointments": "مواعيدي",
+  "quick_open_calendar": "افتح التقويم",
+  "quick_new_booking": "حجز جديد"
 }

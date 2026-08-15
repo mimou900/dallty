@@ -46,73 +46,101 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { LogoMark } from "@/components/dallty/logo";
-import { useLocale } from "@/lib/i18n";
+import { useLocale, type Lang } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
+import { preloadNamespaces } from "@/lib/i18n/loader";
+import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
+import { SHORT_LABEL } from "@/components/dallty/language-switcher";
+
+type ShellNamespace =
+  | "common"
+  | "booking"
+  | "customer"
+  | "services"
+  | "staff"
+  | "reviews"
+  | "payments"
+  | "reports"
+  | "settings"
+  | "platform";
 
 type NavItem = {
   to: string;
-  label: string;
-  labelAr: string;
+  namespace: ShellNamespace;
+  labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
   /** Rendered as a disabled "Coming soon" row. */
   soon?: boolean;
 };
 
-type NavSection = { label: string; items: NavItem[] };
+type NavSection = { labelKey: string; items: NavItem[] };
+
+const LANG_ORDER: Lang[] = ["en", "fr", "ar"];
 
 /** Owner / manager back-office, grouped by the way a business actually runs. */
 export const ADMIN_SECTIONS: NavSection[] = [
   {
-    label: "Today",
+    labelKey: "section_today",
     items: [
       {
         to: "/admin",
-        label: "Dashboard",
-        labelAr: "لوحة التحكم",
+        namespace: "common",
+        labelKey: "menu.dashboard",
         icon: LayoutDashboard,
         exact: true,
       },
-      { to: "/admin/calendar", label: "Calendar", labelAr: "التقويم", icon: CalendarDays },
-      { to: "/admin/appointments", label: "Bookings", labelAr: "الحجوزات", icon: ClipboardList },
+      { to: "/admin/calendar", namespace: "booking", labelKey: "nav_calendar", icon: CalendarDays },
+      {
+        to: "/admin/appointments",
+        namespace: "booking",
+        labelKey: "nav_appointments",
+        icon: ClipboardList,
+      },
     ],
   },
   {
-    label: "Business",
+    labelKey: "section_business",
     items: [
-      { to: "/admin/customers", label: "Clients", labelAr: "العملاء", icon: Users },
-      { to: "/admin/services", label: "Services", labelAr: "الخدمات", icon: Scissors },
-      { to: "/admin/staff", label: "Specialists", labelAr: "المختصون", icon: UserCog },
-      { to: "/admin/reviews", label: "Reviews", labelAr: "التقييمات", icon: Star },
+      { to: "/admin/customers", namespace: "customer", labelKey: "nav_clients", icon: Users },
+      { to: "/admin/services", namespace: "services", labelKey: "nav_services", icon: Scissors },
+      { to: "/admin/staff", namespace: "staff", labelKey: "nav_specialists", icon: UserCog },
+      { to: "/admin/reviews", namespace: "reviews", labelKey: "nav_reviews", icon: Star },
     ],
   },
   {
-    label: "Finance",
+    labelKey: "section_finance",
     items: [
-      { to: "/admin/payments", label: "Payments", labelAr: "المدفوعات", icon: Wallet },
-      { to: "/admin/reports", label: "Reports", labelAr: "التقارير", icon: BarChart3 },
+      { to: "/admin/payments", namespace: "payments", labelKey: "nav_payments", icon: Wallet },
+      { to: "/admin/reports", namespace: "reports", labelKey: "nav_reports", icon: BarChart3 },
       {
         to: "/admin/billing",
-        label: "Billing",
-        labelAr: "الفوترة",
+        namespace: "payments",
+        labelKey: "nav_billing",
         icon: CreditCard,
         soon: true,
       },
     ],
   },
   {
-    label: "Account",
+    labelKey: "section_account",
     items: [
-      { to: "/admin/notifications", label: "Notifications", labelAr: "الإشعارات", icon: Bell },
+      {
+        to: "/admin/notifications",
+        namespace: "common",
+        labelKey: "menu.notifications",
+        icon: Bell,
+      },
       {
         to: "/admin/settings",
-        label: "Business settings",
-        labelAr: "إعدادات النشاط التجاري",
+        namespace: "settings",
+        labelKey: "nav_business_settings",
         icon: Settings,
       },
       {
         to: "/admin/marketplace",
-        label: "Marketplace status",
-        labelAr: "حالة المتجر",
+        namespace: "settings",
+        labelKey: "nav_marketplace_status",
         icon: Store,
       },
     ],
@@ -124,21 +152,26 @@ export const ADMIN_NAV: NavItem[] = ADMIN_SECTIONS.flatMap((s) => s.items).filte
 /** Reduced menu for specialists: their own book only. */
 export const STAFF_SECTIONS: NavSection[] = [
   {
-    label: "My work",
+    labelKey: "section_my_work",
     items: [
       {
         to: "/admin/my-appointments",
-        label: "My appointments",
-        labelAr: "مواعيدي",
+        namespace: "booking",
+        labelKey: "nav_my_appointments",
         icon: ClipboardList,
       },
-      { to: "/admin/calendar", label: "My calendar", labelAr: "تقويمي", icon: CalendarDays },
-      { to: "/admin/availability", label: "My hours", labelAr: "ساعات العمل", icon: Clock },
+      {
+        to: "/admin/calendar",
+        namespace: "booking",
+        labelKey: "nav_my_calendar",
+        icon: CalendarDays,
+      },
+      { to: "/admin/availability", namespace: "staff", labelKey: "nav_my_hours", icon: Clock },
     ],
   },
   {
-    label: "Feedback",
-    items: [{ to: "/admin/reviews", label: "Reviews", labelAr: "التقييمات", icon: Star }],
+    labelKey: "section_feedback",
+    items: [{ to: "/admin/reviews", namespace: "reviews", labelKey: "nav_reviews", icon: Star }],
   },
 ];
 
@@ -147,52 +180,67 @@ export const STAFF_NAV: NavItem[] = STAFF_SECTIONS.flatMap((s) => s.items);
 export const PLATFORM_NAV: NavItem[] = [
   {
     to: "/admin/platform/overview",
-    label: "Global data",
-    labelAr: "البيانات العامة",
+    namespace: "platform",
+    labelKey: "nav_overview",
     icon: BarChart3,
   },
-  { to: "/admin/platform/directory", label: "Directory", labelAr: "الفهرس", icon: Search },
+  {
+    to: "/admin/platform/directory",
+    namespace: "platform",
+    labelKey: "nav_directory",
+    icon: Search,
+  },
   {
     to: "/admin/platform/businesses",
-    label: "Businesses",
-    labelAr: "الأنشطة التجارية",
+    namespace: "platform",
+    labelKey: "nav_businesses",
     icon: Building2,
   },
   {
     to: "/admin/platform/marketplace",
-    label: "Marketplace approvals",
-    labelAr: "موافقات المتجر",
+    namespace: "platform",
+    labelKey: "nav_marketplace_approvals",
     icon: Store,
   },
   {
     to: "/admin/platform/users",
-    label: "Platform users",
-    labelAr: "المستخدمون",
+    namespace: "platform",
+    labelKey: "nav_users",
     icon: ShieldCheck,
   },
-  { to: "/admin/platform/categories", label: "Categories", labelAr: "الفئات", icon: Tags },
+  {
+    to: "/admin/platform/categories",
+    namespace: "platform",
+    labelKey: "nav_categories",
+    icon: Tags,
+  },
   {
     to: "/admin/platform/reserved-slugs",
-    label: "Reserved URLs",
-    labelAr: "الروابط المحجوزة",
+    namespace: "platform",
+    labelKey: "nav_reserved_slugs",
     icon: Link2,
   },
-  { to: "/admin/platform/countries", label: "Countries", labelAr: "الدول", icon: Globe },
+  {
+    to: "/admin/platform/countries",
+    namespace: "platform",
+    labelKey: "nav_countries",
+    icon: Globe,
+  },
   {
     to: "/admin/platform/auth-policies",
-    label: "Auth policies",
-    labelAr: "سياسات الدخول",
+    namespace: "platform",
+    labelKey: "nav_auth_policies",
     icon: KeyRound,
   },
 ];
 
-const QUICK_ACTIONS = [
-  { label: "Add service", to: "/admin/services" },
-  { label: "Add specialist", to: "/admin/staff" },
-  { label: "Open calendar", to: "/admin/calendar" },
-  { label: "New booking", to: "/admin/appointments" },
-  { label: "Add client", to: "/admin/customers" },
-] as const;
+const QUICK_ACTIONS: { namespace: ShellNamespace; labelKey: string; to: string }[] = [
+  { namespace: "services", labelKey: "quick_add_service", to: "/admin/services" },
+  { namespace: "staff", labelKey: "quick_add_specialist", to: "/admin/staff" },
+  { namespace: "booking", labelKey: "quick_open_calendar", to: "/admin/calendar" },
+  { namespace: "booking", labelKey: "quick_new_booking", to: "/admin/appointments" },
+  { namespace: "customer", labelKey: "quick_add_client", to: "/admin/customers" },
+];
 
 /* ---------------------------------- theme --------------------------------- */
 
@@ -215,21 +263,21 @@ function useTheme() {
   return { theme, toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")) };
 }
 
-/** Back-office reuses the site-wide language + RTL state. */
-function useAdminLocale() {
-  const { lang, toggleLang } = useLocale();
-  return { locale: lang, toggle: toggleLang };
-}
-
 /* ------------------------------ command palette --------------------------- */
 
 function GlobalCommand({
   open,
   onOpenChange,
+  label,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  label: (item: NavItem) => string;
 }) {
+  const { t: tCommon } = useTranslation("common");
+  const { t: tCustomer } = useTranslation("customer");
+  const { t: tStaff } = useTranslation("staff");
+  const { t: tServices } = useTranslation("services");
   const navigate = useNavigate();
   const [term, setTerm] = useState("");
   const q = term.trim();
@@ -265,24 +313,24 @@ function GlobalCommand({
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput
-        placeholder="Search customers, bookings, services, staff…"
+        placeholder={tCommon("palette_placeholder")}
         value={term}
         onValueChange={setTerm}
       />
       <CommandList>
-        <CommandEmpty>No matches.</CommandEmpty>
-        <CommandGroup heading="Go to">
+        <CommandEmpty>{tCommon("palette_no_matches")}</CommandEmpty>
+        <CommandGroup heading={tCommon("palette_go_to")}>
           {ADMIN_NAV.map((item) => (
-            <CommandItem key={item.to} value={`nav ${item.label}`} onSelect={() => go(item.to)}>
+            <CommandItem key={item.to} value={`nav ${label(item)}`} onSelect={() => go(item.to)}>
               <item.icon className="mr-2 size-4" />
-              {item.label}
+              {label(item)}
             </CommandItem>
           ))}
         </CommandGroup>
         {results.data?.customers.length ? (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Customers">
+            <CommandGroup heading={tCustomer("palette_heading")}>
               {results.data.customers.map((c) => (
                 <CommandItem
                   key={c.id}
@@ -290,14 +338,14 @@ function GlobalCommand({
                   onSelect={() => go("/admin/customers")}
                 >
                   <Users className="mr-2 size-4" />
-                  {c.full_name || "Unnamed"}
+                  {c.full_name || tCommon("palette_unnamed")}
                 </CommandItem>
               ))}
             </CommandGroup>
           </>
         ) : null}
         {results.data?.staff.length ? (
-          <CommandGroup heading="Specialists">
+          <CommandGroup heading={tStaff("palette_heading")}>
             {results.data.staff.map((s) => (
               <CommandItem
                 key={s.id}
@@ -311,7 +359,7 @@ function GlobalCommand({
           </CommandGroup>
         ) : null}
         {results.data?.services.length ? (
-          <CommandGroup heading="Services">
+          <CommandGroup heading={tServices("palette_heading")}>
             {results.data.services.map((s) => (
               <CommandItem
                 key={s.id}
@@ -333,10 +381,53 @@ function GlobalCommand({
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { theme, toggle: toggleTheme } = useTheme();
-  const { locale, toggle: toggleLocale } = useAdminLocale();
+  const { lang: locale, setLang } = useLocale();
   const { user, primaryRole, hasRole } = useAuth();
   const isPlatformAdmin = hasRole("super_admin") || hasRole("admin");
   const { isStaffOnly } = useMyStaffRecord();
+
+  const { t: tCommon } = useTranslation("common");
+  const { t: tBooking } = useTranslation("booking");
+  const { t: tCustomer } = useTranslation("customer");
+  const { t: tServices } = useTranslation("services");
+  const { t: tStaff } = useTranslation("staff");
+  const { t: tReviews } = useTranslation("reviews");
+  const { t: tPayments } = useTranslation("payments");
+  const { t: tReports } = useTranslation("reports");
+  const { t: tSettings } = useTranslation("settings");
+  const { t: tPlatform } = useTranslation("platform");
+
+  const T_BY_NAMESPACE: Record<ShellNamespace, (key: string) => string> = {
+    common: tCommon as (key: string) => string,
+    booking: tBooking as (key: string) => string,
+    customer: tCustomer as (key: string) => string,
+    services: tServices as (key: string) => string,
+    staff: tStaff as (key: string) => string,
+    reviews: tReviews as (key: string) => string,
+    payments: tPayments as (key: string) => string,
+    reports: tReports as (key: string) => string,
+    settings: tSettings as (key: string) => string,
+    platform: tPlatform as (key: string) => string,
+  };
+
+  function label(item: NavItem): string {
+    return T_BY_NAMESPACE[item.namespace](item.labelKey);
+  }
+
+  useEffect(() => {
+    void preloadNamespaces(locale, [
+      "common",
+      "booking",
+      "customer",
+      "services",
+      "staff",
+      "reviews",
+      "payments",
+      "reports",
+      "settings",
+      "platform",
+    ]);
+  }, [locale]);
 
   // Owners see a review banner until the platform team approves their business.
   const ownedBusiness = useQuery({
@@ -407,9 +498,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
           className="flex min-h-11 cursor-not-allowed items-center gap-3 rounded-2xl px-3 text-sm font-bold text-muted-foreground/60"
         >
           <item.icon className="size-4 shrink-0" />
-          <span className="truncate">{locale === "ar" ? item.labelAr : item.label}</span>
+          <span className="truncate">{label(item)}</span>
           <span className="ms-auto shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-extrabold uppercase text-muted-foreground">
-            {locale === "ar" ? "قريباً" : "Soon"}
+            {tCommon("soon")}
           </span>
         </span>
       );
@@ -425,17 +516,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
         }`}
       >
         <item.icon className="size-4 shrink-0" />
-        <span className="truncate">{locale === "ar" ? item.labelAr : item.label}</span>
+        <span className="truncate">{label(item)}</span>
       </Link>
     );
   };
 
-  const sectionHeading = (label: string) => (
+  const sectionHeading = (text: string) => (
     <span
-      key={`h-${label}`}
+      key={`h-${text}`}
       className="mt-4 px-3 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground first:mt-0"
     >
-      {label}
+      {text}
     </span>
   );
 
@@ -445,9 +536,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
     ? STAFF_SECTIONS
     : isPlatformAdmin
       ? ADMIN_SECTIONS.map((section) =>
-          section.label === "Today"
+          section.labelKey === "section_today"
             ? { ...section, items: section.items.filter((i) => i.to !== "/admin") }
-            : section.label === "Account"
+            : section.labelKey === "section_account"
               ? {
                   ...section,
                   items: section.items.filter((i) => i.to !== "/admin/marketplace"),
@@ -460,16 +551,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
       {isPlatformAdmin && (
         <div className="flex flex-col gap-1">
-          {sectionHeading(locale === "ar" ? "المنصة" : "Platform")}
+          {sectionHeading(tPlatform("nav_section_label"))}
           {PLATFORM_NAV.map(renderLink)}
         </div>
       )}
-      {isPlatformAdmin
-        ? sectionHeading(locale === "ar" ? "إدارة أي نشاط تجاري" : "Manage any business")
-        : null}
+      {isPlatformAdmin ? sectionHeading(tPlatform("manage_any_business")) : null}
       {businessSections.map((section) => (
-        <div key={section.label} className="flex flex-col gap-1">
-          {sectionHeading(section.label)}
+        <div key={section.labelKey} className="flex flex-col gap-1">
+          {sectionHeading(tCommon(section.labelKey as NamespaceKeyMap["common"]))}
           {section.items.map(renderLink)}
         </div>
       ))}
@@ -485,7 +574,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <span>
             <span className="block text-base font-extrabold leading-tight">Dallty</span>
             <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Business
+              {tCommon("brand_business_subtitle")}
             </span>
           </span>
         </Link>
@@ -496,7 +585,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             onClick={signOut}
             className="press flex min-h-11 w-full items-center gap-3 rounded-2xl px-3 text-sm font-bold text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
           >
-            <LogOut className="size-4" /> Sign out
+            <LogOut className="size-4" /> {tCommon("menu.sign_out" as NamespaceKeyMap["common"])}
           </button>
         </div>
       </aside>
@@ -506,16 +595,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={tCommon("close_menu")}
             onClick={() => setMobileOpen(false)}
             className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
           />
           <aside className="absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col bg-card shadow-float">
             <div className="flex items-center justify-between px-5 py-4">
-              <span className="text-base font-extrabold">Dallty Business</span>
+              <span className="text-base font-extrabold">{tCommon("brand_business")}</span>
               <button
                 type="button"
-                aria-label="Close menu"
+                aria-label={tCommon("close_menu")}
                 onClick={() => setMobileOpen(false)}
                 className="grid size-9 place-items-center rounded-xl bg-secondary"
               >
@@ -534,7 +623,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
-                aria-label="Open menu"
+                aria-label={tCommon("open_menu")}
                 onClick={() => setMobileOpen(true)}
                 className="grid size-10 shrink-0 place-items-center rounded-2xl glass-soft lg:hidden"
               >
@@ -546,7 +635,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-2xl glass-soft px-3 text-start text-sm text-muted-foreground sm:max-w-md"
               >
                 <Search className="size-4 shrink-0" />
-                <span className="truncate">Search customers, bookings, services…</span>
+                <span className="truncate">{tCommon("palette_placeholder")}</span>
                 <kbd className="ms-auto hidden shrink-0 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-bold sm:block">
                   ⌘K
                 </kbd>
@@ -558,17 +647,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 <button
                   type="button"
                   onClick={() => setQuickOpen((v) => !v)}
-                  aria-label="Quick create"
+                  aria-label={tCommon("quick_create_label")}
                   className="press flex min-h-10 items-center gap-1.5 rounded-2xl bg-primary px-3 text-sm font-bold text-primary-foreground"
                 >
                   <Plus className="size-4" />
-                  <span className="hidden sm:inline">Create</span>
+                  <span className="hidden sm:inline">{tCommon("quick_create")}</span>
                 </button>
                 {quickOpen && (
                   <div className="absolute end-0 top-12 z-50 w-56 overflow-hidden rounded-2xl glass p-1.5 shadow-xl">
                     {QUICK_ACTIONS.map((action) => (
                       <button
-                        key={action.label}
+                        key={action.to}
                         type="button"
                         onClick={() => {
                           setQuickOpen(false);
@@ -576,7 +665,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                         }}
                         className="block w-full rounded-xl px-3 py-2 text-start text-sm font-semibold hover:bg-secondary/70"
                       >
-                        {action.label}
+                        {T_BY_NAMESPACE[action.namespace](action.labelKey)}
                       </button>
                     ))}
                   </div>
@@ -587,23 +676,25 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
               <button
                 type="button"
-                onClick={toggleLocale}
-                aria-label="Switch language"
+                onClick={() =>
+                  void setLang(LANG_ORDER[(LANG_ORDER.indexOf(locale) + 1) % LANG_ORDER.length])
+                }
+                aria-label={tCommon("switch_language")}
                 className="grid size-10 place-items-center rounded-2xl glass-soft text-xs font-extrabold"
               >
-                {locale === "ar" ? "EN" : "ع"}
+                {SHORT_LABEL[locale]}
               </button>
               <button
                 type="button"
                 onClick={toggleTheme}
-                aria-label="Toggle dark mode"
+                aria-label={tCommon("toggle_dark_mode")}
                 className="grid size-10 place-items-center rounded-2xl glass-soft"
               >
                 {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
               </button>
               <a
                 href="mailto:support@dallty.com"
-                aria-label="Live support"
+                aria-label={tCommon("live_support")}
                 className="hidden size-10 place-items-center rounded-2xl glass-soft sm:grid"
               >
                 <LifeBuoy className="size-4" />
@@ -617,18 +708,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <div className="mb-5 rounded-3xl glass p-5">
               <p className="text-sm font-extrabold">
                 {ownedBusiness.data.marketplace_status === "pending_review"
-                  ? "Your business is under marketplace review"
+                  ? tSettings("banner_pending_review")
                   : ownedBusiness.data.marketplace_status === "rejected"
-                    ? "Your business was not approved for the marketplace"
+                    ? tSettings("banner_rejected")
                     : ownedBusiness.data.marketplace_status === "hidden"
-                      ? "Your business is hidden from the marketplace"
-                      : "Your business is not listed yet"}
+                      ? tSettings("banner_hidden")
+                      : tSettings("banner_not_listed")}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                You have full access to your dashboard — only public marketplace visibility is
-                affected.
+                {tSettings("banner_helper")}
                 {ownedBusiness.data.trial_ends_at
-                  ? ` Trial ends ${new Date(ownedBusiness.data.trial_ends_at).toLocaleDateString()}.`
+                  ? ` ${tSettings("banner_trial_ends", { date: new Date(ownedBusiness.data.trial_ends_at).toLocaleDateString() })}`
                   : ""}
               </p>
             </div>
@@ -637,7 +727,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <div className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-extrabold tracking-tight sm:text-3xl">
-                {current ? (locale === "ar" ? current.labelAr : current.label) : "Dallty Business"}
+                {current ? label(current) : tCommon("brand_business")}
               </h1>
               <p className="mt-0.5 truncate text-sm text-muted-foreground">
                 {user?.email} · {primaryRole.replace("_", " ")}
@@ -647,14 +737,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
               to="/"
               className="press hidden min-h-10 items-center rounded-2xl glass-soft px-4 text-sm font-bold sm:flex"
             >
-              Customer app
+              {tCommon("customer_app")}
             </Link>
           </div>
           {children}
         </main>
       </div>
 
-      <GlobalCommand open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <GlobalCommand open={paletteOpen} onOpenChange={setPaletteOpen} label={label} />
 
       {/* Mobile language/theme safe area spacer */}
       <div className="h-2 lg:hidden" />

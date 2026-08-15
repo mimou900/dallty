@@ -1,1 +1,13 @@
-{}
+{
+  "nav_section_label": "المنصة",
+  "manage_any_business": "إدارة أي نشاط تجاري",
+  "nav_overview": "البيانات العامة",
+  "nav_directory": "الفهرس",
+  "nav_businesses": "الأنشطة التجارية",
+  "nav_marketplace_approvals": "موافقات المتجر",
+  "nav_users": "المستخدمون",
+  "nav_categories": "الفئات",
+  "nav_reserved_slugs": "الروابط المحجوزة",
+  "nav_countries": "الدول",
+  "nav_auth_policies": "سياسات الدخول"
+}

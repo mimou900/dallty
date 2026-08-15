@@ -1,1 +1,10 @@
-{}
+{
+  "nav_business_settings": "Business settings",
+  "nav_marketplace_status": "Marketplace status",
+  "banner_pending_review": "Your business is under marketplace review",
+  "banner_rejected": "Your business was not approved for the marketplace",
+  "banner_hidden": "Your business is hidden from the marketplace",
+  "banner_not_listed": "Your business is not listed yet",
+  "banner_helper": "You have full access to your dashboard — only public marketplace visibility is affected.",
+  "banner_trial_ends": "Trial ends {{date}}."
+}
