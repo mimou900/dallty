@@ -3,6 +3,7 @@ import { CalendarDays, Clock, MapPin, Navigation, Sparkles, Star, Users, Zap } f
 import { formatMoney } from "@/lib/countries";
 import { businessCategoryLabel } from "@/lib/business-category-label";
 import type { Category } from "@/lib/reference-data";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 type BusinessRow = {
   id: string;
@@ -61,6 +62,7 @@ export function BusinessOverview({
   lang: string;
   onBook: (serviceId?: string) => void;
 }) {
+  const { t } = useTranslation("marketplace");
   const cover = business.cover_url ?? business.image_url ?? "/salons/hair.jpg";
   const location = [
     business.address,
@@ -97,9 +99,19 @@ export function BusinessOverview({
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/85 via-foreground/30 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 space-y-2 p-5">
             <div className="flex flex-wrap items-center gap-2">
-              {businessCategoryLabel(categories, business.categories, lang) ? (
+              {businessCategoryLabel(
+                categories,
+                business.categories,
+                lang,
+                t("business_type_fallback"),
+              ) ? (
                 <span className="rounded-full glass-soft px-3 py-1 text-xs font-bold text-background">
-                  {businessCategoryLabel(categories, business.categories, lang)}
+                  {businessCategoryLabel(
+                    categories,
+                    business.categories,
+                    lang,
+                    t("business_type_fallback"),
+                  )}
                 </span>
               ) : null}
               {business.instant_booking ? (

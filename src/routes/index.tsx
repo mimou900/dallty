@@ -22,8 +22,10 @@ import {
 import heroImage from "@/assets/hero-salon.jpg";
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
-import { categories, businesses, type Business } from "@/lib/dallty-content";
-import { useLocale } from "@/lib/i18n";
+import { businesses, type Business } from "@/lib/dallty-content";
+import { dirFor, useLocale } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
+import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { landingForRoles } from "@/lib/post-login";
@@ -51,7 +53,16 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const categoryIcons = [Scissors, Scissors, Hand, Flower2, Sparkles, Eye];
+// `en` stays the stable filter key matched against businessType (business
+// data, not translated UI copy); `key` looks up the translated label.
+const CATEGORY_DEFS = [
+  { key: "hair", en: "Hair", icon: Scissors },
+  { key: "barber", en: "Barber", icon: Scissors },
+  { key: "nails", en: "Nails", icon: Hand },
+  { key: "spa", en: "Spa", icon: Flower2 },
+  { key: "makeup", en: "Makeup", icon: Sparkles },
+  { key: "lashes", en: "Lashes", icon: Eye },
+] as const;
 
 type LiveBusiness = Business & {
   countryCode: string;
@@ -61,7 +72,8 @@ type LiveBusiness = Business & {
 };
 
 function Index() {
-  const { lang, t } = useLocale();
+  const { lang } = useLocale();
+  const { t, tArray } = useTranslation(["marketplace", "common"]);
   const { user, roles } = useAuth();
   const home = landingForRoles(roles);
   const isManager = home !== "/bookings";
@@ -165,7 +177,9 @@ function Index() {
   }, [liveBusinesses, country, stateName]);
 
   const results = useMemo(() => {
-    const list: Business[] = placeFiltered ? (liveBusinesses ?? []) : (liveBusinesses ?? businesses);
+    const list: Business[] = placeFiltered
+      ? (liveBusinesses ?? [])
+      : (liveBusinesses ?? businesses);
     const placed = (list as LiveBusiness[]).filter(
       (s) =>
         (!country || s.countryCode === country) &&
@@ -201,7 +215,7 @@ function Index() {
   );
 
   return (
-    <div dir={t.dir} className="relative min-h-dvh overflow-x-hidden bg-background">
+    <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-background">
       {/* ambient glass background */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 start-[-10%] size-[38rem] rounded-full bg-primary/20 blur-3xl" />
@@ -234,14 +248,12 @@ function Index() {
             <div className="flex min-h-[19rem] flex-col justify-end gap-3 p-5 pb-12 sm:min-h-[26rem] sm:p-10 sm:pb-16">
               <span className="inline-flex w-fit items-center gap-2 rounded-full glass-soft px-3 py-1.5 text-[0.7rem] font-bold tracking-wide text-background sm:text-xs">
                 <Sparkles className="size-3.5 shrink-0 text-gold" />
-                {lang === "en"
-                  ? "Trusted beauty pros across the Arab world"
-                  : "خبراء تجميل موثوقون في العالم العربي"}
+                {t("hero_badge")}
               </span>
               <h1 className="max-w-2xl text-[2rem] font-extrabold leading-[1.05] text-background sm:text-6xl">
-                {t.heroTitle}
+                {t("hero_title")}
               </h1>
-              <p className="max-w-xl text-sm text-background/85 sm:text-lg">{t.heroSub}</p>
+              <p className="max-w-xl text-sm text-background/85 sm:text-lg">{t("hero_sub")}</p>
             </div>
           </div>
 
@@ -266,14 +278,14 @@ function Index() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
-                  placeholder={lang === "en" ? "Search by shop name" : "ابحث باسم المتجر"}
-                  aria-label={t.searchBtn}
+                  placeholder={t("home_search_placeholder")}
+                  aria-label={t("search_btn")}
                 />
                 {query ? (
                   <button
                     type="button"
                     onClick={() => setQuery("")}
-                    aria-label={lang === "en" ? "Clear" : "مسح"}
+                    aria-label={t("search_clear")}
                     className="grid size-8 shrink-0 place-items-center rounded-full glass-soft"
                   >
                     <X className="size-4" />
@@ -285,7 +297,7 @@ function Index() {
                 className="press flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-primary px-8 text-base font-bold text-primary-foreground shadow-lg transition-transform hover:scale-[1.02]"
               >
                 <Search className="size-5" />
-                {t.searchBtn}
+                {t("search_btn")}
               </button>
             </form>
 
@@ -299,11 +311,7 @@ function Index() {
               <span className="flex min-w-0 items-center gap-2">
                 <SlidersHorizontal className="size-4 shrink-0 text-primary" />
                 <span className="truncate">
-                  {activeChips.length
-                    ? activeChips.join(" · ")
-                    : lang === "en"
-                      ? "Filter by location & type"
-                      : "تصفية حسب الموقع والنوع"}
+                  {activeChips.length ? activeChips.join(" · ") : t("filter_by_location_type")}
                 </span>
               </span>
               <ChevronDown
@@ -317,7 +325,7 @@ function Index() {
             >
               <SelectField
                 icon={<Globe className="size-4" />}
-                label={lang === "en" ? "Country" : "الدولة"}
+                label={t("filter_country")}
                 value={country}
                 onChange={(v) => {
                   setCountry(v);
@@ -325,7 +333,7 @@ function Index() {
                   setCity("");
                 }}
               >
-                <option value="">{lang === "en" ? "All countries" : "كل الدول"}</option>
+                <option value="">{t("filter_all_countries")}</option>
                 {countryOptions.map((c) => (
                   <option key={c.iso_code} value={c.iso_code}>
                     {c.flag} {translate(c, lang)}
@@ -335,7 +343,7 @@ function Index() {
 
               <SelectField
                 icon={<MapIcon className="size-4" />}
-                label={lang === "en" ? "State / Province" : "الولاية / المحافظة"}
+                label={t("filter_state")}
                 value={stateName}
                 disabled={!country}
                 onChange={(v) => {
@@ -344,51 +352,39 @@ function Index() {
                 }}
               >
                 <option value="">
-                  {country
-                    ? lang === "en"
-                      ? "All states"
-                      : "كل الولايات"
-                    : lang === "en"
-                      ? "Pick a country first"
-                      : "اختر الدولة أولاً"}
+                  {country ? t("filter_all_states") : t("filter_pick_country_first")}
                 </option>
                 {stateOptions.map((p) => (
                   <option key={p.en} value={p.en}>
-                    {lang === "en" ? p.en : p.ar}
+                    {lang === "ar" ? p.ar : p.en}
                   </option>
                 ))}
               </SelectField>
 
               <SelectField
                 icon={<MapPin className="size-4" />}
-                label={lang === "en" ? "City" : "المدينة"}
+                label={t("filter_city")}
                 value={city}
                 disabled={!country}
                 onChange={setCity}
               >
                 <option value="">
-                  {country
-                    ? lang === "en"
-                      ? "All cities"
-                      : "كل المدن"
-                    : lang === "en"
-                      ? "Pick a country first"
-                      : "اختر الدولة أولاً"}
+                  {country ? t("filter_all_cities") : t("filter_pick_country_first")}
                 </option>
                 {cityOptions.map((c) => (
                   <option key={c.en} value={c.en}>
-                    {lang === "en" ? c.en : c.ar}
+                    {lang === "ar" ? c.ar : c.en}
                   </option>
                 ))}
               </SelectField>
 
               <SelectField
                 icon={<Store className="size-4" />}
-                label={lang === "en" ? "Shop type" : "نوع المتجر"}
+                label={t("filter_shop_type")}
                 value={shopType}
                 onChange={setShopType}
               >
-                <option value="">{lang === "en" ? "All shop types" : "كل الأنواع"}</option>
+                <option value="">{t("filter_all_shop_types")}</option>
                 {BUSINESS_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {type}
@@ -399,7 +395,7 @@ function Index() {
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
-                {results.length} {lang === "en" ? "shops match" : "متجر مطابق"}
+                {results.length} {t("shops_match")}
               </span>
               {activeChips.map((chip) => (
                 <span
@@ -420,14 +416,14 @@ function Index() {
                   }}
                   className="rounded-full glass-soft px-3 py-1 text-xs font-bold"
                 >
-                  {lang === "en" ? "Clear" : "مسح"}
+                  {t("search_clear")}
                 </button>
               ) : null}
             </div>
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-            {t.stats.map(([value, label]) => (
+            {(tArray("stats") as [string, string][]).map(([value, label]) => (
               <div key={label} className="rounded-3xl glass px-2 py-4 text-center sm:px-4 sm:py-5">
                 <p className="text-lg font-extrabold sm:text-2xl">{value}</p>
                 <p className="text-[0.7rem] leading-tight text-muted-foreground sm:text-sm">
@@ -440,18 +436,18 @@ function Index() {
 
         {/* Categories */}
         <section className="mt-10 sm:mt-14">
-          <h2 className="text-xl font-extrabold sm:text-3xl">{t.categoriesTitle}</h2>
+          <h2 className="text-xl font-extrabold sm:text-3xl">{t("categories_title")}</h2>
           <div className="mt-4 grid grid-cols-3 gap-2.5 sm:mt-5 sm:grid-cols-6 sm:gap-3">
-            {categories.map((c, i) => {
-              const Icon = categoryIcons[i];
-              const active = activeCategory === c.en;
+            {CATEGORY_DEFS.map((def) => {
+              const Icon = def.icon;
+              const active = activeCategory === def.en;
               return (
                 <button
-                  key={c.en}
+                  key={def.key}
                   type="button"
                   aria-pressed={active}
                   onClick={() => {
-                    setActiveCategory(active ? null : c.en);
+                    setActiveCategory(active ? null : def.en);
                     scrollToResults();
                   }}
                   className={`press flex flex-col items-center gap-2 rounded-3xl px-2 py-4 transition sm:gap-3 sm:px-3 sm:py-6 ${
@@ -468,7 +464,7 @@ function Index() {
                     <Icon className="size-5 sm:size-6" />
                   </span>
                   <span className="text-xs font-semibold sm:text-sm">
-                    {lang === "en" ? c.en : c.ar}
+                    {t(`categories.${def.key}` as NamespaceKeyMap["marketplace"])}
                   </span>
                 </button>
               );
@@ -480,8 +476,8 @@ function Index() {
         <section id="nearby" className="mt-10 scroll-mt-28 sm:mt-14">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:items-end sm:gap-4">
             <div className="min-w-0">
-              <h2 className="text-xl font-extrabold sm:text-3xl">{t.nearbyTitle}</h2>
-              <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{t.nearbySub}</p>
+              <h2 className="text-xl font-extrabold sm:text-3xl">{t("nearby_title")}</h2>
+              <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{t("nearby_sub")}</p>
             </div>
             <button
               type="button"
@@ -495,7 +491,7 @@ function Index() {
               }}
               className="press min-h-11 shrink-0 rounded-2xl glass-soft px-4 text-sm font-semibold"
             >
-              {t.seeAll}
+              {t("see_all")}
             </button>
           </div>
 
@@ -518,7 +514,7 @@ function Index() {
                 }}
                 className="press mt-4 inline-flex min-h-11 items-center rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
               >
-                {t.seeAll}
+                {t("see_all")}
               </button>
             </div>
           ) : (
@@ -532,9 +528,9 @@ function Index() {
 
         {/* How it works */}
         <section className="mt-12 sm:mt-16">
-          <h2 className="text-xl font-extrabold sm:text-3xl">{t.stepsTitle}</h2>
+          <h2 className="text-xl font-extrabold sm:text-3xl">{t("steps_title")}</h2>
           <ol className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-            {t.steps.map(([title, desc], i) => (
+            {(tArray("steps") as [string, string][]).map(([title, desc], i) => (
               <li className="rounded-3xl glass p-5 sm:p-6" key={title}>
                 <span className="grid size-10 place-items-center rounded-2xl bg-gold text-base font-extrabold text-gold-foreground">
                   {i + 1}
@@ -548,15 +544,17 @@ function Index() {
 
         {/* CTA */}
         <section className="mt-12 overflow-hidden rounded-4xl glass p-6 text-center sm:mt-16 sm:p-14">
-          <h2 className="mx-auto max-w-2xl text-2xl font-extrabold sm:text-4xl">{t.ctaTitle}</h2>
-          <p className="mt-3 text-sm text-muted-foreground sm:text-base">{t.ctaSub}</p>
+          <h2 className="mx-auto max-w-2xl text-2xl font-extrabold sm:text-4xl">
+            {t("cta_title")}
+          </h2>
+          <p className="mt-3 text-sm text-muted-foreground sm:text-base">{t("cta_sub")}</p>
 
           <Link
             to={user ? home : "/auth"}
             className="press mt-7 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-7 text-base font-bold text-primary-foreground"
           >
             <Smartphone className="size-5" />
-            {t.ctaBtn}
+            {t("cta_btn")}
           </Link>
         </section>
 
@@ -564,11 +562,11 @@ function Index() {
           <div className="grid gap-6 rounded-4xl glass p-6 sm:grid-cols-2">
             <div>
               <p className="text-[0.7rem] font-bold uppercase tracking-wide text-foreground">
-                {t.menu.customers}
+                {t("menu.customers")}
               </p>
               <nav aria-label="Customer links" className="mt-3 flex flex-col gap-2">
                 <Link to="/" className="hover:text-foreground">
-                  {t.menu.explore}
+                  {t("menu.explore")}
                 </Link>
                 <Link
                   to="/search"
@@ -584,46 +582,54 @@ function Index() {
                   }}
                   className="hover:text-foreground"
                 >
-                  {t.menu.search}
+                  {t("menu.search")}
                 </Link>
                 <Link to="/bookings" className="hover:text-foreground">
-                  {t.menu.bookings}
+                  {t("menu.bookings")}
                 </Link>
                 <Link to="/favorites" className="hover:text-foreground">
-                  {t.menu.favorites}
+                  {t("menu.favorites")}
                 </Link>
                 <Link to="/profile" className="hover:text-foreground">
-                  {t.menu.account}
+                  {t("menu.account")}
                 </Link>
               </nav>
             </div>
             <div>
               <p className="text-[0.7rem] font-bold uppercase tracking-wide text-foreground">
-                {t.menu.business}
+                {t("menu.business")}
               </p>
               <nav aria-label="Business links" className="mt-3 flex flex-col gap-2">
                 <Link to="/business/signup" className="hover:text-foreground">
-                  {t.menu.listBusiness}
+                  {t("menu.list_business")}
                 </Link>
                 <Link to="/auth" className="hover:text-foreground">
-                  {t.menu.businessSignIn}
+                  {t("menu.business_sign_in")}
                 </Link>
                 <Link to="/staff/signup" className="hover:text-foreground">
-                  {t.menu.staffSignIn}
+                  {t("menu.staff_sign_in")}
                 </Link>
                 {isManager && (
                   <Link to={home} className="hover:text-foreground">
-                    {t.menu.businessDashboard}
+                    {t("menu.business_dashboard")}
                   </Link>
                 )}
               </nav>
             </div>
           </div>
-          <p className="text-center">{t.footer}</p>
+          <p className="text-center">{t("footer")}</p>
         </footer>
       </main>
 
-      <BottomNav tabs={t.tabs} />
+      <BottomNav
+        tabs={[
+          t("nav.home"),
+          t("nav.search"),
+          t("nav.bookings"),
+          t("nav.favorites"),
+          t("nav.profile"),
+        ]}
+      />
     </div>
   );
 }

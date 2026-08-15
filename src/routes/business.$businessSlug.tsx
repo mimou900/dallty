@@ -20,7 +20,7 @@ import { savePendingBooking, readPendingBooking, clearPendingBooking } from "@/l
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { BottomNav } from "@/components/dallty/bottom-nav";
-import { copy } from "@/lib/dallty-content";
+import { useTranslation } from "@/lib/i18n/hooks";
 import { NavMenu } from "@/components/dallty/site-nav";
 import { FavoriteButton } from "@/components/dallty/favorite-button";
 import { BusinessReviews } from "@/components/dallty/business-reviews";
@@ -150,6 +150,7 @@ function BookingFlow() {
   const { user, loading: authLoading } = useAuth();
   const { data: categories } = useCategories();
   const { lang } = useLocale();
+  const { t } = useTranslation("common");
 
   const { book: bookIntent, tab: tabParam } = Route.useSearch();
   // Tab lives in the URL so deep links, refreshes and the back button all work.
@@ -1586,7 +1587,17 @@ function BookingFlow() {
         </div>
       )}
 
-      {tab !== "book" && <BottomNav tabs={copy.en.tabs} />}
+      {tab !== "book" && (
+        <BottomNav
+          tabs={[
+            t("nav.home"),
+            t("nav.search"),
+            t("nav.bookings"),
+            t("nav.favorites"),
+            t("nav.profile"),
+          ]}
+        />
+      )}
     </div>
   );
 }

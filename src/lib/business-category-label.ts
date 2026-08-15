@@ -14,9 +14,10 @@ export function businessCategoryLabel(
   categories: Category[],
   businessCategories: string[] | null | undefined,
   lang: string,
+  fallback: string,
 ): string {
   const first = businessCategories?.[0]?.trim();
-  if (!first) return lang === "ar" ? "نشاط تجاري" : "Business";
+  if (!first) return fallback;
 
   const match = categories.find((c) => c.default_name.toLowerCase() === first.toLowerCase());
   if (match) return translate(match, lang);

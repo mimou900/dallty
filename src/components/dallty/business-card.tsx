@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Car, Footprints, Heart, MapPin, Star, Zap } from "lucide-react";
 import type { Lang, Business } from "@/lib/dallty-content";
-import { copy } from "@/lib/dallty-content";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 export type TravelInfo = {
   km: number | null;
@@ -20,12 +20,10 @@ export function BusinessCard({
   travel?: TravelInfo;
 }) {
   const [fav, setFav] = useState(false);
-  // TODO(i18n Task 6): copy/business fall back to English for "fr" until this
-  // component migrates to useTranslation("marketplace"); the Business type's
-  // per-listing fields are en/ar-only fallback/seed data, out of scope here.
-  const legacyLang = lang === "fr" ? "en" : lang;
-  const t = copy[legacyLang];
-  const s = business[legacyLang];
+  const { t } = useTranslation("marketplace");
+  // Business's own per-listing fields are en/ar-only fallback/seed data
+  // (out of scope for this migration); French falls back to English.
+  const s = business[lang === "ar" ? "ar" : "en"];
 
   return (
     <article className="press group overflow-hidden rounded-3xl glass">
@@ -48,12 +46,12 @@ export function BusinessCard({
         </button>
         <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
           <span className="rounded-full glass-soft px-3 py-1 text-xs font-semibold">
-            {business.open ? t.open : t.closed}
+            {business.open ? t("open") : t("closed")}
           </span>
           {business.instant && (
             <span className="flex items-center gap-1 rounded-full bg-gold px-3 py-1 text-xs font-semibold text-gold-foreground">
               <Zap className="size-3.5" />
-              {t.instant}
+              {t("instant")}
             </span>
           )}
         </div>
@@ -80,7 +78,7 @@ export function BusinessCard({
             <MapPin className="size-4 shrink-0" />
             <span className="truncate">
               {s.area}
-              {travel?.km != null ? ` · ${travel.km.toFixed(1)} ${t.km}` : ""}
+              {travel?.km != null ? ` · ${travel.km.toFixed(1)} ${t("km")}` : ""}
             </span>
           </span>
           <span className="font-semibold text-foreground">{business.price}</span>
@@ -91,13 +89,13 @@ export function BusinessCard({
             {travel.drivingMinutes != null ? (
               <span className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1">
                 <Car className="size-3.5" />
-                {travel.drivingMinutes} {lang === "ar" ? "د بالسيارة" : "min drive"}
+                {travel.drivingMinutes} {t("driving_minutes")}
               </span>
             ) : null}
             {travel.walkingMinutes != null ? (
               <span className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1">
                 <Footprints className="size-3.5" />
-                {travel.walkingMinutes} {lang === "ar" ? "د مشياً" : "min walk"}
+                {travel.walkingMinutes} {t("walking_minutes")}
               </span>
             ) : null}
           </div>
@@ -109,7 +107,7 @@ export function BusinessCard({
             params={{ businessSlug: business.slug }}
             className="press block rounded-2xl glass-soft py-3 text-center text-sm font-semibold"
           >
-            {lang === "ar" ? "التفاصيل" : "Details"}
+            {t("details")}
           </Link>
           <Link
             to="/business/$businessSlug"
@@ -117,7 +115,7 @@ export function BusinessCard({
             search={{ book: true }}
             className="press block rounded-2xl bg-primary py-3 text-center text-sm font-semibold text-primary-foreground"
           >
-            {t.book}
+            {t("book")}
           </Link>
         </div>
       </div>

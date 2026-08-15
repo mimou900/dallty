@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import { useLocale } from "@/lib/i18n";
-import { getCachedNamespace, getCacheVersion, subscribeToCache } from "./loader";
+import { getCachedNamespace, getCacheVersion, preloadNamespaces, subscribeToCache } from "./loader";
 import type { ActiveNamespace } from "./namespaces";
 import type { NamespaceKeyMap } from "./keys.gen";
 
@@ -25,8 +25,11 @@ export function useTranslation<N extends ActiveNamespace>(namespace: N | N[]) {
 
   useEffect(() => {
     registerNamespaces(namespaces);
+    // Self-loads on first use — no route loader needs to preload this
+    // namespace ahead of time for the initial render to eventually resolve.
+    void preloadNamespaces(lang, namespaces);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [namespaces.join(",")]);
+  }, [lang, namespaces.join(",")]);
 
   // Re-renders once a namespace this component needs finishes loading after
   // first mount — without this, a component mounted before its preload
@@ -48,5 +51,18 @@ export function useTranslation<N extends ActiveNamespace>(namespace: N | N[]) {
     return key as string;
   }
 
-  return { t };
+  function tArray(key: NamespaceKeyMap[N]): unknown[] {
+    for (const ns of namespaces) {
+      const dict = getCachedNamespace(lang, ns);
+      if (!dict) continue;
+      const value = getPath(dict, key as string);
+      if (Array.isArray(value)) return value;
+    }
+    if (import.meta.env.DEV) {
+      console.warn(`[i18n] missing array key "${String(key)}" for lang "${lang}"`);
+    }
+    return [];
+  }
+
+  return { t, tArray };
 }

@@ -27,7 +27,8 @@ import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesse
 import { useUserLocation, haversineKm } from "@/hooks/use-user-location";
 import { getTravelTimes } from "@/lib/geo.functions";
 import type { TravelInfo } from "@/components/dallty/business-card";
-import { useLocale } from "@/lib/i18n";
+import { dirFor, useLocale } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
 import { useCountries, translate } from "@/lib/reference-data";
 import { citiesFor, provincesFor } from "@/lib/arab-cities";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
@@ -81,8 +82,8 @@ export const Route = createFileRoute("/search")({
 function SearchPage() {
   const params = Route.useSearch();
   const navigate = useNavigate({ from: "/search" });
-  const { lang, t } = useLocale();
-  const en = lang === "en";
+  const { lang } = useLocale();
+  const { t } = useTranslation(["marketplace", "common"]);
   const [draft, setDraft] = useState(params.q);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -210,12 +211,8 @@ function SearchPage() {
     params.state ? { key: "state", label: params.state, clear: { state: "", city: "" } } : null,
     params.city ? { key: "city", label: params.city, clear: { city: "" } } : null,
     params.type ? { key: "type", label: params.type, clear: { type: "" } } : null,
-    params.instant
-      ? { key: "instant", label: en ? "Instant booking" : "حجز فوري", clear: { instant: false } }
-      : null,
-    params.open
-      ? { key: "open", label: en ? "Open now" : "مفتوح الآن", clear: { open: false } }
-      : null,
+    params.instant ? { key: "instant", label: t("instant"), clear: { instant: false } } : null,
+    params.open ? { key: "open", label: t("open"), clear: { open: false } } : null,
   ].filter(Boolean) as { key: string; label: string; clear: Partial<SearchParams> }[];
 
   function clearAll() {
@@ -224,7 +221,7 @@ function SearchPage() {
   }
 
   return (
-    <div dir={t.dir} className="relative min-h-dvh overflow-x-hidden bg-background">
+    <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-background">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-40 start-[-10%] size-[36rem] rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute top-1/4 end-[-15%] size-[30rem] rounded-full bg-gold/20 blur-3xl" />
@@ -235,14 +232,14 @@ function SearchPage() {
           <div className="flex items-center gap-3">
             <Link
               to="/"
-              aria-label={en ? "Back home" : "العودة"}
+              aria-label={t("back_home")}
               className="grid size-11 shrink-0 place-items-center rounded-2xl glass-soft"
             >
               <ArrowLeft className="size-5 rtl:rotate-180" />
             </Link>
             <Link
               to="/"
-              aria-label={en ? "Dallty home" : "الصفحة الرئيسية"}
+              aria-label={t("dallty_home")}
               className="hidden items-center gap-2 sm:flex"
             >
               <LogoMark className="size-9" />
@@ -264,8 +261,8 @@ function SearchPage() {
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
-                  placeholder={en ? "Search shop name…" : "ابحث باسم المتجر…"}
-                  aria-label={t.searchBtn}
+                  placeholder={t("search_shop_name_placeholder")}
+                  aria-label={t("search_btn")}
                 />
                 {draft ? (
                   <button
@@ -274,7 +271,7 @@ function SearchPage() {
                       setDraft("");
                       update({ q: "" });
                     }}
-                    aria-label={en ? "Clear search" : "مسح البحث"}
+                    aria-label={t("search_clear_aria")}
                     className="grid size-8 shrink-0 place-items-center rounded-full glass-soft"
                   >
                     <X className="size-4" />
@@ -284,7 +281,7 @@ function SearchPage() {
                   type="submit"
                   className="press hidden min-h-9 shrink-0 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground sm:flex"
                 >
-                  {t.searchBtn}
+                  {t("search_btn")}
                 </button>
               </label>
             </form>
@@ -296,7 +293,7 @@ function SearchPage() {
               className={`press relative grid size-11 shrink-0 place-items-center rounded-2xl ${
                 showFilters || chips.length ? "bg-primary text-primary-foreground" : "glass-soft"
               }`}
-              aria-label={en ? "Filters" : "الفلاتر"}
+              aria-label={t("filters_aria")}
             >
               <SlidersHorizontal className="size-5" />
               {chips.length ? (
@@ -312,11 +309,11 @@ function SearchPage() {
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <SelectField
                 icon={<Globe className="size-4" />}
-                label={en ? "Country" : "الدولة"}
+                label={t("filter_country")}
                 value={params.country}
                 onChange={(v) => update({ country: v, state: "", city: "" })}
               >
-                <option value="">{en ? "All countries" : "كل الدول"}</option>
+                <option value="">{t("filter_all_countries")}</option>
                 {countryOptions.map((c) => (
                   <option key={c.iso_code} value={c.iso_code}>
                     {c.flag} {translate(c, lang)}
@@ -326,57 +323,45 @@ function SearchPage() {
 
               <SelectField
                 icon={<MapIcon className="size-4" />}
-                label={en ? "State / Province" : "الولاية / المحافظة"}
+                label={t("filter_state")}
                 value={params.state}
                 disabled={!params.country}
                 onChange={(v) => update({ state: v, city: "" })}
               >
                 <option value="">
-                  {params.country
-                    ? en
-                      ? "All states"
-                      : "كل الولايات"
-                    : en
-                      ? "Pick a country first"
-                      : "اختر الدولة أولاً"}
+                  {params.country ? t("filter_all_states") : t("filter_pick_country_first")}
                 </option>
                 {stateOptions.map((p) => (
                   <option key={p.en} value={p.en}>
-                    {en ? p.en : p.ar}
+                    {lang === "ar" ? p.ar : p.en}
                   </option>
                 ))}
               </SelectField>
 
               <SelectField
                 icon={<MapPin className="size-4" />}
-                label={en ? "City" : "المدينة"}
+                label={t("filter_city")}
                 value={params.city}
                 disabled={!params.country}
                 onChange={(v) => update({ city: v })}
               >
                 <option value="">
-                  {params.country
-                    ? en
-                      ? "All cities"
-                      : "كل المدن"
-                    : en
-                      ? "Pick a country first"
-                      : "اختر الدولة أولاً"}
+                  {params.country ? t("filter_all_cities") : t("filter_pick_country_first")}
                 </option>
                 {cityOptions.map((c) => (
                   <option key={c.en} value={c.en}>
-                    {en ? c.en : c.ar}
+                    {lang === "ar" ? c.ar : c.en}
                   </option>
                 ))}
               </SelectField>
 
               <SelectField
                 icon={<Store className="size-4" />}
-                label={en ? "Shop type" : "نوع المتجر"}
+                label={t("filter_shop_type")}
                 value={params.type}
                 onChange={(v) => update({ type: v })}
               >
-                <option value="">{en ? "All shop types" : "كل الأنواع"}</option>
+                <option value="">{t("filter_all_shop_types")}</option>
                 {BUSINESS_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {type}
@@ -389,20 +374,20 @@ function SearchPage() {
                   active={params.instant}
                   onClick={() => update({ instant: !params.instant })}
                   icon={<Zap className="size-4" />}
-                  label={en ? "Instant booking" : "حجز فوري"}
+                  label={t("instant")}
                 />
                 <Toggle
                   active={params.open}
                   onClick={() => update({ open: !params.open })}
                   icon={<Sparkles className="size-4" />}
-                  label={en ? "Open now" : "مفتوح الآن"}
+                  label={t("open")}
                 />
                 <div className="ms-auto flex items-center gap-1 rounded-2xl glass-soft p-1">
                   {(
                     [
-                      ["rating", en ? "Top rated" : "الأعلى تقييماً"],
-                      ["distance", en ? "Nearest" : "الأقرب"],
-                      ["reviews", en ? "Most reviewed" : "الأكثر مراجعة"],
+                      ["rating", t("sort_top_rated")],
+                      ["distance", t("sort_nearest")],
+                      ["reviews", t("sort_most_reviewed")],
                     ] as const
                   ).map(([key, label]) => (
                     <button
@@ -431,11 +416,7 @@ function SearchPage() {
       <main className="mx-auto max-w-6xl px-4 pb-32 pt-6 md:pb-24">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="me-2 text-xl font-extrabold sm:text-2xl">
-            {isLoading
-              ? en
-                ? "Searching…"
-                : "جارٍ البحث…"
-              : `${results.length} ${en ? "shops found" : "متجر"}`}
+            {isLoading ? t("searching") : `${results.length} ${t("shops_found")}`}
           </h1>
           {params.q ? (
             <span className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">
@@ -459,7 +440,7 @@ function SearchPage() {
               onClick={clearAll}
               className="rounded-full glass-soft px-3 py-1 text-xs font-bold"
             >
-              {en ? "Clear all" : "مسح الكل"}
+              {t("clear_all")}
             </button>
           ) : null}
         </div>
@@ -478,24 +459,16 @@ function SearchPage() {
             ) : (
               <Navigation className="size-4" />
             )}
-            {geo.enabled
-              ? en
-                ? "Nearby salons"
-                : "الصالونات القريبة"
-              : en
-                ? "Near me"
-                : "بالقرب مني"}
+            {geo.enabled ? t("nearby_salons_btn") : t("near_me_btn")}
           </button>
           {geo.status === "denied" ? (
             <span className="text-xs font-medium text-muted-foreground">
-              {en
-                ? "Location is blocked in your browser — showing the normal marketplace."
-                : "الموقع محظور في المتصفح — نعرض السوق بشكل عادي."}
+              {t("location_blocked")}
             </span>
           ) : null}
           {geo.enabled && travelQuery.isFetching ? (
             <span className="text-xs font-medium text-muted-foreground">
-              {en ? "Calculating travel times…" : "جارٍ حساب أوقات الوصول…"}
+              {t("calculating_travel_times")}
             </span>
           ) : null}
         </div>
@@ -511,20 +484,14 @@ function SearchPage() {
             <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-accent text-accent-foreground">
               <Search className="size-6" />
             </span>
-            <p className="mt-4 font-bold">
-              {en ? "No shops match your search." : "لا توجد متاجر مطابقة لبحثك."}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {en
-                ? "Try a different city, shop type, or clear the filters."
-                : "جرّب مدينة أو نوع متجر مختلف، أو امسح الفلاتر."}
-            </p>
+            <p className="mt-4 font-bold">{t("no_shops_match")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("try_different_filters")}</p>
             <button
               type="button"
               onClick={clearAll}
               className="press mt-5 inline-flex min-h-11 items-center rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
             >
-              {en ? "Clear all filters" : "مسح كل الفلاتر"}
+              {t("clear_all_filters")}
             </button>
           </div>
         ) : (
@@ -538,23 +505,25 @@ function SearchPage() {
         {!isLoading && results.length > 0 ? (
           <p className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Star className="size-4 text-gold" />
-            {en ? "Sorted by " : "مرتبة حسب "}
+            {t("sorted_by")}
             {params.sort === "distance"
-              ? en
-                ? "distance"
-                : "المسافة"
+              ? t("sort_by_distance")
               : params.sort === "reviews"
-                ? en
-                  ? "review count"
-                  : "عدد المراجعات"
-                : en
-                  ? "rating"
-                  : "التقييم"}
+                ? t("sort_by_reviews")
+                : t("sort_by_rating")}
           </p>
         ) : null}
       </main>
 
-      <BottomNav tabs={t.tabs} />
+      <BottomNav
+        tabs={[
+          t("nav.home"),
+          t("nav.search"),
+          t("nav.bookings"),
+          t("nav.favorites"),
+          t("nav.profile"),
+        ]}
+      />
     </div>
   );
 }

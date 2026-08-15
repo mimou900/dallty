@@ -11,7 +11,7 @@ import {
 import { useRouterState } from "@tanstack/react-router";
 import { arDZ, enUS, fr } from "date-fns/locale";
 
-import { copy, type Lang } from "@/lib/dallty-content";
+import type { Lang } from "@/lib/dallty-content";
 import { preloadNamespaces } from "@/lib/i18n/loader";
 import type { ActiveNamespace } from "@/lib/i18n/namespaces";
 
@@ -111,12 +111,6 @@ type LocaleValue = {
   dir: "ltr" | "rtl";
   isRtl: boolean;
   /**
-   * Existing bilingual copy dictionary for the active language — retired
-   * incrementally as files migrate to useTranslation(); still consumed by
-   * index.tsx/search.tsx until that migration lands.
-   */
-  t: (typeof copy)["en" | "ar"];
-  /**
    * Inline helper: pick(englishText, arabicText) — retired incrementally;
    * still consumed by bookings.tsx/admin/appointments.tsx/admin/my-appointments.tsx
    * until that migration lands.
@@ -190,7 +184,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       lang,
       dir: dirFor(lang),
       isRtl: dirFor(lang) === "rtl",
-      t: copy[lang === "fr" ? "en" : lang],
       pick: <T,>(en: T, ar: T) => (lang === "ar" ? ar : en),
       setLang,
       toggleLang: () => {
@@ -214,7 +207,6 @@ export function useLocale(): LocaleValue {
     lang: DEFAULT_LANG,
     dir: "ltr",
     isRtl: false,
-    t: copy.en,
     pick: <T,>(en: T) => en,
     setLang: async () => {},
     toggleLang: () => {},
