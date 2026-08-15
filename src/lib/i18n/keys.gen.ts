@@ -7,7 +7,7 @@ export type NamespaceKeyMap = {
   customer: never;
   errors: never;
   marketplace: "hero_title" | "hero_sub" | "search_placeholder" | "search_btn" | "suggestions" | "stats" | "categories_title" | "nearby_title" | "nearby_sub" | "see_all" | "open" | "closed" | "instant" | "km" | "book" | "steps_title" | "steps" | "cta_title" | "cta_sub" | "cta_btn" | "categories.hair" | "categories.barber" | "categories.nails" | "categories.spa" | "categories.makeup" | "categories.lashes" | "business_type_fallback" | "details" | "driving_minutes" | "walking_minutes" | "hero_badge" | "search_clear" | "filter_country" | "filter_all_countries" | "filter_state" | "filter_city" | "filter_shop_type" | "filter_all_shop_types" | "shops_match" | "home_search_placeholder" | "filter_by_location_type" | "filter_all_states" | "filter_all_cities" | "filter_pick_country_first" | "back_home" | "dallty_home" | "search_shop_name_placeholder" | "search_clear_aria" | "filters_aria" | "sort_top_rated" | "sort_nearest" | "sort_most_reviewed" | "searching" | "shops_found" | "clear_all" | "nearby_salons_btn" | "near_me_btn" | "location_blocked" | "calculating_travel_times" | "no_shops_match" | "try_different_filters" | "clear_all_filters" | "sorted_by" | "sort_by_distance" | "sort_by_reviews" | "sort_by_rating";
-  notifications: never;
+  notifications: "title" | "mark_all_read" | "loading" | "empty" | "unread";
   payments: never;
   platform: never;
   reports: never;
