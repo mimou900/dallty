@@ -20,7 +20,8 @@ import { resolveLandingForSession } from "@/lib/post-login";
 import { friendlyError } from "@/lib/friendly-error";
 import { LogoMark } from "@/components/dallty/logo";
 import { LanguageSwitcher } from "@/components/dallty/language-switcher";
-import { useLocale } from "@/lib/i18n";
+import { dirFor, useLocale } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 // Launch scope is Email+Password only, per the account spec. Magic-link and
 // phone-OTP sign-in are architected below (working handlers, untouched
@@ -59,7 +60,7 @@ export const Route = createFileRoute("/auth")({
 // Client-only sign-up. Business owners register through /business/signup and
 // specialists are invited by their business owner (or request to join a team
 // via /staff/signup).
-const roleOptions = [{ value: "client", label: "Client", hint: "Book appointments" }] as const;
+const roleOptions = [{ value: "client" }] as const;
 
 const credentials = z.object({
   email: z.string().trim().email("Enter a valid email").max(255),
@@ -72,69 +73,6 @@ const phoneOnly = z
   .string()
   .trim()
   .regex(/^\+[1-9]\d{7,15}$/, "Use international format, e.g. +2135xxxxxxxx");
-
-const copy = {
-  en: {
-    signInTitle: "Welcome back",
-    signUpTitle: "Create your account",
-    signInSub: "Sign in to manage your bookings.",
-    signUpSub: "Pick how you'll use Dallty. You can book in seconds after this.",
-    fullName: "Full name",
-    phone: "Phone number",
-    phoneInvalid: "Enter a valid phone number so salons can reach you.",
-    email: "Email",
-    password: "Password",
-    remember: "Remember me",
-    forgot: "Forgot password?",
-    signIn: "Sign in",
-    signUp: "Create account",
-    or: "or",
-    google: "Continue with Google",
-    apple: "Continue with Apple",
-    appleSoon: "Coming soon",
-    newHere: "New to Dallty?",
-    haveAccount: "Already have an account?",
-    switchSignUp: "Create an account",
-    switchSignIn: "Sign in",
-    business: "Business owner? Register your business",
-    joinTeam: "I work at a business",
-    checkEmail: "Check your email to confirm your account.",
-    signedIn: "Signed in",
-    welcome: "Welcome to Dallty",
-    resetSent: "Password reset link sent — check your inbox.",
-    enterEmail: "Enter your email first, then tap Forgot password.",
-  },
-  ar: {
-    signInTitle: "أهلاً بعودتك",
-    signUpTitle: "أنشئ حسابك",
-    signInSub: "سجّل الدخول لإدارة حجوزاتك.",
-    signUpSub: "اختر كيف تريد استخدام دلّتي. يمكنك الحجز خلال ثوانٍ بعد ذلك.",
-    fullName: "الاسم الكامل",
-    phone: "رقم الهاتف",
-    phoneInvalid: "أدخل رقم هاتف صحيح ليتمكن الصالون من التواصل معك.",
-    email: "البريد الإلكتروني",
-    password: "كلمة المرور",
-    remember: "تذكرني",
-    forgot: "نسيت كلمة المرور؟",
-    signIn: "تسجيل الدخول",
-    signUp: "إنشاء حساب",
-    or: "أو",
-    google: "المتابعة عبر Google",
-    apple: "المتابعة عبر Apple",
-    appleSoon: "قريباً",
-    newHere: "جديد على دلّتي؟",
-    haveAccount: "لديك حساب بالفعل؟",
-    switchSignUp: "أنشئ حساباً",
-    switchSignIn: "تسجيل الدخول",
-    business: "صاحب صالون؟ سجّل نشاطك التجاري",
-    joinTeam: "أعمل في نشاط تجاري",
-    checkEmail: "تحقق من بريدك لتأكيد الحساب.",
-    signedIn: "تم تسجيل الدخول",
-    welcome: "أهلاً بك في دلّتي",
-    resetSent: "تم إرسال رابط إعادة التعيين إلى بريدك.",
-    enterEmail: "أدخل بريدك أولاً ثم اضغط نسيت كلمة المرور.",
-  },
-};
 
 function safeNext(next?: string) {
   if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
@@ -152,8 +90,7 @@ function AuthPage() {
   const checkOtpRequired = useServerFn(checkLoginOtpRequired);
   const sendLoginOtp = useServerFn(requestOtp);
   const { lang: locale } = useLocale();
-  // TODO(i18n Task 7): migrates to useTranslation("auth"); falls back to English for "fr" until then.
-  const t = copy[locale === "fr" ? "en" : locale];
+  const { t } = useTranslation("auth");
   const [method, setMethod] = useState<Method>("password");
   const [mode, setMode] = useState<"signin" | "signup">(modeParam ?? "signin");
   const [role, setRole] = useState<(typeof roleOptions)[number]["value"]>("client");
@@ -173,7 +110,7 @@ function AuthPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const destination = safeNext(next);
-  const dir = locale === "ar" ? "rtl" : "ltr";
+  const dir = dirFor(locale);
 
   /** Honour ?next=, otherwise send each role to its own home. */
   async function goHome() {
@@ -197,8 +134,8 @@ function AuthPage() {
       .calling_code;
     const contactE164 = toE164(contactDial, contactPhone.national);
     if (mode === "signup" && !isValidNational(contactDial, contactPhone.national)) {
-      toast.error(t.phoneInvalid);
-      setFieldErrors({ phone: t.phoneInvalid });
+      toast.error(t("phone_invalid"));
+      setFieldErrors({ phone: t("phone_invalid") });
       return;
     }
     setBusy(true);
@@ -254,10 +191,10 @@ function AuthPage() {
           data.session,
         );
         if (!session) {
-          toast.success(t.checkEmail);
+          toast.success(t("check_email"));
           return;
         }
-        toast.success(t.welcome);
+        toast.success(t("welcome"));
         await goHome();
       } else {
         const { data: throttle } = await supabase.rpc("check_login_throttle", {
@@ -298,7 +235,7 @@ function AuthPage() {
           return;
         }
 
-        toast.success(t.signedIn);
+        toast.success(t("signed_in"));
         await goHome();
       }
     } catch (err) {
@@ -369,7 +306,7 @@ function AuthPage() {
         type: "sms",
       });
       if (error) throw error;
-      toast.success(t.signedIn);
+      toast.success(t("signed_in"));
       await goHome();
     } catch (err) {
       fail(err);
@@ -381,7 +318,7 @@ function AuthPage() {
   async function handleForgotPassword() {
     const parsed = emailOnly.safeParse(email);
     if (!parsed.success) {
-      toast.error(t.enterEmail);
+      toast.error(t("enter_email"));
       return;
     }
     setBusy(true);
@@ -390,7 +327,7 @@ function AuthPage() {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
-      toast.success(t.resetSent);
+      toast.success(t("reset_sent"));
     } catch (err) {
       fail(err);
     } finally {
@@ -443,10 +380,10 @@ function AuthPage() {
         </div>
 
         <h1 className="text-3xl font-extrabold">
-          {mode === "signin" ? t.signInTitle : t.signUpTitle}
+          {mode === "signin" ? t("sign_in_title") : t("sign_up_title")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {mode === "signin" ? t.signInSub : t.signUpSub}
+          {mode === "signin" ? t("sign_in_sub") : t("sign_up_sub")}
         </p>
 
         {SHOW_ALT_METHODS && (
@@ -469,7 +406,7 @@ function AuthPage() {
 
         {mode === "signup" && (
           <fieldset className="mt-6">
-            <legend className="mb-2 text-sm font-semibold">I am a…</legend>
+            <legend className="mb-2 text-sm font-semibold">{t("role_legend")}</legend>
             <div className="grid gap-2">
               {roleOptions.map((option) => (
                 <button
@@ -483,7 +420,7 @@ function AuthPage() {
                       : "glass-soft text-foreground"
                   }`}
                 >
-                  <span>{option.label}</span>
+                  <span>{t("role_client")}</span>
                   <span
                     className={
                       role === option.value
@@ -491,7 +428,7 @@ function AuthPage() {
                         : "text-xs font-medium text-muted-foreground"
                     }
                   >
-                    {option.hint}
+                    {t("role_client_hint")}
                   </span>
                 </button>
               ))}
@@ -499,9 +436,9 @@ function AuthPage() {
                 to="/business/signup"
                 className="flex min-h-12 items-center justify-between rounded-2xl glass-soft px-4 py-3 text-sm font-semibold"
               >
-                <span>Business owner</span>
+                <span>{t("role_business")}</span>
                 <span className="text-xs font-medium text-muted-foreground">
-                  Register your business
+                  {t("role_business_hint")}
                 </span>
               </Link>
             </div>
@@ -513,7 +450,7 @@ function AuthPage() {
             {mode === "signup" && (
               <div>
                 <label htmlFor="fullName" className="mb-1.5 block text-sm font-semibold">
-                  {t.fullName}
+                  {t("full_name")}
                 </label>
                 <input
                   id="fullName"
@@ -529,7 +466,7 @@ function AuthPage() {
                 id="signup-phone"
                 value={contactPhone}
                 onChange={setContactPhone}
-                label={t.phone}
+                label={t("phone")}
                 required
                 dir={dir}
               />
@@ -540,7 +477,7 @@ function AuthPage() {
 
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-semibold">
-                {t.email}
+                {t("email")}
               </label>
               <input
                 id="email"
@@ -558,7 +495,7 @@ function AuthPage() {
             </div>
             <div>
               <label htmlFor="password" className="mb-1.5 block text-sm font-semibold">
-                {t.password}
+                {t("password")}
               </label>
               <input
                 id="password"
@@ -583,7 +520,7 @@ function AuthPage() {
                   onChange={(e) => setRemember(e.target.checked)}
                   className="size-4 accent-primary"
                 />
-                {t.remember}
+                {t("remember")}
               </label>
               {mode === "signin" && (
                 <button
@@ -591,7 +528,7 @@ function AuthPage() {
                   onClick={handleForgotPassword}
                   className="text-sm font-semibold underline underline-offset-4"
                 >
-                  {t.forgot}
+                  {t("forgot")}
                 </button>
               )}
             </div>
@@ -602,7 +539,7 @@ function AuthPage() {
               className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
             >
               {busy && <Loader2 className="size-4 animate-spin" />}
-              {mode === "signin" ? t.signIn : t.signUp}
+              {mode === "signin" ? t("sign_in") : t("sign_up")}
             </button>
           </form>
         )}
@@ -611,7 +548,7 @@ function AuthPage() {
           <form onSubmit={handleMagicLink} className="mt-6 space-y-3">
             <div>
               <label htmlFor="magic-email" className="mb-1.5 block text-sm font-semibold">
-                {t.email}
+                {t("email")}
               </label>
               <input
                 id="magic-email"
@@ -643,7 +580,7 @@ function AuthPage() {
           <form onSubmit={otpSent ? handleVerifyOtp : handleSendOtp} className="mt-6 space-y-3">
             <div>
               <label htmlFor="phone" className="mb-1.5 block text-sm font-semibold">
-                {t.phone}
+                {t("phone")}
               </label>
               <input
                 id="phone"
@@ -701,7 +638,7 @@ function AuthPage() {
           <>
             <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />
-              {t.or}
+              {t("or")}
               <span className="h-px flex-1 bg-border" />
             </div>
 
@@ -713,30 +650,30 @@ function AuthPage() {
                 className="press flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl glass-soft text-base font-semibold disabled:opacity-60"
               >
                 <img src="https://www.google.com/favicon.ico" alt="" width={18} height={18} />
-                {t.google}
+                {t("google")}
               </button>
               <button
                 type="button"
                 disabled
-                title={t.appleSoon}
+                title={t("apple_soon")}
                 className="flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-3 rounded-2xl glass-soft text-base font-semibold opacity-50"
               >
                 <Apple className="size-4" />
-                {t.apple}
-                <span className="text-xs font-bold uppercase tracking-wide">{t.appleSoon}</span>
+                {t("apple")}
+                <span className="text-xs font-bold uppercase tracking-wide">{t("apple_soon")}</span>
               </button>
             </div>
           </>
         )}
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          {mode === "signin" ? t.newHere : t.haveAccount}{" "}
+          {mode === "signin" ? t("new_here") : t("have_account")}{" "}
           <button
             type="button"
             onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
             className="font-semibold text-foreground underline underline-offset-4"
           >
-            {mode === "signin" ? t.switchSignUp : t.switchSignIn}
+            {mode === "signin" ? t("switch_sign_up") : t("switch_sign_in")}
           </button>
         </p>
 
@@ -745,7 +682,7 @@ function AuthPage() {
           className="press mt-4 flex min-h-11 items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold"
         >
           <Store className="size-4" />
-          {t.business}
+          {t("business")}
         </Link>
 
         <Link
@@ -753,7 +690,7 @@ function AuthPage() {
           className="press mt-2 flex min-h-11 items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold"
         >
           <Scissors className="size-4" />
-          {t.joinTeam}
+          {t("join_team")}
         </Link>
       </main>
     </div>

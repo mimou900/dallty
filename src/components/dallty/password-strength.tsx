@@ -7,6 +7,8 @@ import {
   passwordStrength,
   type PasswordPolicyId,
 } from "@/lib/password-policy";
+import { useTranslation } from "@/lib/i18n/hooks";
+import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 
 export function isPasswordStrong(value: string, policy: PasswordPolicyId = "privileged") {
   return isPasswordValid(value, policy);
@@ -15,18 +17,20 @@ export function isPasswordStrong(value: string, policy: PasswordPolicyId = "priv
 /**
  * Live password checklist + strength bar. The rules shown depend on the
  * account policy: simple for customers, full complexity for business roles.
+ * Sources its own translation from the active app language — previously
+ * took a `lang` prop that its two real callers never passed, so it always
+ * rendered English regardless of the active language.
  */
 export function PasswordStrength({
   value,
   policy = "privileged",
-  lang = "en",
   className = "",
 }: {
   value: string;
   policy?: PasswordPolicyId;
-  lang?: "en" | "ar";
   className?: string;
 }) {
+  const { t } = useTranslation("auth");
   const checks = useMemo(() => checkPassword(value, policy), [value, policy]);
   const total = checks.length;
   const score = checks.filter((c) => c.ok).length;
@@ -34,14 +38,15 @@ export function PasswordStrength({
   if (!value) return null;
 
   const level = passwordStrength(value, policy);
-  const levelLabel =
-    lang === "ar"
-      ? { weak: "ضعيفة", good: "جيدة", strong: "قوية" }[level]
-      : { weak: "Weak", good: "Good", strong: "Strong" }[level];
+  const levelLabel = t(`password_strength.${level}` as NamespaceKeyMap["auth"]);
   const barColor =
     level === "weak" ? "bg-destructive" : level === "good" ? "bg-amber-500" : "bg-emerald-500";
   const textColor =
-    level === "weak" ? "text-destructive" : level === "good" ? "text-amber-500" : "text-emerald-500";
+    level === "weak"
+      ? "text-destructive"
+      : level === "good"
+        ? "text-amber-500"
+        : "text-emerald-500";
   const width = level === "strong" ? 100 : Math.max(12, (score / total) * 100);
 
   return (
@@ -68,7 +73,7 @@ export function PasswordStrength({
             ) : (
               <X className="size-3.5 shrink-0 opacity-60" />
             )}
-            {lang === "ar" ? c.rule.labelAr : c.rule.label}
+            {t(`password_rule.${c.rule.id}` as NamespaceKeyMap["auth"])}
           </li>
         ))}
       </ul>
