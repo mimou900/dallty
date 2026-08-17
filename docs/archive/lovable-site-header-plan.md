@@ -1,3 +1,11 @@
+> **HISTORICAL — NOT PART OF CURRENT DALLTY ARCHITECTURE**
+>
+> This is an implementation plan authored inside Lovable's editor while this project was
+> built there, moved here verbatim from the repo-root `.lovable/plan.md` during the Lovable
+> vendor-independence project (2026-08-18). It documents a real, already-shipped feature
+> (the shared site header / bottom nav / footer restructuring) — kept for historical record
+> only. It is not read by any code and does not describe current or future work.
+
 ## Goal
 
 One consistent navigation across the public site, on mobile and desktop, that puts customer actions first and tucks business/pro links into a secondary "For business" menu.
