@@ -1,0 +1,86 @@
+{
+  "booking_created": {
+    "subject": "Votre réservation chez {{business}} est reçue",
+    "heading": "Réservation reçue",
+    "body": "{{service}} chez {{business}} le {{date}} à {{time}} a été reçue.",
+    "cta": "Voir la réservation"
+  },
+  "booking_confirmed": {
+    "subject": "Votre réservation chez {{business}} est confirmée",
+    "heading": "Vous êtes réservé(e)",
+    "body": "{{service}} chez {{business}} le {{date}} à {{time}} est confirmée.",
+    "cta": "Voir la réservation"
+  },
+  "booking_pending_confirmation": {
+    "subject": "Votre réservation chez {{business}} est en attente",
+    "heading": "En attente de confirmation",
+    "body": "{{service}} chez {{business}} le {{date}} à {{time}} est en attente de confirmation.",
+    "cta": "Voir la réservation"
+  },
+  "booking_cancelled": {
+    "subject": "Votre réservation chez {{business}} a été annulée",
+    "heading": "Réservation annulée",
+    "body": "{{service}} chez {{business}} le {{date}} à {{time}} a été annulée.",
+    "cta": "Réserver à nouveau"
+  },
+  "booking_rescheduled": {
+    "subject": "Votre réservation chez {{business}} a été déplacée",
+    "heading": "Réservation déplacée",
+    "body": "{{service}} chez {{business}} a été déplacée au {{date}} à {{time}}.",
+    "cta": "Voir la réservation"
+  },
+  "booking_completed": {
+    "subject": "Merci de votre visite chez {{business}}",
+    "heading": "À bientôt",
+    "body": "Nous espérons que vous avez apprécié {{service}} chez {{business}}.",
+    "cta": "Réserver à nouveau"
+  },
+  "booking_no_show": {
+    "subject": "Vous avez manqué votre réservation chez {{business}}",
+    "heading": "Vous nous avez manqué",
+    "body": "{{service}} chez {{business}} le {{date}} à {{time}} a été marquée comme absence.",
+    "cta": "Réserver à nouveau"
+  },
+  "booking_reminder": {
+    "subject": "Rappel : {{service}} chez {{business}}",
+    "heading": "Rendez-vous à venir",
+    "body": "{{service}} chez {{business}} le {{date}} à {{time}}.",
+    "cta": "Voir la réservation"
+  },
+  "waitlist_slot_open": {
+    "subject": "Un créneau s'est libéré chez {{business}}",
+    "heading": "Un créneau s'est libéré",
+    "body": "Un créneau s'est libéré le {{date}} à {{time}} — réservez-le avant quelqu'un d'autre.",
+    "cta": "Réserver maintenant"
+  },
+  "waitlist_auto_booked": {
+    "subject": "Vous êtes réservé(e) chez {{business}}",
+    "heading": "Vous êtes réservé(e) !",
+    "body": "Un créneau s'est libéré le {{date}} à {{time}} et a été réservé automatiquement pour vous.",
+    "cta": "Voir la réservation"
+  },
+  "waitlist_pending_confirmation": {
+    "subject": "Créneau réservé pour vous chez {{business}}",
+    "heading": "Créneau réservé pour vous",
+    "body": "Un créneau s'est libéré le {{date}} à {{time}} — confirmez dans l'application pour le garder.",
+    "cta": "Confirmer la réservation"
+  },
+  "payment_received": {
+    "subject": "Paiement reçu — {{business}}",
+    "heading": "Paiement reçu",
+    "body": "Nous avons enregistré votre paiement de {{amount}} {{currency}} pour {{service}} chez {{business}}.",
+    "cta": "Voir le reçu"
+  },
+  "refund_completed": {
+    "subject": "Remboursement effectué — {{business}}",
+    "heading": "Remboursement effectué",
+    "body": "Un remboursement de {{amount}} {{currency}} pour votre réservation chez {{business}} a été effectué.",
+    "cta": "Voir la réservation"
+  },
+  "extra_service_added": {
+    "subject": "Le total de votre réservation a changé — {{business}}",
+    "heading": "Réservation mise à jour",
+    "body": "{{service}} a été ajouté à votre réservation chez {{business}}. Nouveau total : {{amount}} {{currency}}.",
+    "cta": "Voir la réservation"
+  }
+}

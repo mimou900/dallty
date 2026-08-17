@@ -10,7 +10,7 @@ export const listPlatformUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
@@ -46,7 +46,7 @@ export const setUserSuspended = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     if (data.userId === context.userId) throw new Error("You cannot suspend your own account");
     const supabaseAdmin = await adminClient();
 
@@ -70,7 +70,7 @@ export const verifyPlatformUser = createServerFn({ method: "POST" })
   .inputValidator((input: { userId: string }) => userIdInput.parse(input))
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
@@ -87,7 +87,7 @@ export const deletePlatformUser = createServerFn({ method: "POST" })
   .inputValidator((input: { userId: string }) => userIdInput.parse(input))
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     if (data.userId === context.userId) throw new Error("You cannot delete your own account");
     const supabaseAdmin = await adminClient();
 
@@ -108,7 +108,7 @@ export const listPlatformBusinesses = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { data, error } = await supabaseAdmin
@@ -140,7 +140,7 @@ export const setBusinessStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { data: business, error } = await supabaseAdmin
@@ -206,7 +206,7 @@ export const platformOverview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const [salons, services, staff, bookings, reviews, users] = await Promise.all([
@@ -277,7 +277,7 @@ export const getAuthSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { data, error } = await supabaseAdmin
@@ -304,7 +304,7 @@ export const updateAuthSettings = createServerFn({ method: "POST" })
   .inputValidator((input: z.infer<typeof authSettingsInput>) => authSettingsInput.parse(input))
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { error } = await supabaseAdmin
@@ -326,7 +326,7 @@ export const getAuthRolePolicies = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { data, error } = await supabaseAdmin
@@ -348,7 +348,7 @@ export const updateAuthRolePolicy = createServerFn({ method: "POST" })
   .inputValidator((input: z.infer<typeof authRolePolicyInput>) => authRolePolicyInput.parse(input))
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { data: existing, error: readError } = await supabaseAdmin
@@ -391,5 +391,5 @@ export const platformDirectory = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { fetchDirectory } = await import("@/lib/platform-directory.server");
-    return fetchDirectory(context.supabase, context.userId, data);
+    return fetchDirectory(context, data);
   });

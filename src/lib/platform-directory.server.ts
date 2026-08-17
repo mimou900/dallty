@@ -30,11 +30,10 @@ type Params = {
  * Kept server-side so the console stays fast with hundreds of shops.
  */
 export async function fetchDirectory(
-  supabase: Parameters<typeof assertSuperAdmin>[0],
-  userId: string,
+  context: Parameters<typeof assertSuperAdmin>[0],
   params: Params,
 ): Promise<DirectoryResult> {
-  await assertSuperAdmin(supabase, userId);
+  await assertSuperAdmin(context);
   const db = await adminClient();
 
   const { entity, q, status, page, pageSize } = params;

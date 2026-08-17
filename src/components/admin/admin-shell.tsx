@@ -16,6 +16,7 @@ import {
   LifeBuoy,
   Link2,
   LogOut,
+  Mail,
   Menu,
   Moon,
   Plus,
@@ -219,6 +220,12 @@ export const PLATFORM_NAV: NavItem[] = [
     namespace: "platform",
     labelKey: "nav_reserved_slugs",
     icon: Link2,
+  },
+  {
+    to: "/admin/platform/email-domains",
+    namespace: "platform",
+    labelKey: "nav_email_domains",
+    icon: Mail,
   },
   {
     to: "/admin/platform/countries",

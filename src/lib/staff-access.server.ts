@@ -63,13 +63,16 @@ export async function passwordLink(admin: any, email: string, origin: string) {
   return link;
 }
 
-/** Throws unless the caller owns the business (or is a platform admin). */
-export async function assertManagesSalon(supabase: AnySupabase, userId: string, businessId: string) {
-  const [{ data: owns }, { data: isAdmin }] = await Promise.all([
-    // owns_business's parameter is still named _salon_id (see the
-    // business-rename plan's Task 3 correction note).
-    supabase.rpc("owns_business", { _user_id: userId, _salon_id: businessId }),
-    supabase.rpc("is_platform_admin", { _user_id: userId }),
-  ]);
-  if (!owns && !isAdmin) throw new Error("Forbidden: you do not manage this business");
+/**
+ * Throws unless the caller owns the business (or is a platform admin) and has completed
+ * OTP step-up where required. Delegates to assertCanManageBusiness (business-crm.server.ts)
+ * instead of duplicating the same ownership + step-up check a second time — flagged as
+ * duplication in the Project 00 audit, consolidated here in Project 02.
+ */
+export async function assertManagesSalon(
+  context: { supabase: AnySupabase; userId: string; claims: { session_id?: string } },
+  businessId: string,
+) {
+  const { assertCanManageBusiness } = await import("@/lib/business-crm.server");
+  await assertCanManageBusiness(context, businessId);
 }

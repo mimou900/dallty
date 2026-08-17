@@ -978,7 +978,7 @@ function BookingFlow() {
                           )}
                         </span>
                         <span className="shrink-0 text-lg font-extrabold">
-                          {formatMoney(s.discount_price ?? s.price, currency)}
+                          {formatMoney(s.discount_price ?? s.price, currency, lang)}
                         </span>
                       </button>
                     );
@@ -1238,11 +1238,12 @@ function BookingFlow() {
                                 : "bg-muted text-muted-foreground line-through"
                           }`}
                         >
-                          {formatInTimezone(s.slot, businessTz, {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })}
+                          {formatInTimezone(
+                            s.slot,
+                            businessTz,
+                            { hour: "2-digit", minute: "2-digit", hour12: false },
+                            lang,
+                          )}
                         </button>
                       );
                     })}
@@ -1346,14 +1347,19 @@ function BookingFlow() {
                         label="When"
                         value={
                           slot
-                            ? formatInTimezone(slot, businessTz, {
-                                weekday: "long",
-                                day: "numeric",
-                                month: "short",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: false,
-                              })
+                            ? formatInTimezone(
+                                slot,
+                                businessTz,
+                                {
+                                  weekday: "long",
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: false,
+                                },
+                                lang,
+                              )
                             : ""
                         }
                         icon={<CalendarDays className="size-4" />}
@@ -1363,11 +1369,11 @@ function BookingFlow() {
                           <>
                             <div className="flex items-center justify-between text-sm font-semibold text-muted-foreground">
                               <span>Original price</span>
-                              <span>{formatMoney(basePrice, currency)}</span>
+                              <span>{formatMoney(basePrice, currency, lang)}</span>
                             </div>
                             <div className="flex items-center justify-between text-sm font-bold text-primary">
                               <span>Discount ({promo.code})</span>
-                              <span>-{formatMoney(promo.discount, currency)}</span>
+                              <span>-{formatMoney(promo.discount, currency, lang)}</span>
                             </div>
                           </>
                         )}
@@ -1376,7 +1382,7 @@ function BookingFlow() {
                             {promo ? "Final price" : "Total"}
                           </span>
                           <span className="text-2xl font-extrabold">
-                            {formatMoney(promo ? promo.final : basePrice, currency)}
+                            {formatMoney(promo ? promo.final : basePrice, currency, lang)}
                           </span>
                         </div>
                       </div>
@@ -1414,7 +1420,8 @@ function BookingFlow() {
                       )}
                       {promo && (
                         <p className="mt-2 text-xs font-semibold text-primary">
-                          {promo.code} applied — you save {formatMoney(promo.discount, currency)}.
+                          {promo.code} applied — you save{" "}
+                          {formatMoney(promo.discount, currency, lang)}.
                         </p>
                       )}
                     </div>

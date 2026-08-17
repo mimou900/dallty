@@ -16,7 +16,7 @@ export const NAMESPACES = {
   payments: { status: "active" },
   platform: { status: "active" },
 
-  emails: { status: "reserved", plannedFor: "Notifications & Email System" },
+  emails: { status: "active" },
   metadata: { status: "reserved", plannedFor: "International SEO" },
 } as const satisfies Record<string, { status: "active" | "reserved"; plannedFor?: string }>;
 

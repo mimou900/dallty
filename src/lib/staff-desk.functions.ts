@@ -21,7 +21,11 @@ export const listMyAppointments = createServerFn({ method: "POST" })
       .limit(1000);
     if (error) throw new Error(error.message);
 
-    const customerIds = [...new Set((bookings ?? []).map((b) => b.customer_id))];
+    const customerIds = [
+      ...new Set(
+        (bookings ?? []).map((b) => b.customer_id).filter((id): id is string => id !== null),
+      ),
+    ];
 
     const [{ data: services }, profilesResult, { data: myServices }] = await Promise.all([
       supabaseAdmin
@@ -46,7 +50,7 @@ export const listMyAppointments = createServerFn({ method: "POST" })
       businessId,
       appointments: (bookings ?? []).map((b) => {
         const s = serviceById.get(b.service_id);
-        const p = profileById.get(b.customer_id);
+        const p = b.customer_id ? profileById.get(b.customer_id) : undefined;
         return {
           id: b.id,
           customerId: b.customer_id,

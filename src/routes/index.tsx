@@ -117,7 +117,10 @@ function Index() {
         )
         .eq("is_active", true)
         .eq("is_listed", true)
-        .order("rating", { ascending: false });
+        .order("rating", { ascending: false })
+        // See the matching note in src/hooks/use-live-businesses.ts — bounded per the
+        // Project 03 security audit, a stopgap until a real paginated search endpoint exists.
+        .limit(500);
       if (error) throw error;
       return (data ?? []).map((s) => ({
         id: s.id,

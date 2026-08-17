@@ -9,7 +9,7 @@ export const listStaffAccess = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { assertManagesSalon } = await import("@/lib/staff-access.server");
-    await assertManagesSalon(context.supabase, context.userId, data.businessId);
+    await assertManagesSalon(context, data.businessId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: staff }, { data: requests }] = await Promise.all([
@@ -77,7 +77,7 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
       .eq("id", data.staffId)
       .single();
     if (error) throw new Error(error.message);
-    await assertManagesSalon(context.supabase, context.userId, member.business_id);
+    await assertManagesSalon(context, member.business_id);
 
     const { data: business } = await supabaseAdmin
       .from("businesses")
@@ -130,7 +130,7 @@ export const sendStaffPasswordLink = createServerFn({ method: "POST" })
       .eq("id", data.staffId)
       .single();
     if (error) throw new Error(error.message);
-    await assertManagesSalon(context.supabase, context.userId, member.business_id);
+    await assertManagesSalon(context, member.business_id);
     if (!member.email) throw new Error("Add a login email for this team member first");
 
     const { data: business } = await supabaseAdmin
@@ -168,7 +168,7 @@ export const reviewStaffRequest = createServerFn({ method: "POST" })
       .eq("id", data.requestId)
       .single();
     if (error) throw new Error(error.message);
-    await assertManagesSalon(context.supabase, context.userId, request.business_id);
+    await assertManagesSalon(context, request.business_id);
     if (request.status !== "pending") throw new Error("That request was already reviewed");
 
     const { data: business } = await supabaseAdmin

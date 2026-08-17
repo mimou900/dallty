@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { validateSlugFormat, isReservedSlug } from "@/lib/slug-service";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 const RESERVED_ERROR = "That URL is reserved and can't be used.";
 
@@ -23,9 +24,9 @@ export const updateBusinessSlug = createServerFn({ method: "POST" })
 
     const isSuperAdminCaller = data.redirectType === "admin_correction";
     if (isSuperAdminCaller) {
-      await assertSuperAdmin(context.supabase, context.userId);
+      await assertSuperAdmin(context);
     } else {
-      await assertCanManageBusiness(context.supabase, context.userId, data.businessId);
+      await assertCanManageBusiness(context, data.businessId);
     }
 
     const format = validateSlugFormat(data.newSlug);
@@ -37,7 +38,7 @@ export const updateBusinessSlug = createServerFn({ method: "POST" })
       .select("id, slug")
       .eq("id", data.businessId)
       .single();
-    if (businessError) throw new Error(businessError.message);
+    if (businessError) throw new Error(sanitizeDbError(businessError));
 
     if (business.slug.toLowerCase() === data.newSlug) {
       throw new Error("That's already your current URL.");
@@ -93,13 +94,13 @@ export const updateBusinessSlug = createServerFn({ method: "POST" })
       redirect_type: data.redirectType,
       created_by: context.userId,
     });
-    if (redirectError) throw new Error(redirectError.message);
+    if (redirectError) throw new Error(sanitizeDbError(redirectError));
 
     const { error: updateError } = await supabaseAdmin
       .from("businesses")
       .update({ slug: data.newSlug, slug_source: "custom" })
       .eq("id", data.businessId);
-    if (updateError) throw new Error(updateError.message);
+    if (updateError) throw new Error(sanitizeDbError(updateError));
 
     if (isSuperAdminCaller) {
       await logAdminAction(

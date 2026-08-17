@@ -56,7 +56,7 @@ const STATUSES: BookingStatus[] = ["pending", "confirmed", "completed", "cancell
 type AppointmentRow = {
   id: string;
   business_id: string;
-  customer_id: string;
+  customer_id: string | null;
   service_id: string;
   staff_id: string;
   starts_at: string;
@@ -105,7 +105,13 @@ function AppointmentsPage() {
   }, []);
   const bookingsQuery = useManagedBookings(businessIds, from, to);
 
-  const customerIds = [...new Set((bookingsQuery.data ?? []).map((b) => b.customer_id))];
+  const customerIds = [
+    ...new Set(
+      (bookingsQuery.data ?? [])
+        .map((b) => b.customer_id)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
   const customersQuery = useQuery({
     queryKey: ["admin-appointment-customers", customerIds],
     enabled: customerIds.length > 0,
@@ -197,6 +203,10 @@ function AppointmentsPage() {
   }
 
   async function sendReminder(row: (typeof rows)[number]) {
+    if (!row.customer_id) {
+      toast.error("Guest bookings have no account to notify");
+      return;
+    }
     const { error } = await supabase.from("notifications").insert({
       user_id: row.customer_id,
       kind: "booking_reminder",

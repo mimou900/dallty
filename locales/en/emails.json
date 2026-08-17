@@ -1,0 +1,86 @@
+{
+  "booking_created": {
+    "subject": "Your booking at {{business}} is received",
+    "heading": "Booking received",
+    "body": "{{service}} at {{business}} on {{date}} at {{time}} has been received.",
+    "cta": "View booking"
+  },
+  "booking_confirmed": {
+    "subject": "Your booking at {{business}} is confirmed",
+    "heading": "You're booked",
+    "body": "{{service}} at {{business}} on {{date}} at {{time}} is confirmed.",
+    "cta": "View booking"
+  },
+  "booking_pending_confirmation": {
+    "subject": "Your booking at {{business}} is awaiting confirmation",
+    "heading": "Awaiting confirmation",
+    "body": "{{service}} at {{business}} on {{date}} at {{time}} is pending confirmation from the business.",
+    "cta": "View booking"
+  },
+  "booking_cancelled": {
+    "subject": "Your booking at {{business}} was cancelled",
+    "heading": "Booking cancelled",
+    "body": "{{service}} at {{business}} on {{date}} at {{time}} was cancelled.",
+    "cta": "Book again"
+  },
+  "booking_rescheduled": {
+    "subject": "Your booking at {{business}} was rescheduled",
+    "heading": "Booking rescheduled",
+    "body": "{{service}} at {{business}} was moved to {{date}} at {{time}}.",
+    "cta": "View booking"
+  },
+  "booking_completed": {
+    "subject": "Thanks for visiting {{business}}",
+    "heading": "See you again soon",
+    "body": "We hope you enjoyed {{service}} at {{business}}.",
+    "cta": "Book again"
+  },
+  "booking_no_show": {
+    "subject": "You missed your booking at {{business}}",
+    "heading": "We missed you",
+    "body": "{{service}} at {{business}} on {{date}} at {{time}} was marked as a no-show.",
+    "cta": "Book again"
+  },
+  "booking_reminder": {
+    "subject": "Reminder: {{service}} at {{business}}",
+    "heading": "Upcoming appointment",
+    "body": "{{service}} at {{business}} on {{date}} at {{time}}.",
+    "cta": "View booking"
+  },
+  "waitlist_slot_open": {
+    "subject": "A slot opened at {{business}}",
+    "heading": "A slot just opened",
+    "body": "A slot opened on {{date}} at {{time}} — book it before someone else does.",
+    "cta": "Book now"
+  },
+  "waitlist_auto_booked": {
+    "subject": "You're booked at {{business}}",
+    "heading": "You're booked!",
+    "body": "A slot opened on {{date}} at {{time}} and was booked for you automatically.",
+    "cta": "View booking"
+  },
+  "waitlist_pending_confirmation": {
+    "subject": "Slot held for you at {{business}}",
+    "heading": "Slot held for you",
+    "body": "A slot opened on {{date}} at {{time}} — confirm within the app to keep it.",
+    "cta": "Confirm booking"
+  },
+  "payment_received": {
+    "subject": "Payment received — {{business}}",
+    "heading": "Payment received",
+    "body": "We recorded your payment of {{amount}} {{currency}} for {{service}} at {{business}}.",
+    "cta": "View receipt"
+  },
+  "refund_completed": {
+    "subject": "Refund completed — {{business}}",
+    "heading": "Refund completed",
+    "body": "A refund of {{amount}} {{currency}} for your booking at {{business}} has been completed.",
+    "cta": "View booking"
+  },
+  "extra_service_added": {
+    "subject": "Your booking total changed — {{business}}",
+    "heading": "Booking updated",
+    "body": "{{service}} was added to your booking at {{business}}. New total: {{amount}} {{currency}}.",
+    "cta": "View booking"
+  }
+}

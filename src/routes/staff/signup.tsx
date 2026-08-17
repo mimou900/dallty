@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { ensureSessionAfterSignUp } from "@/lib/auth-session";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { checkSignupPassword } from "@/lib/account.functions";
+import { checkEmailDomainAllowed } from "@/lib/email-trust.functions";
 
 export const Route = createFileRoute("/staff/signup")({
   ssr: false,
@@ -79,6 +80,11 @@ function AccountPanel() {
     if (!check.valid) {
       setBusy(false);
       return toast.error(check.errors[0] ?? "Password does not meet requirements");
+    }
+    const emailCheck = await checkEmailDomainAllowed({ data: { email: email.trim() } });
+    if (!emailCheck.allowed) {
+      setBusy(false);
+      return toast.error("Please use a valid email address that you can keep access to.");
     }
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),

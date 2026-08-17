@@ -1,0 +1,86 @@
+{
+  "booking_created": {
+    "subject": "تم استلام حجزك في {{business}}",
+    "heading": "تم استلام الحجز",
+    "body": "تم استلام {{service}} في {{business}} بتاريخ {{date}} الساعة {{time}}.",
+    "cta": "عرض الحجز"
+  },
+  "booking_confirmed": {
+    "subject": "تم تأكيد حجزك في {{business}}",
+    "heading": "تم تأكيد حجزك",
+    "body": "تم تأكيد {{service}} في {{business}} بتاريخ {{date}} الساعة {{time}}.",
+    "cta": "عرض الحجز"
+  },
+  "booking_pending_confirmation": {
+    "subject": "حجزك في {{business}} بانتظار التأكيد",
+    "heading": "بانتظار التأكيد",
+    "body": "{{service}} في {{business}} بتاريخ {{date}} الساعة {{time}} بانتظار تأكيد المتجر.",
+    "cta": "عرض الحجز"
+  },
+  "booking_cancelled": {
+    "subject": "تم إلغاء حجزك في {{business}}",
+    "heading": "تم إلغاء الحجز",
+    "body": "تم إلغاء {{service}} في {{business}} بتاريخ {{date}} الساعة {{time}}.",
+    "cta": "احجز مرة أخرى"
+  },
+  "booking_rescheduled": {
+    "subject": "تم تغيير موعد حجزك في {{business}}",
+    "heading": "تم تغيير الموعد",
+    "body": "تم نقل {{service}} في {{business}} إلى {{date}} الساعة {{time}}.",
+    "cta": "عرض الحجز"
+  },
+  "booking_completed": {
+    "subject": "شكراً لزيارتك {{business}}",
+    "heading": "نراك قريباً",
+    "body": "نأمل أن تكون قد استمتعت بـ {{service}} في {{business}}.",
+    "cta": "احجز مرة أخرى"
+  },
+  "booking_no_show": {
+    "subject": "لم تحضر موعدك في {{business}}",
+    "heading": "لقد افتقدناك",
+    "body": "تم تسجيل {{service}} في {{business}} بتاريخ {{date}} الساعة {{time}} كغياب.",
+    "cta": "احجز مرة أخرى"
+  },
+  "booking_reminder": {
+    "subject": "تذكير: {{service}} في {{business}}",
+    "heading": "موعد قادم",
+    "body": "{{service}} في {{business}} بتاريخ {{date}} الساعة {{time}}.",
+    "cta": "عرض الحجز"
+  },
+  "waitlist_slot_open": {
+    "subject": "أصبح هناك موعد متاح في {{business}}",
+    "heading": "أصبح هناك موعد متاح",
+    "body": "أصبح هناك موعد متاح بتاريخ {{date}} الساعة {{time}} — احجزه قبل أن يسبقك أحد.",
+    "cta": "احجز الآن"
+  },
+  "waitlist_auto_booked": {
+    "subject": "تم حجز موعدك في {{business}}",
+    "heading": "تم حجز موعدك!",
+    "body": "أصبح هناك موعد متاح بتاريخ {{date}} الساعة {{time}} وتم حجزه لك تلقائياً.",
+    "cta": "عرض الحجز"
+  },
+  "waitlist_pending_confirmation": {
+    "subject": "تم حجز موعد لك في {{business}}",
+    "heading": "تم حجز موعد لك",
+    "body": "أصبح هناك موعد متاح بتاريخ {{date}} الساعة {{time}} — أكّد داخل التطبيق للاحتفاظ به.",
+    "cta": "تأكيد الحجز"
+  },
+  "payment_received": {
+    "subject": "تم استلام الدفعة — {{business}}",
+    "heading": "تم استلام الدفعة",
+    "body": "سجّلنا دفعتك بقيمة {{amount}} {{currency}} مقابل {{service}} في {{business}}.",
+    "cta": "عرض الإيصال"
+  },
+  "refund_completed": {
+    "subject": "تم الاسترجاع — {{business}}",
+    "heading": "تم الاسترجاع",
+    "body": "تم استرجاع مبلغ {{amount}} {{currency}} لحجزك في {{business}}.",
+    "cta": "عرض الحجز"
+  },
+  "extra_service_added": {
+    "subject": "تغيّر إجمالي حجزك — {{business}}",
+    "heading": "تم تحديث الحجز",
+    "body": "تمت إضافة {{service}} إلى حجزك في {{business}}. الإجمالي الجديد: {{amount}} {{currency}}.",
+    "cta": "عرض الحجز"
+  }
+}

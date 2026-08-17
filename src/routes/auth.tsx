@@ -8,6 +8,7 @@ import { Apple, Loader2, Scissors, Store } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { checkPhoneHasAccount, checkSignupPassword } from "@/lib/account.functions";
+import { checkEmailDomainAllowed } from "@/lib/email-trust.functions";
 import { checkLoginOtpRequired, requestOtp } from "@/lib/otp.functions";
 import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-field";
 import { guessCountryCode, isValidNational, toE164 } from "@/lib/phone";
@@ -147,6 +148,15 @@ function AuthPage() {
         });
         if (!check.valid) {
           toast.error(check.errors[0] ?? "Password does not meet requirements");
+          setBusy(false);
+          return;
+        }
+
+        const emailCheck = await checkEmailDomainAllowed({ data: { email: parsed.data.email } });
+        if (!emailCheck.allowed) {
+          const message = "Please use a valid email address that you can keep access to.";
+          setFieldErrors({ email: message });
+          toast.error(message);
           setBusy(false);
           return;
         }

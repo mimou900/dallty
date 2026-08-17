@@ -3,12 +3,34 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 type AnySupabase = SupabaseClient<Database>;
+type AuthedContext = { supabase: AnySupabase; userId: string; claims: { session_id?: string } };
 
-/** Throws unless the caller holds the platform-level super_admin role. */
-export async function assertSuperAdmin(supabase: AnySupabase, userId: string) {
-  const { data, error } = await supabase.rpc("is_super_admin", { _user_id: userId });
+/**
+ * Throws unless the caller holds the platform-level super_admin role AND (if their role
+ * requires it) has completed OTP step-up for this session. Super Admin is the highest-risk
+ * role in the platform, so this is where step-up enforcement matters most — see
+ * step-up.server.ts and the auth_step_up_sessions migration for why a client-side redirect
+ * alone wasn't sufficient.
+ */
+export async function assertSuperAdmin(context: AuthedContext) {
+  const { data, error } = await context.supabase.rpc("is_super_admin", {
+    _user_id: context.userId,
+  });
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Forbidden: Super Admin only");
+  if (!data) {
+    const { logSecurityEvent } = await import("@/lib/security-event.server");
+    await logSecurityEvent(await adminClient(), {
+      actorId: context.userId,
+      action: "security.permission_denied",
+      targetType: "super_admin_action",
+      riskLevel: "high",
+      outcome: "denied",
+    });
+    throw new Error("Forbidden: Super Admin only");
+  }
+
+  const { assertStepUpComplete } = await import("@/lib/step-up.server");
+  await assertStepUpComplete(await adminClient(), context.userId, context.claims.session_id);
 }
 
 export async function adminClient() {

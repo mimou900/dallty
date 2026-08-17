@@ -14,7 +14,7 @@ export const listBusinessCustomers = createServerFn({ method: "POST" })
   .inputValidator((input: { businessId: string }) => businessInput.parse(input))
   .handler(async ({ data, context }) => {
     const { assertCanManageBusiness } = await import("@/lib/business-crm.server");
-    await assertCanManageBusiness(context.supabase, context.userId, data.businessId);
+    await assertCanManageBusiness(context, data.businessId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -26,13 +26,19 @@ export const listBusinessCustomers = createServerFn({ method: "POST" })
       .limit(2000);
     if (error) throw new Error(error.message);
 
-    const customerIds = [...new Set((bookings ?? []).map((b) => b.customer_id))];
+    const customerIds = [
+      ...new Set(
+        (bookings ?? []).map((b) => b.customer_id).filter((id): id is string => id !== null),
+      ),
+    ];
     if (!customerIds.length) return [];
 
     const [{ data: profiles }, { data: services }] = await Promise.all([
       supabaseAdmin
         .from("profiles")
-        .select("id, full_name, phone, gender, birthday, skin_type, hair_type, allergies, beauty_notes")
+        .select(
+          "id, full_name, phone, gender, birthday, skin_type, hair_type, allergies, beauty_notes",
+        )
         .in("id", customerIds),
       supabaseAdmin.from("services").select("id, name").eq("business_id", data.businessId),
     ]);

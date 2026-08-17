@@ -4,6 +4,7 @@ import { template as businessStatusTemplate } from "./business-status";
 import { template as staffInviteTemplate } from "./staff-invite";
 import { template as securityOtpTemplate } from "./security-otp";
 import { template as accountChangeNoticeTemplate } from "./account-change-notice";
+import { template as notificationTemplate } from "./notification";
 
 export interface TemplateEntry {
   component: ComponentType<any>;
@@ -23,4 +24,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   "staff-invite": staffInviteTemplate,
   "security-otp": securityOtpTemplate,
   "account-change-notice": accountChangeNoticeTemplate,
+  notification: notificationTemplate,
 };

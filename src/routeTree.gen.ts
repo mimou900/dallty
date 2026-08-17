@@ -48,6 +48,7 @@ import { Route as AuthenticatedAdminPlatformBusinessesRouteImport } from './rout
 import { Route as AuthenticatedAdminPlatformCategoriesRouteImport } from './routes/_authenticated/admin/platform/categories'
 import { Route as AuthenticatedAdminPlatformCountriesRouteImport } from './routes/_authenticated/admin/platform/countries'
 import { Route as AuthenticatedAdminPlatformDirectoryRouteImport } from './routes/_authenticated/admin/platform/directory'
+import { Route as AuthenticatedAdminPlatformEmailDomainsRouteImport } from './routes/_authenticated/admin/platform/email-domains'
 import { Route as AuthenticatedAdminPlatformMarketplaceRouteImport } from './routes/_authenticated/admin/platform/marketplace'
 import { Route as AuthenticatedAdminPlatformOverviewRouteImport } from './routes/_authenticated/admin/platform/overview'
 import { Route as AuthenticatedAdminPlatformReservedSlugsRouteImport } from './routes/_authenticated/admin/platform/reserved-slugs'
@@ -269,6 +270,12 @@ const AuthenticatedAdminPlatformDirectoryRoute =
     path: '/platform/directory',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminPlatformEmailDomainsRoute =
+  AuthenticatedAdminPlatformEmailDomainsRouteImport.update({
+    id: '/platform/email-domains',
+    path: '/platform/email-domains',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminPlatformMarketplaceRoute =
   AuthenticatedAdminPlatformMarketplaceRouteImport.update({
     id: '/platform/marketplace',
@@ -349,6 +356,7 @@ export interface FileRoutesByFullPath {
   '/admin/platform/categories': typeof AuthenticatedAdminPlatformCategoriesRoute
   '/admin/platform/countries': typeof AuthenticatedAdminPlatformCountriesRoute
   '/admin/platform/directory': typeof AuthenticatedAdminPlatformDirectoryRoute
+  '/admin/platform/email-domains': typeof AuthenticatedAdminPlatformEmailDomainsRoute
   '/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
   '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
@@ -395,6 +403,7 @@ export interface FileRoutesByTo {
   '/admin/platform/categories': typeof AuthenticatedAdminPlatformCategoriesRoute
   '/admin/platform/countries': typeof AuthenticatedAdminPlatformCountriesRoute
   '/admin/platform/directory': typeof AuthenticatedAdminPlatformDirectoryRoute
+  '/admin/platform/email-domains': typeof AuthenticatedAdminPlatformEmailDomainsRoute
   '/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
   '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
@@ -444,6 +453,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/platform/categories': typeof AuthenticatedAdminPlatformCategoriesRoute
   '/_authenticated/admin/platform/countries': typeof AuthenticatedAdminPlatformCountriesRoute
   '/_authenticated/admin/platform/directory': typeof AuthenticatedAdminPlatformDirectoryRoute
+  '/_authenticated/admin/platform/email-domains': typeof AuthenticatedAdminPlatformEmailDomainsRoute
   '/_authenticated/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/_authenticated/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
   '/_authenticated/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
@@ -493,6 +503,7 @@ export interface FileRouteTypes {
     | '/admin/platform/categories'
     | '/admin/platform/countries'
     | '/admin/platform/directory'
+    | '/admin/platform/email-domains'
     | '/admin/platform/marketplace'
     | '/admin/platform/overview'
     | '/admin/platform/reserved-slugs'
@@ -539,6 +550,7 @@ export interface FileRouteTypes {
     | '/admin/platform/categories'
     | '/admin/platform/countries'
     | '/admin/platform/directory'
+    | '/admin/platform/email-domains'
     | '/admin/platform/marketplace'
     | '/admin/platform/overview'
     | '/admin/platform/reserved-slugs'
@@ -587,6 +599,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/platform/categories'
     | '/_authenticated/admin/platform/countries'
     | '/_authenticated/admin/platform/directory'
+    | '/_authenticated/admin/platform/email-domains'
     | '/_authenticated/admin/platform/marketplace'
     | '/_authenticated/admin/platform/overview'
     | '/_authenticated/admin/platform/reserved-slugs'
@@ -889,6 +902,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPlatformDirectoryRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/platform/email-domains': {
+      id: '/_authenticated/admin/platform/email-domains'
+      path: '/platform/email-domains'
+      fullPath: '/admin/platform/email-domains'
+      preLoaderRoute: typeof AuthenticatedAdminPlatformEmailDomainsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/platform/marketplace': {
       id: '/_authenticated/admin/platform/marketplace'
       path: '/platform/marketplace'
@@ -961,6 +981,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminPlatformCategoriesRoute: typeof AuthenticatedAdminPlatformCategoriesRoute
   AuthenticatedAdminPlatformCountriesRoute: typeof AuthenticatedAdminPlatformCountriesRoute
   AuthenticatedAdminPlatformDirectoryRoute: typeof AuthenticatedAdminPlatformDirectoryRoute
+  AuthenticatedAdminPlatformEmailDomainsRoute: typeof AuthenticatedAdminPlatformEmailDomainsRoute
   AuthenticatedAdminPlatformMarketplaceRoute: typeof AuthenticatedAdminPlatformMarketplaceRoute
   AuthenticatedAdminPlatformOverviewRoute: typeof AuthenticatedAdminPlatformOverviewRoute
   AuthenticatedAdminPlatformReservedSlugsRoute: typeof AuthenticatedAdminPlatformReservedSlugsRoute
@@ -994,6 +1015,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
       AuthenticatedAdminPlatformCountriesRoute,
     AuthenticatedAdminPlatformDirectoryRoute:
       AuthenticatedAdminPlatformDirectoryRoute,
+    AuthenticatedAdminPlatformEmailDomainsRoute:
+      AuthenticatedAdminPlatformEmailDomainsRoute,
     AuthenticatedAdminPlatformMarketplaceRoute:
       AuthenticatedAdminPlatformMarketplaceRoute,
     AuthenticatedAdminPlatformOverviewRoute:

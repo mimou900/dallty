@@ -33,6 +33,7 @@ import * as Icons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { checkSignupPassword, checkPhoneHasAccount } from "@/lib/account.functions";
+import { checkEmailDomainAllowed } from "@/lib/email-trust.functions";
 import { friendlyError } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/business/signup")({
@@ -337,6 +338,14 @@ function BusinessSignupPage() {
       if (!check.valid) {
         setErrors({ password: check.errors[0] ?? "Password does not meet requirements" });
         toast.error(check.errors[0] ?? "Password does not meet requirements");
+        return;
+      }
+
+      const emailCheck = await checkEmailDomainAllowed({ data: { email } });
+      if (!emailCheck.allowed) {
+        const message = "Please use a valid email address that you can keep access to.";
+        setErrors({ email: message });
+        toast.error(message);
         return;
       }
 

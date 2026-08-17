@@ -1,0 +1,11 @@
+-- Project 06: add 'external_cash' to ledger_account_type.
+--
+-- Found while designing the actual posting logic for a cash payment: crediting
+-- business_balance for revenue needs a genuine offsetting debit to be real double-entry
+-- (brief §26 — "capable of representing DEBIT/CREDIT with BALANCED entries", not a
+-- one-sided credit with nothing on the other side). 'external_cash' represents value that
+-- came from or went to outside Dallty's own tracked accounts (the customer's physical cash,
+-- a card settlement into the business's bank account) — the standard "Cash" account in
+-- conventional double-entry bookkeeping. Its own transaction, per the same enum-value
+-- commit-before-use constraint hit twice already this project.
+ALTER TYPE public.ledger_account_type ADD VALUE IF NOT EXISTS 'external_cash';

@@ -44,18 +44,73 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// Security headers, applied to every response this Worker returns (pages, server-function
+// RPCs, everything) — this is the one place in the app that sees every outgoing response,
+// so it's the correct single injection point rather than per-route configuration.
+//
+// CSP is scoped to the third-party origins this app actually loads from today (confirmed by
+// reading the source, not guessed): Google Maps JS API (src/lib/maps-loader.ts) and Google
+// Fonts (src/routes/__root.tsx's preconnect links) for script/style/font, and Supabase
+// (REST + Realtime websocket) for connect-src — the Lovable asset CDN serving the logo is
+// same-origin (`/__l5e/...`), not a separate host, so it needs no extra entry.
+//
+// `unsafe-inline` on script-src is a deliberate, verified exception, not an oversight:
+// TanStack Start's client hydration injects an inline bootstrap script carrying per-request
+// loader data (`window.$_TSR`) directly into the HTML. Confirmed by testing this CSP against
+// the running dev server before trusting it — a stricter script-src broke hydration entirely
+// ("Invariant failed: Expected to find bootstrap data window.$_TSR, but we did not"). A
+// hash-based CSP isn't viable here since that script's content (and therefore its hash)
+// changes on every request; a nonce-based CSP would need per-request nonce injection into
+// TanStack Start's own hydration output, which isn't wired up in this app's current setup.
+// style-src needs it for the same reason (Tailwind/Radix inline style attributes at runtime).
+const SUPABASE_ORIGIN = "https://cbacaplvcxytzclpiyir.supabase.co";
+const CSP = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline' https://maps.googleapis.com`,
+  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+  `font-src 'self' https://fonts.gstatic.com`,
+  `img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com ${SUPABASE_ORIGIN}`,
+  `connect-src 'self' ${SUPABASE_ORIGIN} wss://cbacaplvcxytzclpiyir.supabase.co https://maps.googleapis.com`,
+  // A library in this app spins up a blob: Web Worker (confirmed by testing — the browser
+  // reported a blocked `Creating a worker from 'blob:...'` without worker-src set,
+  // falling back to script-src, which correctly doesn't allow blob: URLs).
+  "worker-src 'self' blob:",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join("; ");
+
+function applySecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("Content-Security-Policy", CSP);
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
+  headers.set("X-Frame-Options", "DENY");
+  // HSTS is meaningful only over HTTPS, which is all this app ever serves in production
+  // (Cloudflare Workers) — safe to set unconditionally.
+  headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return applySecurityHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      return applySecurityHeaders(
+        new Response(renderErrorPage(), {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
     }
   },
 };

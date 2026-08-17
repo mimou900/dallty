@@ -125,9 +125,12 @@ function ReportsPage() {
       .filter((b) => b.payment_status === "paid")
       .reduce((s, b) => s + Number(b.total_price), 0);
 
-    const clientIds = [...new Set(inRange.map((b) => b.customer_id))];
+    const clientIds = [
+      ...new Set(inRange.map((b) => b.customer_id).filter((id): id is string => id !== null)),
+    ];
     const firstBooking = new Map<string, number>();
     for (const b of all) {
+      if (!b.customer_id) continue;
       const t = +new Date(b.starts_at);
       const prev = firstBooking.get(b.customer_id);
       if (prev === undefined || t < prev) firstBooking.set(b.customer_id, t);

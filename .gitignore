@@ -20,6 +20,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Supabase CLI local link cache (project ref, pooler URL, version info)
+supabase/.temp/
+
 # Secrets
 .env
 .env.*

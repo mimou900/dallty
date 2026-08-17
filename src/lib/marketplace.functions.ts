@@ -54,7 +54,7 @@ export const listMarketplaceQueue = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { data, error } = await supabaseAdmin
@@ -93,7 +93,7 @@ export const setMarketplaceStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { error } = await supabaseAdmin
@@ -129,7 +129,7 @@ export const setSalonVerified = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
     const { error } = await supabaseAdmin

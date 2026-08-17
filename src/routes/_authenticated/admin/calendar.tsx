@@ -111,7 +111,13 @@ function CalendarPage() {
   const bookingsQuery = useManagedBookings(businessIds, fromISO, toISO);
 
   const customerIds = useMemo(
-    () => [...new Set((bookingsQuery.data ?? []).map((b) => b.customer_id))],
+    () => [
+      ...new Set(
+        (bookingsQuery.data ?? [])
+          .map((b) => b.customer_id)
+          .filter((id): id is string => id !== null),
+      ),
+    ],
     [bookingsQuery.data],
   );
   const customersQuery = useQuery({

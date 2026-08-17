@@ -21,7 +21,7 @@ export const listReservedSlugsAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { data, error } = await supabaseAdmin.from("reserved_slugs").select("*").order("slug");
     if (error) throw new Error(error.message);
@@ -34,7 +34,7 @@ export const upsertReservedSlug = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => reservedSlugInput.parse(input))
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { error } = await supabaseAdmin.from("reserved_slugs").upsert(data as never);
     if (error) throw new Error(error.message);

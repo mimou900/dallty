@@ -1,7 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
+import { sanitizeDbError } from "@/lib/db-error.server";
+
+type AnySupabase = SupabaseClient<Database>;
 
 /**
  * Private contact details of a business (business email / private business
@@ -12,22 +17,15 @@ export const getBusinessPrivateContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: allowed, error: roleError } = await context.supabase.rpc("is_platform_admin", {
-      _user_id: context.userId,
-    });
-    if (roleError) throw new Error(roleError.message);
+    const supabaseAdmin = await assertManages(context, data.businessId);
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: business, error } = await supabaseAdmin
       .from("businesses")
-      .select("id, owner_id, business_email, business_phone")
+      .select("business_email, business_phone")
       .eq("id", data.businessId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     if (!business) throw new Error("Business not found");
-    if (!allowed && business.owner_id !== context.userId) {
-      throw new Error("You do not manage this business");
-    }
 
     return {
       businessEmail: business.business_email ?? "",
@@ -179,22 +177,29 @@ const hoursSchema = z
   )
   .max(7);
 
-async function assertManages(context: { supabase: any; userId: string }, businessId: string) {
+async function assertManages(
+  context: { supabase: AnySupabase; userId: string; claims: { session_id?: string } },
+  businessId: string,
+) {
   const { data: allowed, error } = await context.supabase.rpc("is_platform_admin", {
     _user_id: context.userId,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(sanitizeDbError(error));
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: business, error: businessError } = await supabaseAdmin
     .from("businesses")
     .select("id, owner_id")
     .eq("id", businessId)
     .maybeSingle();
-  if (businessError) throw new Error(businessError.message);
+  if (businessError) throw new Error(sanitizeDbError(businessError));
   if (!business) throw new Error("Business not found");
   if (!allowed && business.owner_id !== context.userId) {
     throw new Error("You do not manage this business");
   }
+
+  const { assertStepUpComplete } = await import("@/lib/step-up.server");
+  await assertStepUpComplete(supabaseAdmin, context.userId, context.claims.session_id);
+
   return supabaseAdmin;
 }
 
@@ -203,7 +208,7 @@ export const getBusinessSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const admin = await assertManages(context as any, data.businessId);
+    const admin = await assertManages(context, data.businessId);
     const [{ data: business, error }, { data: hours, error: hoursError }] = await Promise.all([
       admin.from("businesses").select(SETTINGS_COLUMNS).eq("id", data.businessId).maybeSingle(),
       admin
@@ -212,8 +217,8 @@ export const getBusinessSettings = createServerFn({ method: "POST" })
         .eq("business_id", data.businessId)
         .order("weekday"),
     ]);
-    if (error) throw new Error(error.message);
-    if (hoursError) throw new Error(hoursError.message);
+    if (error) throw new Error(sanitizeDbError(error));
+    if (hoursError) throw new Error(sanitizeDbError(hoursError));
     return { business: business as Record<string, any> | null, hours: hours ?? [] };
   });
 
@@ -230,14 +235,14 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const admin = await assertManages(context as any, data.businessId);
+    const admin = await assertManages(context, data.businessId);
 
     if (Object.keys(data.patch).length > 0) {
       const { error } = await admin
         .from("businesses")
         .update({ ...data.patch, updated_at: new Date().toISOString() })
         .eq("id", data.businessId);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(sanitizeDbError(error));
     }
 
     if (data.hours && data.hours.length > 0) {
@@ -245,7 +250,7 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
       const { error } = await admin
         .from("business_hours")
         .upsert(rows, { onConflict: "business_id,weekday" });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(sanitizeDbError(error));
     }
 
     return { ok: true };

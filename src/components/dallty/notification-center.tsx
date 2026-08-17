@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, BellOff, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ type NotificationRow = {
   body: string;
   read_at: string | null;
   created_at: string;
+  deep_link: string | null;
 };
 
 /** Bell + panel: bottom sheet on mobile, popover on desktop. */
@@ -26,6 +28,7 @@ export function NotificationCenter({ className = "" }: { className?: string }) {
   const { lang } = useLocale();
   const { t } = useTranslation("notifications");
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   const notificationsQuery = useQuery({
@@ -34,7 +37,7 @@ export function NotificationCenter({ className = "" }: { className?: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notifications")
-        .select("id, kind, title, body, read_at, created_at")
+        .select("id, kind, title, body, read_at, created_at, deep_link")
         .order("created_at", { ascending: false })
         .limit(30);
       if (error) throw error;
@@ -85,6 +88,23 @@ export function NotificationCenter({ className = "" }: { className?: string }) {
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
   }
 
+  /** Deep links are a convenience, never authorization (brief §57) — navigating here is
+   * exactly the same as the user typing the URL themselves; the destination route's own
+   * server-side/RLS check is what actually gates access to the booking. */
+  async function openNotification(n: NotificationRow) {
+    if (!n.read_at) {
+      await supabase
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", n.id);
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    }
+    if (n.deep_link) {
+      setOpen(false);
+      void navigate({ to: n.deep_link });
+    }
+  }
+
   if (!user) return null;
 
   const trigger = (
@@ -133,7 +153,13 @@ export function NotificationCenter({ className = "" }: { className?: string }) {
         items.map((n) => (
           <article
             key={n.id}
-            className={`rounded-2xl border px-3 py-3 ${
+            role={n.deep_link ? "button" : undefined}
+            tabIndex={n.deep_link ? 0 : undefined}
+            onClick={() => openNotification(n)}
+            onKeyDown={(e) => {
+              if (n.deep_link && (e.key === "Enter" || e.key === " ")) openNotification(n);
+            }}
+            className={`rounded-2xl border px-3 py-3 ${n.deep_link ? "cursor-pointer" : ""} ${
               n.read_at ? "border-border/60 bg-card/40" : "border-primary/30 bg-primary/5"
             }`}
           >

@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Car, Footprints, Heart, MapPin, Star, Zap } from "lucide-react";
+import { Car, Footprints, MapPin, Star, Zap } from "lucide-react";
 import type { Lang, Business } from "@/lib/dallty-content";
 import { useTranslation } from "@/lib/i18n/hooks";
+import { FavoriteButton } from "@/components/dallty/favorite-button";
 
 export type TravelInfo = {
   km: number | null;
@@ -19,7 +19,6 @@ export function BusinessCard({
   lang: Lang;
   travel?: TravelInfo;
 }) {
-  const [fav, setFav] = useState(false);
   const { t } = useTranslation("marketplace");
   // Business's own per-listing fields are en/ar-only fallback/seed data
   // (out of scope for this migration); French falls back to English.
@@ -36,14 +35,12 @@ export function BusinessCard({
           height={700}
           className="size-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
-        <button
-          type="button"
-          onClick={() => setFav((v) => !v)}
-          aria-label={fav ? "Remove from favorites" : "Add to favorites"}
-          className="absolute end-3 top-3 grid size-11 place-items-center rounded-full glass-soft text-foreground transition-transform active:scale-90"
-        >
-          <Heart className={fav ? "size-5 fill-rose text-rose" : "size-5"} />
-        </button>
+        <FavoriteButton
+          kind="business"
+          targetId={business.id}
+          label={s.name}
+          className="absolute end-3 top-3 !size-11 transition-transform active:scale-90"
+        />
         <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
           <span className="rounded-full glass-soft px-3 py-1 text-xs font-semibold">
             {business.open ? t("open") : t("closed")}

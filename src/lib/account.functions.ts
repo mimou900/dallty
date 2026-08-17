@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { policyForRoles, validatePassword, type PasswordPolicyId } from "@/lib/password-policy";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 /**
  * Permanently deletes the signed-in user's auth account.
@@ -13,7 +14,7 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return { ok: true };
   });
 
@@ -30,7 +31,16 @@ export const checkSignupPassword = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => validatePassword(data.password, data.accountType));
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+
+    const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
+    await assertRateLimit(supabaseAdmin, `check_signup_password:${ip}`, 60, 10);
+
+    return validatePassword(data.password, data.accountType);
+  });
 
 /**
  * Changes the signed-in user's password, enforcing the policy that matches
@@ -55,7 +65,7 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
       password: data.password,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return { ok: true, policy };
   });
 
@@ -70,6 +80,14 @@ export const checkEmailHasAccount = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { emailExists } = await import("@/lib/account.server");
+    const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+
+    // Rate-limited by IP, not by the submitted email — the risk this guards against is
+    // one source scanning many different addresses, not repeated checks of the same one.
+    const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
+    await assertRateLimit(supabaseAdmin, `check_email:${ip}`, 20, 10);
+
     return { exists: await emailExists(supabaseAdmin, data.email) };
   });
 
@@ -85,12 +103,18 @@ export const checkPhoneHasAccount = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+
+    const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
+    await assertRateLimit(supabaseAdmin, `check_phone:${ip}`, 20, 10);
+
     const { data: row, error } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .eq("phone", data.phone)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return { exists: Boolean(row) };
   });
 
@@ -219,7 +243,7 @@ export const confirmEmailChange = createServerFn({ method: "POST" })
       email: result.target,
       email_confirm: true,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     const userAgent = getRequest()?.headers.get("user-agent") ?? null;
     if (oldEmail) {
@@ -342,7 +366,7 @@ export const confirmPasswordChange = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
       password: data.newPassword,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     const userAgent = getRequest()?.headers.get("user-agent") ?? null;
     const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
@@ -447,6 +471,11 @@ export const createGuestBooking = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+
+    const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
+    await assertRateLimit(supabaseAdmin, `guest_booking:${ip}`, 5, 10);
 
     const { data: service, error: svcErr } = await supabaseAdmin
       .from("services")
@@ -454,7 +483,7 @@ export const createGuestBooking = createServerFn({ method: "POST" })
       .eq("id", data.serviceId)
       .eq("business_id", data.businessId)
       .maybeSingle();
-    if (svcErr) throw new Error(svcErr.message);
+    if (svcErr) throw new Error(sanitizeDbError(svcErr));
     if (!service || !service.is_active) throw new Error("Service not found");
 
     let totalPrice = Number(service.discount_price ?? service.price);
@@ -468,7 +497,7 @@ export const createGuestBooking = createServerFn({ method: "POST" })
         _code: data.couponCode,
         _amount: totalPrice,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(sanitizeDbError(error));
       const row = Array.isArray(rows) ? rows[0] : null;
       if (row?.valid && row.promotion_id) {
         originalPrice = totalPrice;
@@ -499,7 +528,7 @@ export const createGuestBooking = createServerFn({ method: "POST" })
       } as never)
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return booking as { id: string };
   });
 
@@ -524,7 +553,7 @@ export const sendGuestAccountInvite = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
       data: { full_name: data.fullName ?? "", role: "client" },
     });
-    if (error && !/registered|exists/i.test(error.message)) throw new Error(error.message);
+    if (error && !/registered|exists/i.test(error.message)) throw new Error(sanitizeDbError(error));
     return { ok: true };
   });
 
@@ -543,7 +572,7 @@ export const claimGuestBookingsForCurrentUser = createServerFn({ method: "POST" 
     let email = (context.claims as { email?: string } | undefined)?.email;
     if (!email) {
       const { data, error } = await supabaseAdmin.auth.admin.getUserById(context.userId);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(sanitizeDbError(error));
       email = data.user?.email ?? undefined;
     }
     if (!email) return { claimed: 0 };
@@ -554,6 +583,6 @@ export const claimGuestBookingsForCurrentUser = createServerFn({ method: "POST" 
       .is("customer_id", null)
       .ilike("customer_email", email)
       .select("id");
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return { claimed: data?.length ?? 0 };
   });

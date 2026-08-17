@@ -59,7 +59,7 @@ const STATUSES: BookingStatus[] = ["pending", "confirmed", "completed", "cancell
 
 type StaffAppointment = {
   id: string;
-  customerId: string;
+  customerId: string | null;
   customerName: string;
   customerPhone: string | null;
   serviceId: string;

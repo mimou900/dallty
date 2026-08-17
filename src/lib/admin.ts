@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { formatMoney } from "@/lib/countries";
 
-export const CURRENCY = "AED";
+export const CURRENCY = "DZD";
 
 /** Money in a given currency; defaults to AED when the business has none set. */
 export function money(value: number | string | null | undefined, currency = CURRENCY) {
@@ -60,7 +60,10 @@ export const SERVICE_CATEGORIES = [
 export function useManagedBusinesses() {
   const { user, hasRole, loading } = useAuth();
   const allowed =
-    hasRole("business_owner") || hasRole("specialist") || hasRole("admin") || hasRole("super_admin");
+    hasRole("business_owner") ||
+    hasRole("specialist") ||
+    hasRole("admin") ||
+    hasRole("super_admin");
   const isPlatform = hasRole("admin") || hasRole("super_admin");
 
   return useQuery({
@@ -417,13 +420,31 @@ export function useSaveService() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: ServiceInput) => {
+      // Explicit field map, not a spread of `input` — closes a mass-assignment code smell
+      // flagged in the Project 03 security audit (RLS's WITH CHECK on business_id already
+      // blocked cross-business reassignment, but an explicit list means a future column
+      // added to this table can't silently become writable here without a deliberate edit).
+      const fields = {
+        business_id: input.business_id,
+        name: input.name,
+        category: input.category,
+        description: input.description,
+        duration_minutes: input.duration_minutes,
+        price: input.price,
+        discount_price: input.discount_price,
+        is_active: input.is_active,
+        image_url: input.image_url,
+        deposit: input.deposit,
+        processing_minutes: input.processing_minutes,
+        cleanup_minutes: input.cleanup_minutes,
+        tag: input.tag,
+      };
       if (input.id) {
-        const { id, ...rest } = input;
-        const { error } = await supabase.from("services").update(rest).eq("id", id);
+        const { error } = await supabase.from("services").update(fields).eq("id", input.id);
         if (error) throw error;
-        return id;
+        return input.id;
       }
-      const { data, error } = await supabase.from("services").insert(input).select("id").single();
+      const { data, error } = await supabase.from("services").insert(fields).select("id").single();
       if (error) throw error;
       return data.id as string;
     },
@@ -478,13 +499,29 @@ export function useSaveStaff() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: StaffInput) => {
+      // Explicit field map, not a spread of `input` — see the matching note in
+      // useSaveService above (Project 03 security audit).
+      const fields = {
+        business_id: input.business_id,
+        full_name: input.full_name,
+        title: input.title,
+        avatar_url: input.avatar_url,
+        is_active: input.is_active,
+        email: input.email,
+        phone: input.phone,
+        bio: input.bio,
+        experience_years: input.experience_years,
+        languages: input.languages,
+        certificates: input.certificates,
+        portfolio: input.portfolio,
+        social_links: input.social_links,
+      };
       if (input.id) {
-        const { id, ...rest } = input;
-        const { error } = await supabase.from("staff").update(rest).eq("id", id);
+        const { error } = await supabase.from("staff").update(fields).eq("id", input.id);
         if (error) throw error;
-        return id;
+        return input.id;
       }
-      const { data, error } = await supabase.from("staff").insert(input).select("id").single();
+      const { data, error } = await supabase.from("staff").insert(fields).select("id").single();
       if (error) throw error;
       return data.id as string;
     },

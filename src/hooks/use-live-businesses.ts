@@ -25,7 +25,14 @@ export function useLiveBusinesses() {
         .select(BUSINESS_COLUMNS)
         .eq("is_active", true)
         .eq("is_listed", true)
-        .order("rating", { ascending: false });
+        .order("rating", { ascending: false })
+        // Bounded per the Project 03 security audit: this query previously had no limit at
+        // all, meaning every visit to /search fetched the entire active+listed businesses
+        // table to the browser. 500 is a stopgap bound, not a real pagination solution — the
+        // marketplace/search project should replace this whole client-side-filtering
+        // approach with a server-side, rate-limited, paginated search endpoint once result
+        // counts approach this bound.
+        .limit(500);
       if (error) throw error;
       return (data ?? []).map((b) => ({
         id: b.id,

@@ -18,15 +18,27 @@ export const requestOtp = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { sendOtpCode } = await import("@/lib/otp.server");
+    const { logAdminAction } = await import("@/lib/platform.server");
     const { getRequest } = await import("@tanstack/react-start/server");
 
     const userAgent = getRequest()?.headers.get("user-agent") ?? null;
-    return sendOtpCode(supabaseAdmin, {
+    const result = await sendOtpCode(supabaseAdmin, {
       userId: context.userId,
       purpose: data.purpose,
       target: data.target,
       userAgent,
     });
+    await logAdminAction(
+      supabaseAdmin,
+      context.userId,
+      "security.otp_requested",
+      "user",
+      context.userId,
+      {
+        purpose: data.purpose,
+      },
+    );
+    return result;
   });
 
 const verifyOtpInput = z.object({
@@ -44,12 +56,55 @@ export const verifyOtp = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { verifyOtpCode } = await import("@/lib/otp.server");
+    const { logAdminAction } = await import("@/lib/platform.server");
 
-    return verifyOtpCode(supabaseAdmin, {
-      userId: context.userId,
-      purpose: data.purpose,
-      code: data.code,
-    });
+    let result;
+    try {
+      result = await verifyOtpCode(supabaseAdmin, {
+        userId: context.userId,
+        purpose: data.purpose,
+        code: data.code,
+      });
+    } catch (e) {
+      await logAdminAction(
+        supabaseAdmin,
+        context.userId,
+        "security.otp_failed",
+        "user",
+        context.userId,
+        {
+          purpose: data.purpose,
+        },
+      );
+      throw e;
+    }
+
+    // Record step-up completion against this specific session (not just "the user, ever")
+    // so a future session that hasn't stepped up still gets challenged. See the
+    // auth_step_up_sessions migration for why this can't just be a per-user flag.
+    if (data.purpose === "login_step_up") {
+      const sessionId = context.claims.session_id as string | undefined;
+      if (sessionId) {
+        await supabaseAdmin.from("auth_step_up_sessions").upsert({
+          session_id: sessionId,
+          user_id: context.userId,
+          verified_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    await logAdminAction(
+      supabaseAdmin,
+      context.userId,
+      "security.otp_verified",
+      "user",
+      context.userId,
+      {
+        purpose: data.purpose,
+      },
+    );
+
+    return result;
   });
 
 /**
@@ -62,25 +117,7 @@ export const checkLoginOtpRequired = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { isStepUpRequired } = await import("@/lib/step-up.server");
 
-    const { data: settings } = await supabaseAdmin
-      .from("auth_settings")
-      .select("otp_master_enabled")
-      .eq("id", true)
-      .single();
-    if (!settings?.otp_master_enabled) return { required: false };
-
-    const { data: roleRows } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", context.userId);
-    const roles = (roleRows ?? []).map((r) => r.role);
-    if (!roles.length) return { required: false };
-
-    const { data: policies } = await supabaseAdmin
-      .from("auth_role_policies")
-      .select("role, otp_enabled")
-      .in("role", roles);
-
-    return { required: (policies ?? []).some((p) => p.otp_enabled) };
+    return { required: await isStepUpRequired(supabaseAdmin, context.userId) };
   });

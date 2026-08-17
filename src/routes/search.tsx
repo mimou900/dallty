@@ -29,8 +29,7 @@ import { getTravelTimes } from "@/lib/geo.functions";
 import type { TravelInfo } from "@/components/dallty/business-card";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
-import { useCountries, translate } from "@/lib/reference-data";
-import { citiesFor, provincesFor } from "@/lib/arab-cities";
+import { useCountries, useRegions, useCities, translate } from "@/lib/reference-data";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
 
 type SearchParams = {
@@ -101,6 +100,26 @@ function SearchPage() {
     return (countries.data ?? []).filter((c) => codes.has(c.iso_code));
   }, [liveBusinesses, countries.data]);
 
+  const selectedCountryId = useMemo(
+    () => countryOptions.find((c) => c.iso_code === params.country)?.id ?? null,
+    [countryOptions, params.country],
+  );
+  // Real administrative geography (Project 04), not a hardcoded per-country lookup table —
+  // businesses.state/city are still free text (no region_id data exists yet to join on), so
+  // this is a best-effort name match against the real regions/cities reference tables purely
+  // for translation, exactly the same fallback-to-raw-string pattern
+  // business-category-label.ts already established for the same "free text vs. reference
+  // table" mismatch. A country with no seeded regions (anything but Algeria, today) simply
+  // falls back to the raw stored string — never a hardcoded Algeria/Arabic assumption.
+  const regions = useRegions(selectedCountryId);
+  const selectedRegionId = useMemo(
+    () =>
+      regions.data?.find((r) => r.default_name.toLowerCase() === params.state.toLowerCase())?.id ??
+      null,
+    [regions.data, params.state],
+  );
+  const cities = useCities(selectedRegionId);
+
   const stateOptions = useMemo(() => {
     const listed = [
       ...new Set(
@@ -109,9 +128,11 @@ function SearchPage() {
           .map((s) => s.state),
       ),
     ].sort();
-    const known = provincesFor(params.country);
-    return listed.map((p) => ({ en: p, ar: known.find((k) => k.en === p)?.ar ?? p }));
-  }, [liveBusinesses, params.country]);
+    return listed.map((name) => {
+      const match = regions.data?.find((r) => r.default_name.toLowerCase() === name.toLowerCase());
+      return { value: name, label: match ? translate(match, lang) : name };
+    });
+  }, [liveBusinesses, params.country, regions.data, lang]);
 
   const cityOptions = useMemo(() => {
     const listed = [
@@ -126,9 +147,11 @@ function SearchPage() {
           .map((s) => s.city),
       ),
     ].sort();
-    const known = citiesFor(params.country, params.state || undefined);
-    return listed.map((c) => ({ en: c, ar: known.find((k) => k.en === c)?.ar ?? c }));
-  }, [liveBusinesses, params.country, params.state]);
+    return listed.map((name) => {
+      const match = cities.data?.find((c) => c.default_name.toLowerCase() === name.toLowerCase());
+      return { value: name, label: match ? translate(match, lang) : name };
+    });
+  }, [liveBusinesses, params.country, params.state, cities.data, lang]);
 
   const results = useMemo(() => {
     const name = params.q.trim().toLowerCase();
@@ -332,8 +355,8 @@ function SearchPage() {
                   {params.country ? t("filter_all_states") : t("filter_pick_country_first")}
                 </option>
                 {stateOptions.map((p) => (
-                  <option key={p.en} value={p.en}>
-                    {lang === "ar" ? p.ar : p.en}
+                  <option key={p.value} value={p.value}>
+                    {p.label}
                   </option>
                 ))}
               </SelectField>
@@ -349,8 +372,8 @@ function SearchPage() {
                   {params.country ? t("filter_all_cities") : t("filter_pick_country_first")}
                 </option>
                 {cityOptions.map((c) => (
-                  <option key={c.en} value={c.en}>
-                    {lang === "ar" ? c.ar : c.en}
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </SelectField>

@@ -19,7 +19,7 @@ export const listCategoriesAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { data, error } = await supabaseAdmin
       .from("categories")
@@ -35,7 +35,7 @@ export const upsertCategory = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => categoryInput.parse(input))
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { error } = await supabaseAdmin.from("categories").upsert(data as never);
     if (error) throw new Error(error.message);
@@ -61,7 +61,7 @@ export const listCountriesAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { data, error } = await supabaseAdmin
       .from("countries")
@@ -78,7 +78,7 @@ export const upsertCountry = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => countryInput.parse(input))
   .handler(async ({ data, context }) => {
     const { assertSuperAdmin, adminClient, logAdminAction } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { error } = await supabaseAdmin
       .from("countries")
@@ -94,7 +94,7 @@ export const listCurrenciesAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { assertSuperAdmin, adminClient } = await import("@/lib/platform.server");
-    await assertSuperAdmin(context.supabase, context.userId);
+    await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { data, error } = await supabaseAdmin.from("currencies").select("*").order("code");
     if (error) throw new Error(error.message);
