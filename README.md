@@ -1,25 +1,27 @@
-# Welcome to your Lovable project
+# Dallty
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+A booking marketplace platform for Algeria.
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Requires Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
+git clone git@github.com:mimou900/dallty.git
+cd dallty
 npm i
+cp .env.example .env   # fill in real values locally, never commit .env
 npm run dev
 ```
+
+Other scripts: `npm run build` (production build), `npm run lint`, `npx tsc --noEmit` (type-check).
+
+## Architecture
+
+See [`docs/DALLTY_MASTER_ARCHITECTURE.md`](docs/DALLTY_MASTER_ARCHITECTURE.md) for the full
+architecture, [`docs/DALLTY_DEPLOYMENT.md`](docs/DALLTY_DEPLOYMENT.md) for deployment, and
+[`docs/DALLTY_VENDOR_INDEPENDENCE.md`](docs/DALLTY_VENDOR_INDEPENDENCE.md) for how this project
+depends only on Dallty-owned provider abstractions rather than any single vendor SDK.
 
 ## Built with
 
@@ -27,3 +29,5 @@ npm run dev
 - TypeScript
 - React
 - Tailwind CSS
+- Supabase (database, auth, storage)
+- Vercel (hosting) + Cloudflare (DNS/CDN)

@@ -1,7 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
+// Direct Google Routes API — replaces the Lovable connector gateway
+// (`connector-gateway.lovable.dev/google_maps/...`), which proxied this same
+// Google endpoint behind a Lovable API key. Google's own endpoint takes a
+// single server-side key via `X-Goog-Api-Key`; no intermediary required.
+const ROUTES_API_URL = "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix";
 
 const schema = z.object({
   origin: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }),
@@ -28,13 +32,12 @@ async function matrix(
   origin: { lat: number; lng: number },
   destinations: { id: string; lat: number; lng: number }[],
   mode: "DRIVE" | "WALK",
-  keys: { lovable: string; connector: string },
+  apiKey: string,
 ) {
-  const response = await fetch(`${GATEWAY_URL}/routes/distanceMatrix/v2:computeRouteMatrix`, {
+  const response = await fetch(ROUTES_API_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${keys.lovable}`,
-      "X-Connection-Api-Key": keys.connector,
+      "X-Goog-Api-Key": apiKey,
       "Content-Type": "application/json",
       "X-Goog-FieldMask": "originIndex,destinationIndex,duration,distanceMeters,condition",
     },
@@ -50,7 +53,10 @@ async function matrix(
   });
 
   if (response.status === 403) {
-    const details: Array<{ reason?: string }> = ((await response.json()) as any)?.error?.details ?? [];
+    const errorBody = (await response.json()) as {
+      error?: { details?: Array<{ reason?: string }> };
+    };
+    const details: Array<{ reason?: string }> = errorBody?.error?.details ?? [];
     const reason = details.find((d) => d.reason)?.reason;
     if (reason === "API_KEY_HTTP_REFERRER_BLOCKED") {
       throw new Error(
@@ -83,13 +89,12 @@ async function matrix(
 export const getTravelTimes = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => schema.parse(input))
   .handler(async ({ data }): Promise<TravelTime[]> => {
-    const lovable = process.env["LOVABLE_API_KEY"];
-    const connector = process.env["GOOGLE_MAPS_API_KEY"];
-    if (!lovable || !connector) throw new Error("Google Maps is not connected");
+    const apiKey = process.env["GOOGLE_MAPS_API_KEY"];
+    if (!apiKey) throw new Error("Google Maps is not connected");
 
     const [drive, walk] = await Promise.all([
-      matrix(data.origin, data.destinations, "DRIVE", { lovable, connector }),
-      matrix(data.origin, data.destinations, "WALK", { lovable, connector }),
+      matrix(data.origin, data.destinations, "DRIVE", apiKey),
+      matrix(data.origin, data.destinations, "WALK", apiKey),
     ]);
 
     const secs = (v?: string) => (v ? Number(v.replace("s", "")) : null);

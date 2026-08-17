@@ -14,7 +14,6 @@ import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-fiel
 import { guessCountryCode, isValidNational, toE164 } from "@/lib/phone";
 import { getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import { saveNextPath } from "@/lib/next-path";
-import { lovable } from "@/integrations/lovable/index";
 import { setOtpPending, setRememberMe } from "@/lib/session";
 import { ensureSessionAfterSignUp } from "@/lib/auth-session";
 import { resolveLandingForSession } from "@/lib/post-login";
@@ -350,15 +349,16 @@ function AuthPage() {
     try {
       setRememberMe(remember);
       if (destination) saveNextPath(destination);
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      // Supabase's own OAuth flow: on success it redirects the browser to
+      // Google itself, so there is normally nothing to do after a
+      // successful call — the page navigates away.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
       });
-      if (result.error) {
+      if (error) {
         toast.error("Google sign-in failed");
-        return;
       }
-      if (result.redirected) return;
-      await goHome();
     } finally {
       setBusy(false);
     }

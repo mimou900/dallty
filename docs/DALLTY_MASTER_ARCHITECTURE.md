@@ -35,8 +35,8 @@ technical debt, not treated as acceptable permanent design.
 
 Brand: **Dallty** (Latin), **دالّتي** (Arabic, never translated, used as a brand term only).
 The existing uploaded logo is the visual source of truth (compact mark: `dallty-mark.png`;
-full lockup: `dallty-wordmark.png`, both under `src/assets/`, served via Lovable's asset
-manifest system) — it is not to be redesigned or replaced by future work.
+full lockup: `dallty-wordmark.png`, both real bundled files under `src/assets/`, served as
+ordinary same-origin static assets) — it is not to be redesigned or replaced by future work.
 
 ## B. Technical principles
 
@@ -105,10 +105,10 @@ Feature Flag (not modeled), Plan (column only), Permission (not modeled — see 
 ## D. Application architecture
 
 TanStack Start (file-based routing, SSR), React 19, TypeScript, Supabase (Postgres + Auth +
-Storage + Realtime), Tailwind v4, shadcn/ui. Deployed via **Lovable Cloud** (confirmed by
-`AGENTS.md`'s warning about git history syncing back to the Lovable editor, the
-`@lovable.dev/*` SDK dependencies, and Nitro's Cloudflare-Workers-by-default build target in
-`vite.config.ts`) — not a self-managed Vercel/Netlify/AWS deployment.
+Storage + Realtime), Tailwind v4, shadcn/ui. Deployed via **Vercel** (Nitro's `vercel`
+preset), with **Cloudflare** as the DNS/CDN layer in front — no `@lovable.dev/*` SDKs remain
+at runtime or in the build. See
+[`DALLTY_VENDOR_INDEPENDENCE.md`](DALLTY_VENDOR_INDEPENDENCE.md) for the full removal.
 
 **Route structure (verified):**
 - Public marketplace: `/`, `/search`, `/business/$businessSlug` (canonical), plus legacy
@@ -124,8 +124,8 @@ Storage + Realtime), Tailwind v4, shadcn/ui. Deployed via **Lovable Cloud** (con
 - Platform/Super Admin (`/_authenticated/admin/platform/*`, same client-side-only gating
   pattern): overview, businesses, marketplace, users, directory, categories, countries,
   reserved-slugs, auth-policies.
-- `/lovable/*`: Lovable platform infrastructure (auth email webhook, transactional email
-  preview) — not a Dallty product surface.
+- `/auth/email-hook`: Dallty's own Supabase Auth "Send Email" hook (Standard Webhooks
+  verification + Dallty's `EmailProvider` abstraction) — not a Dallty product surface.
 
 **Known architectural debt in the route tree (verified, not inferred):**
 - `/_authenticated/dashboard.tsx` is a fully-built, orphaned business-analytics page,
@@ -193,10 +193,10 @@ booking data exists.
 ## F. Authentication architecture
 
 **Current state (verified, not aspirational):** Supabase Auth is the actual identity
-provider. `@lovable.dev/cloud-auth-js` supplies only the OAuth leg (currently feature-flagged
-off) and hands Supabase-compatible tokens back into the same Supabase client — there is no
-separate Lovable-hosted user store. Email+password is the live sign-in path; magic-link and
-phone-OTP handlers exist and are wired but hidden behind a `SHOW_ALT_METHODS` flag.
+provider. The Google OAuth leg (currently feature-flagged off) calls Supabase's own
+`signInWithOAuth` directly — there is no intermediary user store. Email+password is the live
+sign-in path; magic-link and phone-OTP handlers exist and are wired but hidden behind a
+`SHOW_ALT_METHODS` flag.
 
 A custom **email-OTP step-up engine** (`auth_otp_codes`, `auth_settings`,
 `auth_role_policies` tables; `src/lib/otp.server.ts`) sits on top of Supabase Auth for
@@ -434,7 +434,7 @@ guard in `bunfig.toml` blocking freshly-published package versions.
    reusable, generic rate limiter (`src/lib/rate-limit.server.ts`) rather than a fourth
    purpose-built one; it's opt-in per endpoint, not a blanket middleware.
 5. No WAF/DDoS/bot-protection/anti-scraping exists at the application layer (expected — this
-   is normally an edge/CDN concern, and the deployment target is Lovable Cloud's platform;
+   is normally an edge/CDN concern, and Cloudflare sits in front of this deployment;
    confirm what's provided there before building app-layer equivalents). Project 03 added a
    provider-agnostic bot-challenge abstraction (`src/lib/bot-challenge.server.ts`) using a
    real rate-limit-consumption signal, but no CAPTCHA provider is configured, so nothing
@@ -498,11 +498,11 @@ safe default, not a gap). A Platform Health/Security Center for Super Admin does
 
 ## U. Deployment architecture
 
-**Verified:** Lovable Cloud is the deployment target (commits to the connected branch sync
-back into the Lovable editor per `AGENTS.md`). Build tooling is `@lovable.dev/vite-tanstack-
-config` wrapping Vite + Nitro, Nitro defaulting to a Cloudflare Workers build target. No
-`wrangler.toml`/`netlify.toml`/`vercel.json` exists — deployment is Lovable's own pipeline,
-not a directly-managed cloud account. **No CI configuration exists anywhere in the repo**
+**Verified:** Vercel is the deployment target, built directly from `vite.config.ts` (plain
+Vite + `@tanstack/react-start`'s plugin + Nitro's own `vercel` preset — no wrapper package),
+producing Vercel's Build Output API v3 (`.vercel/output/`) directly. Cloudflare sits in front
+as the DNS/CDN layer. See [`DALLTY_VENDOR_INDEPENDENCE.md`](DALLTY_VENDOR_INDEPENDENCE.md) for
+the full history of this change. **No CI configuration exists anywhere in the repo**
 (no `.github/workflows` at any level) — lint/typecheck/build are manual scripts only
 (`npm run lint`, `build`, no `test` script exists at all). Closing this gap (at minimum a
 CI check running lint + typecheck + build on every push) is recommended before the codebase

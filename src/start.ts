@@ -4,9 +4,10 @@ import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const errorMiddleware = createMiddleware().server(async ({ next, request }) => {
-  // Lovable email routes authenticate themselves (API key / signed webhook)
-  // and must pass through untouched.
-  if (new URL(request.url).pathname.startsWith("/lovable/")) {
+  // The Supabase auth email hook authenticates itself (Standard Webhooks
+  // signature, verified inside the route) and must pass through untouched —
+  // it needs to return its own JSON error shape, not the HTML error page.
+  if (new URL(request.url).pathname === "/auth/email-hook") {
     return next();
   }
   try {

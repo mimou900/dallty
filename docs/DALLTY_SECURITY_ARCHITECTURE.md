@@ -119,9 +119,7 @@ without that dependency.
 ## Security headers
 
 Applied once, at the single point that sees every response this app returns
-(`src/server.ts`'s Worker `fetch` handler) — not per-route config, since the Nitro wrapper
-this project uses (`@lovable.dev/vite-tanstack-config`) doesn't expose a `routeRules`
-passthrough for headers (confirmed by reading its type definitions).
+(`src/server.ts`'s Worker `fetch` handler) — not per-route config.
 
 ```
 Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'
@@ -159,9 +157,10 @@ dropdown options populated) on the homepage and search page before considering t
 ## CORS
 
 No explicit CORS configuration exists, and none was added — confirmed correct as-is, not a
-gap. Server functions are same-origin RPCs, not a separately-hosted API. The `/lovable/
-email/*` route handlers are called server-to-server (Lovable's backend), gated by a Bearer
-API-key check rather than an Origin check, which is the correct control for that caller.
+gap. Server functions are same-origin RPCs, not a separately-hosted API. `/auth/email-hook`
+(the Supabase Auth email hook, see `DALLTY_VENDOR_INDEPENDENCE.md`) is called server-to-server
+by Supabase, verified via a Standard Webhooks HMAC signature rather than an Origin check,
+which is the correct control for that caller.
 
 ## CSRF
 

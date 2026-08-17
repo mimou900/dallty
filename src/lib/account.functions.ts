@@ -534,10 +534,10 @@ export const createGuestBooking = createServerFn({ method: "POST" })
 
 /**
  * Fires Supabase's `invite` auth email (routed through the branded template
- * pipeline in `src/routes/lovable/email/auth/webhook.ts`) so a guest who
- * booked with a fresh email has a way to create their account. Must never
- * block or roll back an already-confirmed booking — callers should treat
- * this as fire-and-forget.
+ * pipeline in `src/routes/auth/email-hook.ts`) so a guest who booked with a
+ * fresh email has a way to create their account. Must never block or roll
+ * back an already-confirmed booking — callers should treat this as
+ * fire-and-forget.
  */
 export const sendGuestAccountInvite = createServerFn({ method: "POST" })
   .inputValidator((input: { email: string; fullName?: string }) =>

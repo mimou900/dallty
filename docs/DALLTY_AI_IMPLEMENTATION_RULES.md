@@ -108,5 +108,5 @@ full detail and citations.)
   not a solved one.
 - The i18n runtime is real and active; `dallty-content.ts` is legacy and mid-retirement, not
   a system to build on top of.
-- Deployment is Lovable Cloud; there is no CI. Don't assume a CI pipeline will catch
-  regressions — verify locally before calling something done.
+- Deployment is Vercel (behind Cloudflare); there is no CI. Don't assume a CI pipeline will
+  catch regressions — verify locally before calling something done.

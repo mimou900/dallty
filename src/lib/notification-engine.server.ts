@@ -4,6 +4,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { formatInTimezone, formatMoney } from "@/lib/countries";
 import type { Lang } from "@/lib/i18n";
 import { sendTemplateEmail } from "@/lib/email-templates/send-email";
+import { getEmailProvider } from "@/lib/email/email-provider";
 import { renderNotificationEmailData } from "@/lib/email-templates/notification";
 import {
   NOTIFICATION_POLICY,
@@ -291,7 +292,7 @@ async function dispatchEmail(
       recipientUserId: recipient.userId,
       channel: "email",
       status: result.sent ? "sent" : "failed",
-      provider: "lovable",
+      provider: getEmailProvider().code,
       errorCode: result.sent ? undefined : result.reason,
     });
   } catch (error) {
@@ -300,7 +301,7 @@ async function dispatchEmail(
       recipientUserId: recipient.userId,
       channel: "email",
       status: "failed",
-      provider: "lovable",
+      provider: getEmailProvider().code,
       errorCode: "send_failed",
       errorMessage: error instanceof Error ? error.message.slice(0, 500) : "unknown error",
     });

@@ -51,8 +51,8 @@ function isH3SwallowedErrorBody(body: string): boolean {
 // CSP is scoped to the third-party origins this app actually loads from today (confirmed by
 // reading the source, not guessed): Google Maps JS API (src/lib/maps-loader.ts) and Google
 // Fonts (src/routes/__root.tsx's preconnect links) for script/style/font, and Supabase
-// (REST + Realtime websocket) for connect-src — the Lovable asset CDN serving the logo is
-// same-origin (`/__l5e/...`), not a separate host, so it needs no extra entry.
+// (REST + Realtime websocket) for connect-src — the logo is a bundled same-origin asset
+// (src/assets/dallty-*.png), not a separate host, so it needs no extra entry.
 //
 // `unsafe-inline` on script-src is a deliberate, verified exception, not an oversight:
 // TanStack Start's client hydration injects an inline bootstrap script carrying per-request
@@ -88,7 +88,7 @@ function applySecurityHeaders(response: Response): Response {
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
   headers.set("X-Frame-Options", "DENY");
   // HSTS is meaningful only over HTTPS, which is all this app ever serves in production
-  // (Cloudflare Workers) — safe to set unconditionally.
+  // (Vercel, behind Cloudflare) — safe to set unconditionally.
   headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
   return new Response(response.body, {
     status: response.status,

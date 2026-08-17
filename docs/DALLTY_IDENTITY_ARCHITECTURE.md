@@ -12,9 +12,8 @@ explicitly marked PLANNED.
 ## Identity model
 
 Authentication (who you are) is Supabase Auth, full stop — no second identity provider, no
-custom JWT handling. `@lovable.dev/cloud-auth-js` supplies only an OAuth login path
-(currently feature-flagged off) that hands Supabase-compatible tokens back into the same
-Supabase client; there is no separate Lovable-hosted user store.
+custom JWT handling. The Google OAuth login path (currently feature-flagged off) calls
+Supabase's own `signInWithOAuth` directly; there is no intermediary user store.
 
 Authorization (what you're allowed to do) is layered on top, deliberately kept separate:
 `user_roles` (global `app_role`: `client`/`business_owner`/`specialist`/`admin`/
@@ -45,8 +44,8 @@ built** — per the brief's explicit instruction not to implement one.
 
 Email+password is the only live customer sign-in path today. Magic-link and phone-OTP
 handlers exist in code (`src/routes/auth.tsx`) but are hidden behind a `SHOW_ALT_METHODS`
-flag — not deleted, just not surfaced. Google/Apple OAuth buttons exist behind
-`SHOW_OAUTH_BUTTONS` — infrastructure is present (`lovable.auth.signInWithOAuth()`), the
+flag — not deleted, just not surfaced. A Google OAuth button exists behind
+`SHOW_OAUTH_BUTTONS` — infrastructure is present (`supabase.auth.signInWithOAuth()`), the
 provider list isn't hardcoded into a component in a way that blocks turning it on. Enabling
 either is a product decision (flip a flag), not a missing-code problem.
 
@@ -127,9 +126,10 @@ password.
 
 ## Email verification / password reset
 
-Both ride Supabase Auth's native mechanisms (re-skinned via the Lovable email template
-pipeline, not replaced): `supabase.auth.signUp()`'s confirmation flow for verification,
-`supabase.auth.resetPasswordForEmail()` for reset. Both are secure by construction — Supabase
+Both ride Supabase Auth's native mechanisms (re-skinned via Dallty's own auth email hook, see
+`DALLTY_VENDOR_INDEPENDENCE.md`, not replaced): `supabase.auth.signUp()`'s confirmation flow
+for verification, `supabase.auth.resetPasswordForEmail()` for reset. Both are secure by
+construction — Supabase
 issues short-lived, single-use tokens server-side and (confirmed by design, not just
 assumed) `resetPasswordForEmail()` returns success regardless of whether the email exists,
 satisfying the brief's "do not reveal whether an email exists" requirement for this specific

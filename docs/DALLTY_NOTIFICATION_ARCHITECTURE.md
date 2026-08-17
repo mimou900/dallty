@@ -2,12 +2,14 @@
 
 **Status:** Living document. Produced by Project 07 (Notifications, Communications & Reminder
 Engine).
-**Last updated:** 2026-08-17.
+**Last updated:** 2026-08-18 (email transport updated to Dallty's own `EmailProvider`
+abstraction — see [`DALLTY_VENDOR_INDEPENDENCE.md`](DALLTY_VENDOR_INDEPENDENCE.md); everything
+else in this document unchanged).
 
 **Read this first:** substantial notification infrastructure already existed and already
 worked before this project — a real `notifications` table with realtime-subscribed in-app
-delivery, and a real transactional email system (`sendTemplateEmail` via Lovable's managed
-email API, React-Email templates). This project did **not** replace either. It builds the
+delivery, and a real transactional email system (`sendTemplateEmail` via Dallty's own
+`EmailProvider` abstraction, React-Email templates). This project did **not** replace either. It builds the
 piece that was genuinely missing: a domain-event/outbox layer that drives the *async*
 channels (email, push, WhatsApp, SMS) off booking/payment events, without ever making a
 booking or payment wait on a slow external provider, plus a real, live-scheduled reminder
@@ -32,7 +34,7 @@ BOOKING/PAYMENT EVENT (Postgres trigger or TS server function)
           ├── check preference (transactional always bypasses; marketing would consult
           │   notification_preferences → profiles.notify_*)
           ├── dispatch:
-          │     email    → real (Lovable send API, i18n-rendered React Email template)
+          │     email    → real (Dallty EmailProvider, i18n-rendered React Email template)
           │     push     → architecture-ready, no provider (device_tokens schema real)
           │     whatsapp → architecture-ready, no provider
           │     sms      → architecture-ready, no provider
@@ -162,15 +164,15 @@ job name `dallty-generate-due-reminders`). This is pure SQL with no external HTT
 it needed no secrets and was safe to wire fully automatically.
 
 **Manual today, PLANNED to be automatic:** actually *dispatching* a claimed outbox event
-(rendering + calling Lovable's email API) requires TypeScript (React-Email rendering, the
+(rendering + calling the email provider) requires TypeScript (React-Email rendering, the
 i18n loader) — Postgres/pg_net alone cannot do this. `processNotificationOutboxNow` (Super
 Admin only) is a real, fully working manual trigger today. Automating this specific step was
 evaluated and deliberately not wired up this session, for two concrete reasons rather than
 lack of effort:
 1. Calling back into this app's own deployed HTTP origin via `pg_net` would need a confirmed
    production URL, which isn't established in this environment.
-2. The alternative — composing emails as raw SQL strings so `pg_net` could call Lovable's API
-   directly from Postgres — would mean duplicating the i18n/React-Email rendering pipeline as
+2. The alternative — composing emails as raw SQL strings so `pg_net` could call the email
+   provider directly from Postgres — would mean duplicating the i18n/React-Email rendering pipeline as
    a second, parallel email system, which is exactly the kind of duplication this whole
    session has been built around avoiding.
 
@@ -203,7 +205,7 @@ unrelated systems). Flagged here as a legitimate future follow-up, not silently 
 | Channel | Status |
 |---|---|
 | In-app | **Real**, unchanged, pre-existing (realtime bell + panel), now with deep links (see below) |
-| Email | **Real** — Lovable send API, i18n-rendered, idempotency-keyed per (outbox event, recipient) |
+| Email | **Real** — Dallty EmailProvider (Resend), i18n-rendered, idempotency-keyed per (outbox event, recipient) |
 | Push | **Architecture-ready** — `device_tokens` schema + RLS + registration/revocation server functions all real and tested; no push provider (FCM/APNs) configured anywhere in this environment. Dispatch records an honest `failed`/`no_device_token`/`no_push_provider` delivery row rather than pretending to send. |
 | WhatsApp | **Architecture-ready** — `WhatsAppProvider` interface (`src/lib/whatsapp-provider.ts`) mirrors `PaymentProvider`'s exact pattern from Project 06. No credentials for any provider exist. `isWhatsAppAvailable()` is the single flip point for when one is wired up. |
 | SMS | **Architecture-ready only**, per the brief's own "not V1" instruction — `SmsProvider` interface exists, nothing else. |
@@ -251,7 +253,7 @@ Every dispatch attempt writes a `notification_deliveries` row; a retried send is
 row (new `attempt_number`), never an overwrite of history. Outbox resolution: `processed` /
 `failed` (terminal) or `retry` (exponential backoff, `2^attempts` minutes capped at 60,
 `attempts` incremented) — a hard cap of 5 attempts before giving up permanently. Email sends
-carry a deterministic `idempotencyKey` (`outbox:{id}:email:{recipient}`) into Lovable's own
+carry a deterministic `idempotencyKey` (`outbox:{id}:email:{recipient}`) into the provider's own
 idempotency-key support, so a retried claim of the same event can't produce a duplicate email
 even if the first attempt actually succeeded but the outbox-resolution step failed to record
 it (a real, if narrow, crash window this closes).
@@ -276,7 +278,7 @@ it (a real, if narrow, crash window this closes).
    authenticated (non-service-role) client.
 
 **Not live-tested this session:** an actual outbound email delivery (would consume real
-Lovable API quota against a fabricated recipient address with no way to verify inbox
+provider quota against a fabricated recipient address with no way to verify inbox
 delivery) — verified instead by `tsc`/build passing and direct code review of the
 `sendTemplateEmail` integration, matching exactly how Project 06 never fired a real payment
 because no provider exists; here a provider *does* exist, but firing a real send during

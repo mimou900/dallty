@@ -13,7 +13,7 @@ export function safeOrigin(origin: string | null | undefined): string {
   try {
     const url = new URL(origin);
     const host = url.hostname;
-    const ok = ALLOWED_HOSTS.includes(host) || host.endsWith(".lovable.app");
+    const ok = ALLOWED_HOSTS.includes(host);
     return ok ? url.origin : fallback;
   } catch {
     return fallback;

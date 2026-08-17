@@ -7,14 +7,14 @@ declare global {
 
 let loader: Promise<void> | null = null;
 
-/** Loads the Maps JS API once, asynchronously, with the connector browser key. */
+/** Loads the Maps JS API once, asynchronously, with Dallty's own browser key. */
 export function loadMaps(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
   if (window.google?.maps?.importLibrary) return Promise.resolve();
   if (loader) return loader;
 
-  const key = import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"];
-  const channel = import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID"];
+  const key = import.meta.env["VITE_GOOGLE_MAPS_BROWSER_KEY"];
+  const channel = import.meta.env["VITE_GOOGLE_MAPS_TRACKING_ID"];
   if (!key) return Promise.reject(new Error("Google Maps is not configured"));
 
   loader = new Promise<void>((resolve, reject) => {

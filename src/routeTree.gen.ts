@@ -23,6 +23,7 @@ import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedFavoritesRouteImport } from './routes/_authenticated/favorites'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthEmailHookRouteImport } from './routes/auth/email-hook'
 import { Route as BusinessIdBusinessIdRouteImport } from './routes/business-id.$businessId'
 import { Route as BusinessBusinessSlugRouteImport } from './routes/business.$businessSlug'
 import { Route as BusinessSignupRouteImport } from './routes/business/signup'
@@ -53,9 +54,6 @@ import { Route as AuthenticatedAdminPlatformMarketplaceRouteImport } from './rou
 import { Route as AuthenticatedAdminPlatformOverviewRouteImport } from './routes/_authenticated/admin/platform/overview'
 import { Route as AuthenticatedAdminPlatformReservedSlugsRouteImport } from './routes/_authenticated/admin/platform/reserved-slugs'
 import { Route as AuthenticatedAdminPlatformUsersRouteImport } from './routes/_authenticated/admin/platform/users'
-import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
-import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
-import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -126,6 +124,11 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthEmailHookRoute = AuthEmailHookRouteImport.update({
+  id: '/email-hook',
+  path: '/email-hook',
+  getParentRoute: () => AuthRoute,
 } as any)
 const BusinessIdBusinessIdRoute = BusinessIdBusinessIdRouteImport.update({
   id: '/business-id/$businessId',
@@ -300,26 +303,10 @@ const AuthenticatedAdminPlatformUsersRoute =
     path: '/platform/users',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
-const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
-  id: '/lovable/email/auth/preview',
-  path: '/lovable/email/auth/preview',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
-  id: '/lovable/email/auth/webhook',
-  path: '/lovable/email/auth/webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LovableEmailTransactionalPreviewRoute =
-  LovableEmailTransactionalPreviewRouteImport.update({
-    id: '/lovable/email/transactional/preview',
-    path: '/lovable/email/transactional/preview',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
@@ -331,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/auth/email-hook': typeof AuthEmailHookRoute
   '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
   '/business/$businessSlug': typeof BusinessBusinessSlugRoute
   '/business/signup': typeof BusinessSignupRoute
@@ -361,13 +349,10 @@ export interface FileRoutesByFullPath {
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
   '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
   '/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
-  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
-  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
-  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
@@ -378,6 +363,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/auth/email-hook': typeof AuthEmailHookRoute
   '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
   '/business/$businessSlug': typeof BusinessBusinessSlugRoute
   '/business/signup': typeof BusinessSignupRoute
@@ -408,15 +394,12 @@ export interface FileRoutesByTo {
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
   '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
   '/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
-  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
-  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
-  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
@@ -428,6 +411,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/favorites': typeof AuthenticatedFavoritesRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/auth/email-hook': typeof AuthEmailHookRoute
   '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
   '/business/$businessSlug': typeof BusinessBusinessSlugRoute
   '/business/signup': typeof BusinessSignupRoute
@@ -458,9 +442,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
   '/_authenticated/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
   '/_authenticated/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
-  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
-  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
-  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -478,6 +459,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/favorites'
     | '/profile'
+    | '/auth/email-hook'
     | '/business-id/$businessId'
     | '/business/$businessSlug'
     | '/business/signup'
@@ -508,9 +490,6 @@ export interface FileRouteTypes {
     | '/admin/platform/overview'
     | '/admin/platform/reserved-slugs'
     | '/admin/platform/users'
-    | '/lovable/email/auth/preview'
-    | '/lovable/email/auth/webhook'
-    | '/lovable/email/transactional/preview'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -525,6 +504,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/favorites'
     | '/profile'
+    | '/auth/email-hook'
     | '/business-id/$businessId'
     | '/business/$businessSlug'
     | '/business/signup'
@@ -555,9 +535,6 @@ export interface FileRouteTypes {
     | '/admin/platform/overview'
     | '/admin/platform/reserved-slugs'
     | '/admin/platform/users'
-    | '/lovable/email/auth/preview'
-    | '/lovable/email/auth/webhook'
-    | '/lovable/email/transactional/preview'
   id:
     | '__root__'
     | '/'
@@ -574,6 +551,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/favorites'
     | '/_authenticated/profile'
+    | '/auth/email-hook'
     | '/business-id/$businessId'
     | '/business/$businessSlug'
     | '/business/signup'
@@ -604,15 +582,12 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/platform/overview'
     | '/_authenticated/admin/platform/reserved-slugs'
     | '/_authenticated/admin/platform/users'
-    | '/lovable/email/auth/preview'
-    | '/lovable/email/auth/webhook'
-    | '/lovable/email/transactional/preview'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SearchRoute: typeof SearchRoute
@@ -622,9 +597,6 @@ export interface RootRouteChildren {
   BusinessSignupRoute: typeof BusinessSignupRoute
   SalonSalonIdRoute: typeof SalonSalonIdRoute
   StaffSignupRoute: typeof StaffSignupRoute
-  LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
-  LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
-  LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -726,6 +698,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/profile'
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/auth/email-hook': {
+      id: '/auth/email-hook'
+      path: '/email-hook'
+      fullPath: '/auth/email-hook'
+      preLoaderRoute: typeof AuthEmailHookRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/business-id/$businessId': {
       id: '/business-id/$businessId'
@@ -937,27 +916,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPlatformUsersRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
-    '/lovable/email/auth/preview': {
-      id: '/lovable/email/auth/preview'
-      path: '/lovable/email/auth/preview'
-      fullPath: '/lovable/email/auth/preview'
-      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lovable/email/auth/webhook': {
-      id: '/lovable/email/auth/webhook'
-      path: '/lovable/email/auth/webhook'
-      fullPath: '/lovable/email/auth/webhook'
-      preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lovable/email/transactional/preview': {
-      id: '/lovable/email/transactional/preview'
-      path: '/lovable/email/transactional/preview'
-      fullPath: '/lovable/email/transactional/preview'
-      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -1056,10 +1014,20 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AuthRouteChildren {
+  AuthEmailHookRoute: typeof AuthEmailHookRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthEmailHookRoute: AuthEmailHookRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SearchRoute: SearchRoute,
@@ -1069,9 +1037,6 @@ const rootRouteChildren: RootRouteChildren = {
   BusinessSignupRoute: BusinessSignupRoute,
   SalonSalonIdRoute: SalonSalonIdRoute,
   StaffSignupRoute: StaffSignupRoute,
-  LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
-  LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
-  LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
