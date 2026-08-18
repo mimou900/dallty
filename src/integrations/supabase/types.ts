@@ -347,6 +347,10 @@ export type Database = {
         Row: {
           branch_id: string;
           business_id: string;
+          confirmation_attempted_at: string | null;
+          confirmation_notes: string | null;
+          confirmation_status: Database["public"]["Enums"]["booking_confirmation_status"];
+          confirmed_by: string | null;
           created_at: string;
           customer_email: string | null;
           customer_id: string | null;
@@ -373,6 +377,10 @@ export type Database = {
         Insert: {
           branch_id: string;
           business_id: string;
+          confirmation_attempted_at?: string | null;
+          confirmation_notes?: string | null;
+          confirmation_status?: Database["public"]["Enums"]["booking_confirmation_status"];
+          confirmed_by?: string | null;
           created_at?: string;
           customer_email?: string | null;
           customer_id?: string | null;
@@ -399,6 +407,10 @@ export type Database = {
         Update: {
           branch_id?: string;
           business_id?: string;
+          confirmation_attempted_at?: string | null;
+          confirmation_notes?: string | null;
+          confirmation_status?: Database["public"]["Enums"]["booking_confirmation_status"];
+          confirmed_by?: string | null;
           created_at?: string;
           customer_email?: string | null;
           customer_id?: string | null;
@@ -965,6 +977,7 @@ export type Database = {
           region_id: string | null;
           rejection_reason: string | null;
           reminder_offsets_minutes: number[];
+          require_confirmation_call: boolean;
           require_deposit: boolean;
           review_count: number;
           reviewed_at: string | null;
@@ -1064,6 +1077,7 @@ export type Database = {
           region_id?: string | null;
           rejection_reason?: string | null;
           reminder_offsets_minutes?: number[];
+          require_confirmation_call?: boolean;
           require_deposit?: boolean;
           review_count?: number;
           reviewed_at?: string | null;
@@ -1163,6 +1177,7 @@ export type Database = {
           region_id?: string | null;
           rejection_reason?: string | null;
           reminder_offsets_minutes?: number[];
+          require_confirmation_call?: boolean;
           require_deposit?: boolean;
           review_count?: number;
           reviewed_at?: string | null;
@@ -3762,6 +3777,10 @@ export type Database = {
         Returns: {
           branch_id: string;
           business_id: string;
+          confirmation_attempted_at: string | null;
+          confirmation_notes: string | null;
+          confirmation_status: Database["public"]["Enums"]["booking_confirmation_status"];
+          confirmed_by: string | null;
           created_at: string;
           customer_email: string | null;
           customer_id: string | null;
@@ -3851,6 +3870,8 @@ export type Database = {
     };
     Enums: {
       app_role: "client" | "business_owner" | "specialist" | "admin" | "super_admin";
+      booking_confirmation_status:
+        "not_required" | "pending" | "confirmed" | "unreachable" | "declined";
       booking_status:
         "pending" | "confirmed" | "completed" | "cancelled" | "held" | "expired" | "no_show";
       business_status: "pending" | "approved" | "rejected" | "suspended";
@@ -4014,6 +4035,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["client", "business_owner", "specialist", "admin", "super_admin"],
+      booking_confirmation_status: [
+        "not_required",
+        "pending",
+        "confirmed",
+        "unreachable",
+        "declined",
+      ],
       booking_status: [
         "pending",
         "confirmed",

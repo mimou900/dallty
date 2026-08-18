@@ -436,3 +436,69 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
     }
     return result;
   });
+
+const recordConfirmationInput = z.object({
+  bookingId: z.string().uuid(),
+  outcome: z.enum(["confirmed", "unreachable", "declined"]),
+  notes: z.string().trim().max(1000).optional(),
+});
+
+/**
+ * Records the outcome of a pre-appointment confirmation call (Project 09 Phase 4). Any staff
+ * member or the owner of the booking's business can record it — front-desk staff typically
+ * make these calls, not necessarily the assigned specialist. Refuses bookings whose
+ * confirmation_status is 'not_required': either the business never opted into confirmation
+ * calls, or this booking predates that opt-in — recording an outcome for either would be
+ * meaningless and could mask the real state to whoever reads it next.
+ */
+export const recordBookingConfirmation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => recordConfirmationInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: booking, error: bookingErr } = await supabaseAdmin
+      .from("bookings")
+      .select("id, business_id, confirmation_status")
+      .eq("id", data.bookingId)
+      .maybeSingle();
+    if (bookingErr) throw new Error(sanitizeDbError(bookingErr));
+    if (!booking) throw new Error("BOOKING_NOT_MODIFIABLE");
+    if (booking.confirmation_status === "not_required") throw new Error("BOOKING_NOT_MODIFIABLE");
+
+    const [{ data: owns }, { data: staffRow }] = await Promise.all([
+      supabaseAdmin.rpc("owns_business", {
+        _user_id: context.userId,
+        _salon_id: booking.business_id,
+      }),
+      supabaseAdmin
+        .from("staff")
+        .select("id")
+        .eq("user_id", context.userId)
+        .eq("business_id", booking.business_id)
+        .maybeSingle(),
+    ]);
+    if (!owns && !staffRow) throw new Error("BOOKING_NOT_MODIFIABLE");
+
+    const { error } = await supabaseAdmin
+      .from("bookings")
+      .update({
+        confirmation_status: data.outcome,
+        confirmation_attempted_at: new Date().toISOString(),
+        confirmed_by: context.userId,
+        confirmation_notes: data.notes ?? null,
+      } as never)
+      .eq("id", data.bookingId);
+    if (error) throw new Error(sanitizeDbError(error));
+
+    await supabaseAdmin.from("admin_audit_log").insert({
+      actor_id: context.userId,
+      action: "booking.confirmation_recorded",
+      target_type: "booking",
+      target_id: data.bookingId,
+      business_id: booking.business_id,
+      details: { outcome: data.outcome } as never,
+    } as never);
+
+    return { ok: true };
+  });
