@@ -534,7 +534,9 @@ function BookingFlow() {
 
   // Post-submit success view (guest path only — signed-in customers keep
   // navigating straight to /bookings like today).
-  const [bookingResult, setBookingResult] = useState<{ id: string } | null>(null);
+  const [bookingResult, setBookingResult] = useState<{ id: string; reference: string } | null>(
+    null,
+  );
   const [emailAccountCheck, setEmailAccountCheck] = useState<
     "idle" | "checking" | "existing" | "new" | "none"
   >("idle");
@@ -670,7 +672,7 @@ function BookingFlow() {
       }
       // Guest: stay on step 5 and show the success card instead of navigating
       // (there's no /bookings to send a guest to — it's auth-guarded).
-      setBookingResult({ id: data.id });
+      setBookingResult({ id: data.id, reference: data.reference });
       const email = guestInfo.email.trim();
       if (!email) {
         setEmailAccountCheck("none");
@@ -1432,6 +1434,12 @@ function BookingFlow() {
                 ) : (
                   <div className="rounded-3xl glass p-6 text-center">
                     <p className="text-2xl font-extrabold">🎉 Your booking has been confirmed.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Booking reference:{" "}
+                      <span className="font-mono font-bold text-foreground">
+                        {bookingResult.reference}
+                      </span>
+                    </p>
 
                     {emailAccountCheck === "checking" && (
                       <p className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">

@@ -533,7 +533,7 @@ export const createGuestBooking = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(sanitizeDbError(error));
-    return booking as { id: string };
+    return booking as { id: string; reference: string };
   });
 
 /**

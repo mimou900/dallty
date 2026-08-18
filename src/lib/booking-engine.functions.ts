@@ -138,11 +138,25 @@ export const createBookingHold = createServerFn({ method: "POST" })
 
     const { data: business, error: bizErr } = await supabaseAdmin
       .from("businesses")
-      .select("id, timezone, currency, min_notice_hours, max_booking_days, booking_confirmation")
+      .select(
+        "id, timezone, currency, min_notice_hours, max_booking_days, booking_confirmation, hold_minutes, country_code",
+      )
       .eq("id", data.businessId)
       .maybeSingle();
     if (bizErr) throw new Error(sanitizeDbError(bizErr));
     if (!business) throw new Error("BUSINESS_CLOSED");
+
+    // Hold duration: business override -> country default -> hardcoded fallback (brief §26:
+    // "Super-Admin/country configurable", same hierarchy shape as the buffer resolution).
+    let holdMinutes = business.hold_minutes ?? HOLD_DURATION_MINUTES;
+    if (business.hold_minutes == null) {
+      const { data: country } = await supabaseAdmin
+        .from("countries")
+        .select("default_hold_minutes")
+        .eq("iso_code", business.country_code)
+        .maybeSingle();
+      if (country?.default_hold_minutes != null) holdMinutes = country.default_hold_minutes;
+    }
 
     // Every booking must resolve to a specific branch. Until Phase 6 adds a branch picker to
     // the customer flow, every hold is created at the business's Main branch — the same
@@ -169,7 +183,7 @@ export const createBookingHold = createServerFn({ method: "POST" })
       if (!candidates.length) throw new Error("NO_ELIGIBLE_SPECIALIST");
     }
 
-    const expiresAt = new Date(Date.now() + HOLD_DURATION_MINUTES * 60_000);
+    const expiresAt = new Date(Date.now() + holdMinutes * 60_000);
     let lastError: unknown = null;
 
     for (const staffId of candidates) {
@@ -202,7 +216,7 @@ export const createBookingHold = createServerFn({ method: "POST" })
           hold_expires_at: expiresAt.toISOString(),
           total_price: totalPrice,
         } as never)
-        .select("id")
+        .select("id, reference")
         .single();
 
       if (!insertErr) {
@@ -231,6 +245,7 @@ export const createBookingHold = createServerFn({ method: "POST" })
 
         return {
           holdId: inserted.id as string,
+          reference: inserted.reference as string,
           staffId,
           expiresAt: expiresAt.toISOString(),
           startsAt: startsAt.toISOString(),
@@ -326,7 +341,7 @@ export const confirmBookingHold = createServerFn({ method: "POST" })
           .eq("id", hold.id)
           .eq("status", "held")
           .gt("hold_expires_at", new Date().toISOString())
-          .select("id, starts_at, ends_at, status, total_price")
+          .select("id, reference, starts_at, ends_at, status, total_price")
           .single();
         if (updateErr || !updated) throw new Error("HOLD_EXPIRED");
 

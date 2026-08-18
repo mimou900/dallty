@@ -362,6 +362,7 @@ export type Database = {
           paid_by: string | null;
           payment_status: Database["public"]["Enums"]["payment_status"];
           promotion_id: string | null;
+          reference: string;
           service_id: string;
           staff_id: string;
           starts_at: string;
@@ -387,6 +388,7 @@ export type Database = {
           paid_by?: string | null;
           payment_status?: Database["public"]["Enums"]["payment_status"];
           promotion_id?: string | null;
+          reference?: string;
           service_id: string;
           staff_id: string;
           starts_at: string;
@@ -412,6 +414,7 @@ export type Database = {
           paid_by?: string | null;
           payment_status?: Database["public"]["Enums"]["payment_status"];
           promotion_id?: string | null;
+          reference?: string;
           service_id?: string;
           staff_id?: string;
           starts_at?: string;
@@ -924,6 +927,7 @@ export type Database = {
           employee_count: number | null;
           facebook_url: string | null;
           faq: Json;
+          hold_minutes: number | null;
           house_rules: string | null;
           house_rules_ar: string | null;
           id: string;
@@ -1022,6 +1026,7 @@ export type Database = {
           employee_count?: number | null;
           facebook_url?: string | null;
           faq?: Json;
+          hold_minutes?: number | null;
           house_rules?: string | null;
           house_rules_ar?: string | null;
           id?: string;
@@ -1120,6 +1125,7 @@ export type Database = {
           employee_count?: number | null;
           facebook_url?: string | null;
           faq?: Json;
+          hold_minutes?: number | null;
           house_rules?: string | null;
           house_rules_ar?: string | null;
           id?: string;
@@ -1347,6 +1353,7 @@ export type Database = {
           created_at: string;
           currency_code: string;
           default_buffer_minutes: number;
+          default_hold_minutes: number;
           default_name: string;
           display_order: number;
           flag: string;
@@ -1363,6 +1370,7 @@ export type Database = {
           created_at?: string;
           currency_code: string;
           default_buffer_minutes?: number;
+          default_hold_minutes?: number;
           default_name: string;
           display_order?: number;
           flag: string;
@@ -1379,6 +1387,7 @@ export type Database = {
           created_at?: string;
           currency_code?: string;
           default_buffer_minutes?: number;
+          default_hold_minutes?: number;
           default_name?: string;
           display_order?: number;
           flag?: string;
@@ -3636,6 +3645,7 @@ export type Database = {
         };
         Returns: string;
       };
+      generate_booking_reference: { Args: never; Returns: string };
       generate_due_booking_reminders: { Args: never; Returns: number };
       get_available_slots: {
         Args: {
@@ -3767,6 +3777,7 @@ export type Database = {
           paid_by: string | null;
           payment_status: Database["public"]["Enums"]["payment_status"];
           promotion_id: string | null;
+          reference: string;
           service_id: string;
           staff_id: string;
           starts_at: string;
