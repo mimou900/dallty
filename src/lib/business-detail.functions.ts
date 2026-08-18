@@ -35,7 +35,10 @@ export const getBusinessPublicStaff = createServerFn({ method: "POST" })
     return rows ?? [];
   });
 
-const daysInput = businessIdInput.extend({ days: z.number().int().min(1).max(60).default(14) });
+const daysInput = businessIdInput.extend({
+  branchId: z.string().uuid(),
+  days: z.number().int().min(1).max(60).default(14),
+});
 
 export const getBusinessAvailabilityOverview = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => daysInput.parse(input))
@@ -49,6 +52,7 @@ export const getBusinessAvailabilityOverview = createServerFn({ method: "POST" }
 
     const { data: rows, error } = await supabaseAdmin.rpc("get_business_availability_summary", {
       _salon_id: data.businessId,
+      _branch_id: data.branchId,
       _days: data.days,
     });
     if (error) throw new Error("AVAILABILITY_OVERVIEW_FAILED");
@@ -57,6 +61,7 @@ export const getBusinessAvailabilityOverview = createServerFn({ method: "POST" }
 
 const staffDayInput = z.object({
   staffId: z.string().uuid(),
+  branchId: z.string().uuid(),
   serviceId: z.string().uuid(),
   days: z.number().int().min(1).max(60).default(14),
 });
@@ -73,6 +78,7 @@ export const getStaffDayAvailability = createServerFn({ method: "POST" })
 
     const { data: rows, error } = await supabaseAdmin.rpc("get_staff_day_availability", {
       _staff_id: data.staffId,
+      _branch_id: data.branchId,
       _service_id: data.serviceId,
       _days: data.days,
     });
@@ -82,6 +88,7 @@ export const getStaffDayAvailability = createServerFn({ method: "POST" })
 
 const slotsInput = z.object({
   staffId: z.string().uuid(),
+  branchId: z.string().uuid(),
   serviceId: z.string().uuid(),
   day: z.string(),
 });
@@ -98,6 +105,7 @@ export const getAvailableSlots = createServerFn({ method: "POST" })
 
     const { data: rows, error } = await supabaseAdmin.rpc("get_available_slots", {
       _staff_id: data.staffId,
+      _branch_id: data.branchId,
       _service_id: data.serviceId,
       _day: data.day,
     });

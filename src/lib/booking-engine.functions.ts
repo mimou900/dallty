@@ -144,6 +144,12 @@ export const createBookingHold = createServerFn({ method: "POST" })
     if (bizErr) throw new Error(sanitizeDbError(bizErr));
     if (!business) throw new Error("BUSINESS_CLOSED");
 
+    // Every booking must resolve to a specific branch. Until Phase 6 adds a branch picker to
+    // the customer flow, every hold is created at the business's Main branch — the same
+    // placeholder pattern used everywhere else in Project 09 Phase 1/2.
+    const { resolveMainBranchId } = await import("@/lib/branch.server");
+    const branchId = await resolveMainBranchId(supabaseAdmin, data.businessId);
+
     const startsAt = new Date(data.startsAt);
     const minNoticeMs = (business.min_notice_hours ?? 0) * 3600_000;
     if (startsAt.getTime() < Date.now() + minNoticeMs) throw new Error("MINIMUM_NOTICE_REQUIRED");
@@ -176,6 +182,7 @@ export const createBookingHold = createServerFn({ method: "POST" })
       const totalDuration = lines.reduce((sum, l) => sum + l.durationMinutes, 0);
       const { data: bufferMinutes } = await supabaseAdmin.rpc("resolve_buffer_minutes", {
         _business_id: data.businessId,
+        _branch_id: branchId,
         _service_id: lines[0].serviceId,
       });
       const endsAt = new Date(startsAt.getTime() + (totalDuration + (bufferMinutes ?? 0)) * 60_000);
@@ -186,6 +193,7 @@ export const createBookingHold = createServerFn({ method: "POST" })
         .insert({
           customer_id: context.userId,
           business_id: data.businessId,
+          branch_id: branchId,
           service_id: lines[0].serviceId,
           staff_id: staffId,
           starts_at: startsAt.toISOString(),
@@ -373,7 +381,7 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
 
     const { data: old, error: oldErr } = await supabaseAdmin
       .from("bookings")
-      .select("id, service_id, staff_id")
+      .select("id, service_id, staff_id, branch_id")
       .eq("id", data.bookingId)
       .maybeSingle();
     if (oldErr) throw new Error(sanitizeDbError(oldErr));
@@ -392,6 +400,7 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
     if (!staffRow) throw new Error("BOOKING_NOT_MODIFIABLE");
     const { data: bufferMinutes } = await supabaseAdmin.rpc("resolve_buffer_minutes", {
       _business_id: staffRow.business_id,
+      _branch_id: old.branch_id,
       _service_id: old.service_id,
     });
     const newStart = new Date(data.newStartsAt);

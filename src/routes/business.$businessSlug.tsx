@@ -243,6 +243,27 @@ function BookingFlow() {
 
   const business = businessQuery.data;
 
+  // Every booking must resolve to a specific branch. Until Phase 6 adds a branch picker to
+  // this flow, every customer books at the business's Main branch — the same placeholder
+  // pattern used server-side in resolveMainBranchId().
+  const mainBranchQuery = useQuery({
+    queryKey: ["main-branch", business?.id],
+    enabled: Boolean(business?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("business_branches")
+        .select("id")
+        .eq("business_id", business!.id)
+        .eq("is_main", true)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 60_000,
+  });
+
+  const branchId = mainBranchQuery.data?.id;
+
   const servicesQuery = useQuery({
     queryKey: ["services", business?.id],
     enabled: Boolean(business?.id),
@@ -269,10 +290,12 @@ function BookingFlow() {
    * weeks, so we can show what's really bookable instead of an empty time step.
    */
   const availabilityQuery = useQuery({
-    queryKey: ["availability-summary", business?.id],
-    enabled: Boolean(business?.id),
+    queryKey: ["availability-summary", business?.id, branchId],
+    enabled: Boolean(business?.id && branchId),
     queryFn: async () =>
-      getBusinessAvailabilityOverview({ data: { businessId: business!.id, days: 14 } }),
+      getBusinessAvailabilityOverview({
+        data: { businessId: business!.id, branchId: branchId!, days: 14 },
+      }),
   });
 
   const availability = availabilityQuery.data ?? [];
@@ -329,11 +352,11 @@ function BookingFlow() {
   /** First open day per eligible specialist for the chosen service. */
   const nextAvailableQueries = useQueries({
     queries: eligibleStaff.map((m) => ({
-      queryKey: ["day-availability", m.id, serviceId],
-      enabled: Boolean(serviceId),
+      queryKey: ["day-availability", m.id, serviceId, branchId],
+      enabled: Boolean(serviceId && branchId),
       queryFn: async () =>
         (await getStaffDayAvailability({
-          data: { staffId: m.id, serviceId: serviceId!, days: 14 },
+          data: { staffId: m.id, branchId: branchId!, serviceId: serviceId!, days: 14 },
         })) as DayAvailability[],
     })),
   });
@@ -365,10 +388,12 @@ function BookingFlow() {
   }
 
   const slotsQuery = useQuery({
-    queryKey: ["slots", staffId, serviceId, day],
-    enabled: Boolean(staffId && serviceId && step >= 3),
+    queryKey: ["slots", staffId, serviceId, day, branchId],
+    enabled: Boolean(staffId && serviceId && branchId && step >= 3),
     queryFn: async () =>
-      getAvailableSlots({ data: { staffId: staffId!, serviceId: serviceId!, day } }),
+      getAvailableSlots({
+        data: { staffId: staffId!, branchId: branchId!, serviceId: serviceId!, day },
+      }),
   });
 
   /**
@@ -377,11 +402,11 @@ function BookingFlow() {
    * Refetches instantly whenever the specialist or service changes.
    */
   const dayAvailabilityQuery = useQuery({
-    queryKey: ["day-availability", staffId, serviceId],
-    enabled: Boolean(staffId && serviceId),
+    queryKey: ["day-availability", staffId, serviceId, branchId],
+    enabled: Boolean(staffId && serviceId && branchId),
     queryFn: async () =>
       (await getStaffDayAvailability({
-        data: { staffId: staffId!, serviceId: serviceId!, days: 14 },
+        data: { staffId: staffId!, branchId: branchId!, serviceId: serviceId!, days: 14 },
       })) as DayAvailability[],
   });
 
@@ -591,21 +616,15 @@ function BookingFlow() {
             .eq("id", user.id);
           if (profileError) throw profileError;
         }
+        if (!branchId) throw new Error("Booking is incomplete");
         const starts = new Date(slot);
         const ends = new Date(starts.getTime() + service.duration_minutes * 60_000);
-        const { data: mainBranch, error: branchError } = await supabase
-          .from("business_branches")
-          .select("id")
-          .eq("business_id", business!.id)
-          .eq("is_main", true)
-          .single();
-        if (branchError) throw branchError;
         const { data, error } = await supabase
           .from("bookings")
           .insert({
             customer_id: user.id,
             business_id: business!.id,
-            branch_id: mainBranch.id,
+            branch_id: branchId,
             service_id: service.id,
             staff_id: staffId,
             starts_at: starts.toISOString(),
@@ -733,17 +752,11 @@ function BookingFlow() {
   const joinWaitlist = useMutation({
     mutationFn: async () => {
       if (!user || !serviceId || !staffId) throw new Error("Pick a service and specialist first");
-      const { data: mainBranch, error: branchError } = await supabase
-        .from("business_branches")
-        .select("id")
-        .eq("business_id", business!.id)
-        .eq("is_main", true)
-        .single();
-      if (branchError) throw branchError;
+      if (!branchId) throw new Error("Pick a service and specialist first");
       const { error } = await supabase.from("waitlist_entries").insert({
         customer_id: user.id,
         business_id: business!.id,
-        branch_id: mainBranch.id,
+        branch_id: branchId,
         service_id: serviceId,
         staff_id: staffId,
         day,
