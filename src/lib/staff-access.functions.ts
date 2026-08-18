@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 /** Owner view: login state of each team member + pending join requests. */
 export const listStaffAccess = createServerFn({ method: "POST" })
@@ -76,7 +77,7 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
       .select("id, business_id, full_name, user_id")
       .eq("id", data.staffId)
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await assertManagesSalon(context, member.business_id);
 
     const { data: business } = await supabaseAdmin
@@ -96,7 +97,7 @@ export const inviteStaffMember = createServerFn({ method: "POST" })
       .from("staff")
       .update({ email, user_id: userId, invited_at: new Date().toISOString() })
       .eq("id", member.id);
-    if (linkError) throw new Error(linkError.message);
+    if (linkError) throw new Error(sanitizeDbError(linkError));
 
     const url = await passwordLink(supabaseAdmin, email, safeOrigin(data.origin));
     const result = await sendTemplateEmail("staff-invite", email, {
@@ -129,7 +130,7 @@ export const sendStaffPasswordLink = createServerFn({ method: "POST" })
       .select("id, business_id, full_name, email, user_id")
       .eq("id", data.staffId)
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await assertManagesSalon(context, member.business_id);
     if (!member.email) throw new Error("Add a login email for this team member first");
 
@@ -167,7 +168,7 @@ export const reviewStaffRequest = createServerFn({ method: "POST" })
       .select("id, user_id, business_id, full_name, title, status")
       .eq("id", data.requestId)
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await assertManagesSalon(context, request.business_id);
     if (request.status !== "pending") throw new Error("That request was already reviewed");
 
@@ -204,7 +205,7 @@ export const reviewStaffRequest = createServerFn({ method: "POST" })
           })
           .select("id")
           .single();
-        if (createError) throw new Error(createError.message);
+        if (createError) throw new Error(sanitizeDbError(createError));
         staffId = created.id;
       }
 
@@ -222,7 +223,7 @@ export const reviewStaffRequest = createServerFn({ method: "POST" })
         staff_id: staffId,
       })
       .eq("id", request.id);
-    if (updateError) throw new Error(updateError.message);
+    if (updateError) throw new Error(sanitizeDbError(updateError));
 
     await supabaseAdmin.from("notifications").insert({
       user_id: request.user_id,

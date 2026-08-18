@@ -1,8 +1,108 @@
 # Dallty — Booking Engine
 
 **Status:** Living document. Produced by Project 05 (Booking Engine, Availability &
-Reservation Concurrency).
-**Last updated:** 2026-08-17.
+Reservation Concurrency); extended by Project 09 (Booking Engine & Availability Foundation —
+branch-awareness, availability rewrite, confirmation state machine).
+**Last updated:** 2026-08-19.
+
+## Project 09 update (2026-08-19) — branches, availability rewrite, confirmation state machine
+
+Project 05 (above) built the concurrency-safe hold system and fixed the availability engine's
+dead-column bugs, but explicitly left branches, walk-ins-as-a-real-flow, and confirmation-call
+tracking undone (see "Deliberately not done" and the summary at the bottom — both sections
+below are updated to reflect what changed). Nine phases, each independently committed, built,
+and Preview-verified before the next started:
+
+1. **Branch-aware schema foundation.** Branches were a standalone table since Project 01 —
+   never connected to hours, staff assignment, or bookings. Added: `staff_branches`
+   (many-to-many, `is_primary`), `branch_hours`/`staff_branch_schedules`/
+   `staff_branch_day_hours` (multi-interval per day — no unique constraint on
+   `(scope, weekday)`, deliberately, so split shifts are representable), `branch_services`
+   (branch-specific price/duration/availability override), `staff_services.branch_id`
+   (nullable — NULL means "applies at every branch", a value overrides for one), `holidays`
+   (country/business/branch scope, with exceptional-opening support), `temporary_blocks`
+   (short-notice, branch-wide or staff-targeted). `bookings.branch_id`, `booking_items.branch_id`,
+   `waitlist_entries.branch_id` — every booking now resolves to a specific branch at creation
+   and never infers it from the business afterward. Two triggers
+   (`businesses_create_main_branch`, `staff_create_primary_branch`) guarantee every business
+   always has a Main branch and every staff member always has a primary branch, so downstream
+   code can treat both as invariants instead of needing fallback queries.
+
+2. **Availability engine rewrite.** `get_available_slots` (and the three functions built on
+   it — `get_staff_day_availability`, `get_business_availability_summary`,
+   `get_business_next_available`) now compute available time as **branch hours ∩ staff hours
+   at that branch, minus breaks, time-off, holiday closures, and temporary blocks**, using
+   Postgres `tstzrange`/`tstzmultirange` for correct interval intersection/subtraction instead
+   of the old single-daily-window assumption. Booking-conflict checks stayed staff-wide, not
+   branch-scoped, deliberately — one person cannot be double-booked across two branches at the
+   same time. Verified live with a rolled-back transactional test against real branch hours,
+   staff hours, and a lunch break, including correct `Africa/Algiers` (UTC+1) timezone
+   conversion — the multirange result matched the hand-computed expected windows exactly.
+   `resolve_buffer_minutes` gained a branch tier: service → branch → business → country default
+   → 0.
+
+3. **Booking reference codes + configurable hold duration.** Every booking gets an 8-character
+   non-enumerable reference code (`ABCDEFGHJKMNPQRSTUVWXYZ23456789` alphabet, no 0/O/1/I/L),
+   generated via a Postgres column `DEFAULT` (not a trigger — see the code comment in
+   `20260818041000_booking_reference_column_default.sql` for why a trigger was tried first and
+   reverted) so it applies to every insert path uniformly. Hold duration moved from a hardcoded
+   15-minute constant to `countries.default_hold_minutes` → `businesses.hold_minutes`
+   (nullable override), defaulting to 15 everywhere until a Super Admin changes it.
+
+4. **Confirmation state machine.** The third state machine the original brief called for,
+   alongside `booking_status` and `payment_status`: `bookings.confirmation_status`
+   (`not_required`/`pending`/`confirmed`/`unreachable`/`declined`), opt-in per business
+   (`businesses.require_confirmation_call`), initialized by a trigger the moment a booking
+   first becomes real — never re-touched by a later reschedule or status change once set, so an
+   in-progress or completed call record can't be silently reset. `recordBookingConfirmation`
+   lets any staff member or the business owner record the outcome.
+
+5. **Walk-ins / guest-creation flow.** `createWalkInBooking` — any staff member or the business
+   owner can book any specialist at the business (not just their own calendar, unlike
+   `createMyAppointment`) for either an existing customer or a brand-new guest (name + phone,
+   matching the `bookings_identity_present` check constraint). Skips the hold phase entirely
+   (goes straight to `confirmed`) since the customer is already present; still protected by the
+   same exclusion constraint against a concurrent online booking.
+
+6. **Customer branch-selection UI.** `business.$businessSlug.tsx` gained a branch-choice screen
+   (Business → Branch → Services → ... ) shown only when a business has more than one active
+   branch; a single-branch business — every real business today — auto-skips it with zero
+   visible change. Implemented as a pre-step gate rendered before the existing six-step
+   `STEPS` state machine rather than inserting "Branch" as a new numbered step into it: that
+   array and every `setStep(n)` call across the file are index-coupled, and renumbering all of
+   them carried materially higher regression risk than gating render on
+   `branchesQuery.data.length`. **Not done**: migrating this flow onto the hold-then-confirm
+   system (see "Deliberately not done" below, carried forward and re-confirmed still correct).
+
+7. **Dashboard branch-awareness — and a critical fix.** While wiring this up, found that the
+   business settings hours editor and the staff working-hours editor both still wrote to
+   `business_hours`/`staff_schedules`/`staff_day_hours` — the tables step 2's rewrite stopped
+   reading from. Saving hours through either admin page produced a success toast with **zero
+   effect on real availability** from the moment step 2 shipped until this fix. Both now target
+   `branch_hours`/`staff_branch_schedules`/`staff_branch_day_hours`; the day-hours editor's
+   `upsert` became an explicit delete-then-insert since neither new table carries a unique
+   constraint (deliberate, for future split-shift support — `ON CONFLICT` needs one).
+
+8. **Real concurrency test + security test pass.** `scripts/concurrency-test.mjs`: 12
+   genuinely concurrent `INSERT` attempts — separate HTTP requests to separate Postgres
+   connections, not statements inside one transaction — at the identical staff+time slot
+   against the live database. Result: 1 succeeded, 11 failed with exclusion-violation code
+   `23P01`. Security pass: simulated an attacker with no relationship to the target business
+   (`SET LOCAL ROLE authenticated` + a foreign JWT claim) and attempted cross-business writes
+   against `branch_hours`, `staff_branch_schedules`, `holidays`, `temporary_blocks` — RLS
+   correctly rejected all four. **That same pass found a real, live vulnerability**: the five
+   functions rewritten in step 2 were callable directly by any `anon`/`authenticated` caller via
+   `supabase.rpc(...)`, bypassing the rate-limited server-function wrappers entirely — step 2's
+   migration had revoked access `FROM PUBLIC`, but this project grants `EXECUTE` to `anon`/
+   `authenticated` directly at `CREATE FUNCTION` time (`ALTER DEFAULT PRIVILEGES`), and
+   `REVOKE ... FROM PUBLIC` does not touch a grant a role already holds by name — the same root
+   cause, and same fix (`REVOKE ... FROM anon, authenticated` by name), as the original Security
+   Anti-Fraud project's RPC lockdown. Confirmed live both before the fix (an anon-role call
+   succeeded) and after (the identical call fails with "permission denied").
+
+See `docs/DALLTY_MASTER_ARCHITECTURE.md` and `docs/DALLTY_IMPLEMENTATION_ROADMAP.md` for how
+this fits the platform-wide picture; the section-by-section detail below (Project 05's original
+text) is superseded where it conflicts with this update and left as-is where it still holds.
 
 The single most important fact in this document: **the concurrency-safety mechanism was
 live-tested against the real database with real concurrent requests, not assumed correct
@@ -93,12 +193,15 @@ would itself be the duplication this project is warned against.
 
 ## Payment state / confirmation state (brief §4-5)
 
-**Unchanged, already correctly separate** (verified, not rebuilt): `payment_status`
-(`unpaid`/`paid`/`refunded`) has been independent of `booking_status` since an earlier
-project. A `CONFIRMED` + `UNPAID` booking is, and always was, a valid state in this schema.
-No dedicated `confirmation_status` (phone/manual confirmation tracking — §5) exists yet;
-this remains a documented gap carried forward, not addressed in this project (out of the
-scope this pass focused on — the hold/concurrency mechanism).
+`payment_status` (`unpaid`/`paid`/`refunded`) has been independent of `booking_status` since
+an earlier project — unchanged. A `CONFIRMED` + `UNPAID` booking is, and always was, a valid
+state in this schema.
+
+**As of Project 09**, `confirmation_status` (phone/manual pre-appointment confirmation
+tracking — §5) exists as the third, independent state machine: `not_required`/`pending`/
+`confirmed`/`unreachable`/`declined`, opt-in per business via
+`businesses.require_confirmation_call`. See the Project 09 update at the top of this document
+for the trigger design and its re-trigger-avoidance guarantee.
 
 ## Hold system (brief §6-9, §36-39)
 
@@ -152,9 +255,16 @@ touched.
 since an earlier project but were confirmed **dead** (never consulted by any booking path) in
 Project 00's audit — are now the first tier actually read: effective duration/price =
 `staff_services` override, falling back to `services.discount_price ?? services.price` /
-`services.duration_minutes`. No branch-level override exists (no branch entity is wired into
-booking yet — branches remain a standalone table per Project 01, not yet connected to
-services/staff/bookings; unchanged by this project, documented there already).
+`services.duration_minutes`.
+
+**As of Project 09**, branches are fully wired into booking (see the Project 09 update at the
+top): `branch_services` overrides price/duration/availability per branch, `staff_services`
+gained a nullable `branch_id` for branch-specific specialist pricing, and buffer resolution
+gained a branch tier (service → branch → business → country default). The customer-facing
+selection flow itself still resolves prices through `createBookingHold`'s existing
+`resolveServiceLines` — unchanged by Project 09 — which does not yet read `branch_services`
+overrides; it resolves duration/price from `staff_services`/`services` only. Threading
+branch-specific pricing through that specific resolution path remains open for a future pass.
 
 ## Multi-service booking (brief §13-14)
 
@@ -205,14 +315,20 @@ manual UTC-offset arithmetic, in this codebase or after this project.
 
 ## Walk-ins, guest customers (brief §46-48)
 
-**Not changed this project.** The existing staff-desk walk-in path
-(`src/lib/staff-desk.functions.ts`) and guest checkout (`createGuestBooking`,
-`src/lib/account.functions.ts`) both insert directly into `bookings` with a live status —
-meaning **both now automatically inherit the same overlap protection** from
-`bookings_no_overlap`, with no code change required, since the constraint applies to the
-table itself regardless of which code path performs the insert. Neither was migrated onto
-the new two-phase hold→confirm flow in this project — see "Deliberately not done" below for
-why.
+`createMyAppointment` (`src/lib/staff-desk.functions.ts`) and guest checkout
+(`createGuestBooking`, `src/lib/account.functions.ts`) both insert directly into `bookings`
+with a live status — both inherit the same overlap protection from `bookings_no_overlap`, with
+no code change required, since the constraint applies to the table itself regardless of which
+code path performs the insert. Neither is migrated onto the two-phase hold→confirm flow — see
+"Deliberately not done" below for why.
+
+**As of Project 09**, a real gap this left is closed: `createMyAppointment` only ever books
+the *signed-in specialist's own* calendar for an *existing* customer — there was no path for
+reception to book a walk-in against any specialist at the business, or for a customer with no
+account at all. `createWalkInBooking` (`src/lib/booking-engine.functions.ts`) covers both:
+any staff member or the business owner, any specialist at the business, existing customer or
+guest name+phone. Goes straight to `confirmed` (no hold phase — the customer is already
+present).
 
 ## Waitlist (brief §57)
 
@@ -222,6 +338,8 @@ explicitly calls for `DEFAULT = DISABLED`. Changed (no existing business data to
 the table was empty).
 
 ## Deliberately not done in this project
+
+**Still true as of Project 09 — re-confirmed, not just carried forward unchecked.**
 
 **The customer-facing booking UI (`business.$businessSlug.tsx`) was not rewired to the new
 hold→confirm flow.** This is an explicit, reasoned scope decision, not an oversight:
@@ -267,19 +385,30 @@ recurrence structurally harder). Not built, per the brief's own instruction.
 
 ## IMPLEMENTED vs. PLANNED summary
 
-**IMPLEMENTED, live-tested:** exclusion-constraint concurrency safety; server-side 15-minute
-holds; atomic any-specialist candidate resolution; multi-service duration/price
-calculation; `staff_services` override resolution (previously dead columns); buffer
-hierarchy (business→service, after-service only); `booking_items` historical snapshots;
-atomic reschedule (hold-new-before-release-old); idempotent confirmation; hold-ownership and
-expiry enforcement; booking audit events (`booking.held`/`booking.confirmed`/
-`booking.rescheduled`); `get_available_slots` fixes (interval, min-notice, buffer).
+**IMPLEMENTED, live-tested (Project 05):** exclusion-constraint concurrency safety;
+server-side 15-minute holds; atomic any-specialist candidate resolution; multi-service
+duration/price calculation; `staff_services` override resolution (previously dead columns);
+buffer hierarchy (business→service, after-service only); `booking_items` historical
+snapshots; atomic reschedule (hold-new-before-release-old); idempotent confirmation;
+hold-ownership and expiry enforcement; booking audit events (`booking.held`/
+`booking.confirmed`/`booking.rescheduled`); `get_available_slots` fixes (interval, min-notice,
+buffer).
+
+**IMPLEMENTED, live-tested (Project 09):** full branch-aware schema (branches wired into
+hours, staff assignment, services, holidays, blocks, bookings); availability engine rewritten
+onto branch-scoped tables with correct multi-interval/timezone math; buffer hierarchy extended
+with a branch tier; booking reference codes; configurable hold duration (country/business);
+confirmation-call state machine; `createWalkInBooking` (any staff, any specialist, guest or
+existing customer); customer branch-selection UI; a critical fix to two admin hours editors
+that had gone silently disconnected from the rewritten engine; a real 12-way concurrency test;
+a security test pass that found and fixed a live RPC-authorization exposure.
 
 **PLANNED, explicitly not built:** customer-facing UI wiring to the hold flow (existing UI
-kept, now safe via the same DB constraint); promo-code support in the new hold functions;
-confirmation-state tracking (phone/manual confirmation, §5); reminders (needs a scheduler);
-group/recurring booking UI; branch-level price/duration override (branches not yet wired
-into services/staff anywhere in the codebase); waitlist notification-eligibility wiring
-beyond the pre-existing trigger; realtime/live-availability UI refresh polish (the existing
-page's realtime subscription — confirmed present from an earlier audit — was not re-verified
-or extended in this project).
+kept, now safe via the same DB constraint, re-confirmed still true in Project 09);
+promo-code support in the new hold functions; `branch_services` price/duration overrides not
+yet read by `resolveServiceLines` (the resolution path `createBookingHold`/
+`createWalkInBooking` actually use); reminders (needs a scheduler); group/recurring booking
+UI; waitlist notification-eligibility wiring beyond the pre-existing trigger; realtime/
+live-availability UI refresh polish (unchanged since Project 05); a dedicated dashboard UI for
+staff to work the confirmation-call queue or launch a walk-in booking (the server functions
+exist; the buttons/screens to drive them from the staff/business dashboard don't yet).

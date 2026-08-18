@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 export const MARKETPLACE_STATUSES = [
   "draft",
@@ -64,7 +65,7 @@ export const listMarketplaceQueue = createServerFn({ method: "POST" })
       )
       .order("submitted_at", { ascending: false, nullsFirst: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     const rows = data ?? [];
     const readiness = await Promise.all(
@@ -105,7 +106,7 @@ export const setMarketplaceStatus = createServerFn({ method: "POST" })
         reviewed_by: context.userId,
       })
       .eq("id", data.businessId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     await logAdminAction(
       supabaseAdmin,
@@ -140,7 +141,7 @@ export const setSalonVerified = createServerFn({ method: "POST" })
         verified_by: data.verified ? context.userId : null,
       })
       .eq("id", data.businessId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     await logAdminAction(
       supabaseAdmin,

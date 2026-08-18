@@ -507,6 +507,9 @@ export const createGuestBooking = createServerFn({ method: "POST" })
       }
     }
 
+    const { resolveMainBranchId } = await import("@/lib/branch.server");
+    const branchId = await resolveMainBranchId(supabaseAdmin, data.businessId);
+
     const starts = new Date(data.slot);
     const ends = new Date(starts.getTime() + service.duration_minutes * 60_000);
     const { data: booking, error } = await supabaseAdmin
@@ -517,6 +520,7 @@ export const createGuestBooking = createServerFn({ method: "POST" })
         customer_phone: data.phone,
         customer_email: data.email ?? null,
         business_id: data.businessId,
+        branch_id: branchId,
         service_id: service.id,
         staff_id: data.staffId,
         starts_at: starts.toISOString(),
@@ -529,7 +533,7 @@ export const createGuestBooking = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(sanitizeDbError(error));
-    return booking as { id: string };
+    return booking as { id: string; reference: string };
   });
 
 /**

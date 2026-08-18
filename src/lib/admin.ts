@@ -161,7 +161,7 @@ export function useStaffSchedules(staffIds: string[]) {
     enabled: staffIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("staff_schedules")
+        .from("staff_branch_schedules")
         .select("id, staff_id, weekday, starts_at, ends_at")
         .in("staff_id", staffIds);
       if (error) throw error;
@@ -184,7 +184,7 @@ export function useStaffDayRules(staffIds: string[]) {
           .in("staff_id", staffIds)
           .gte("day", today),
         supabase
-          .from("staff_day_hours")
+          .from("staff_branch_day_hours")
           .select("staff_id, day, starts_at, ends_at")
           .in("staff_id", staffIds)
           .gte("day", today),
@@ -274,7 +274,7 @@ export function useManagedBookings(businessIds: string[], fromISO: string, toISO
       let query = supabase
         .from("bookings")
         .select(
-          "id, business_id, customer_id, service_id, staff_id, starts_at, ends_at, status, total_price, payment_status, paid_at, notes, created_at",
+          "id, business_id, branch_id, customer_id, service_id, staff_id, starts_at, ends_at, status, total_price, payment_status, paid_at, notes, created_at",
         )
         .in("business_id", businessIds)
         .gte("starts_at", fromISO)

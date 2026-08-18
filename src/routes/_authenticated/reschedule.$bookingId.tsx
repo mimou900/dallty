@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Loader2, Wifi } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
+import { getAvailableSlots } from "@/lib/business-detail.functions";
 
 export const Route = createFileRoute("/_authenticated/reschedule/$bookingId")({
   head: () => ({
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/reschedule/$bookingId")({
 type BookingDetail = {
   id: string;
   business_id: string;
+  branch_id: string;
   service_id: string;
   staff_id: string;
   starts_at: string;
@@ -54,7 +56,7 @@ function ReschedulePage() {
       const { data, error } = await supabase
         .from("bookings")
         .select(
-          "id, business_id, service_id, staff_id, starts_at, status, services(name, duration_minutes), staff(full_name), businesses(name)",
+          "id, business_id, branch_id, service_id, staff_id, starts_at, status, services(name, duration_minutes), staff(full_name), businesses(name)",
         )
         .eq("id", bookingId)
         .single();
@@ -73,13 +75,14 @@ function ReschedulePage() {
     queryKey: ["slots", booking?.staff_id, booking?.service_id, day],
     enabled: Boolean(booking && day),
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_available_slots", {
-        _staff_id: booking!.staff_id,
-        _service_id: booking!.service_id,
-        _day: day!,
+      return getAvailableSlots({
+        data: {
+          staffId: booking!.staff_id,
+          branchId: booking!.branch_id,
+          serviceId: booking!.service_id,
+          day: day!,
+        },
       });
-      if (error) throw error;
-      return data ?? [];
     },
   });
 

@@ -38,6 +38,13 @@ import {
   createGuestBooking,
   sendGuestAccountInvite,
 } from "@/lib/account.functions";
+import {
+  getBusinessPublicStaff,
+  getBusinessAvailabilityOverview,
+  getStaffDayAvailability,
+  getAvailableSlots,
+  checkPromoCode,
+} from "@/lib/business-detail.functions";
 
 export const Route = createFileRoute("/business/$businessSlug")({
   beforeLoad: async ({ params }) => {
@@ -236,6 +243,37 @@ function BookingFlow() {
 
   const business = businessQuery.data;
 
+  // Every booking must resolve to a specific branch, chosen explicitly by the customer when a
+  // business has more than one (Business -> Branch -> Services -> ...). A single-branch
+  // business — every real business today — skips the branch screen entirely.
+  const branchesQuery = useQuery({
+    queryKey: ["branches", business?.id],
+    enabled: Boolean(business?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("business_branches")
+        .select("id, name, is_main, city, address, latitude, longitude")
+        .eq("business_id", business!.id)
+        .eq("status", "active")
+        .order("is_main", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 60_000,
+  });
+
+  const branches = useMemo(() => branchesQuery.data ?? [], [branchesQuery.data]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const needsBranchChoice = branches.length > 1;
+
+  // Auto-skip: a single-branch business never shows the branch step at all.
+  useEffect(() => {
+    if (needsBranchChoice || !branches.length || selectedBranchId) return;
+    setSelectedBranchId(branches[0].id);
+  }, [needsBranchChoice, branches, selectedBranchId]);
+
+  const branchId = needsBranchChoice ? (selectedBranchId ?? undefined) : branches[0]?.id;
+
   const servicesQuery = useQuery({
     queryKey: ["services", business?.id],
     enabled: Boolean(business?.id),
@@ -254,13 +292,7 @@ function BookingFlow() {
   const staffQuery = useQuery({
     queryKey: ["staff", business?.id],
     enabled: Boolean(business?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_business_public_staff", {
-        _salon_id: business!.id,
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: async () => getBusinessPublicStaff({ data: { businessId: business!.id } }),
   });
 
   /**
@@ -268,16 +300,12 @@ function BookingFlow() {
    * weeks, so we can show what's really bookable instead of an empty time step.
    */
   const availabilityQuery = useQuery({
-    queryKey: ["availability-summary", business?.id],
-    enabled: Boolean(business?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_business_availability_summary", {
-        _salon_id: business!.id,
-        _days: 14,
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryKey: ["availability-summary", business?.id, branchId],
+    enabled: Boolean(business?.id && branchId),
+    queryFn: async () =>
+      getBusinessAvailabilityOverview({
+        data: { businessId: business!.id, branchId: branchId!, days: 14 },
+      }),
   });
 
   const availability = availabilityQuery.data ?? [];
@@ -334,17 +362,12 @@ function BookingFlow() {
   /** First open day per eligible specialist for the chosen service. */
   const nextAvailableQueries = useQueries({
     queries: eligibleStaff.map((m) => ({
-      queryKey: ["day-availability", m.id, serviceId],
-      enabled: Boolean(serviceId),
-      queryFn: async () => {
-        const { data, error } = await supabase.rpc("get_staff_day_availability", {
-          _staff_id: m.id,
-          _service_id: serviceId!,
-          _days: 14,
-        });
-        if (error) throw error;
-        return (data ?? []) as DayAvailability[];
-      },
+      queryKey: ["day-availability", m.id, serviceId, branchId],
+      enabled: Boolean(serviceId && branchId),
+      queryFn: async () =>
+        (await getStaffDayAvailability({
+          data: { staffId: m.id, branchId: branchId!, serviceId: serviceId!, days: 14 },
+        })) as DayAvailability[],
     })),
   });
 
@@ -375,17 +398,12 @@ function BookingFlow() {
   }
 
   const slotsQuery = useQuery({
-    queryKey: ["slots", staffId, serviceId, day],
-    enabled: Boolean(staffId && serviceId && step >= 3),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_available_slots", {
-        _staff_id: staffId!,
-        _service_id: serviceId!,
-        _day: day,
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryKey: ["slots", staffId, serviceId, day, branchId],
+    enabled: Boolean(staffId && serviceId && branchId && step >= 3),
+    queryFn: async () =>
+      getAvailableSlots({
+        data: { staffId: staffId!, branchId: branchId!, serviceId: serviceId!, day },
+      }),
   });
 
   /**
@@ -394,17 +412,12 @@ function BookingFlow() {
    * Refetches instantly whenever the specialist or service changes.
    */
   const dayAvailabilityQuery = useQuery({
-    queryKey: ["day-availability", staffId, serviceId],
-    enabled: Boolean(staffId && serviceId),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_staff_day_availability", {
-        _staff_id: staffId!,
-        _service_id: serviceId!,
-        _days: 14,
-      });
-      if (error) throw error;
-      return (data ?? []) as DayAvailability[];
-    },
+    queryKey: ["day-availability", staffId, serviceId, branchId],
+    enabled: Boolean(staffId && serviceId && branchId),
+    queryFn: async () =>
+      (await getStaffDayAvailability({
+        data: { staffId: staffId!, branchId: branchId!, serviceId: serviceId!, days: 14 },
+      })) as DayAvailability[],
   });
 
   const dayStatuses = dayAvailabilityQuery.data ?? [];
@@ -531,7 +544,9 @@ function BookingFlow() {
 
   // Post-submit success view (guest path only — signed-in customers keep
   // navigating straight to /bookings like today).
-  const [bookingResult, setBookingResult] = useState<{ id: string } | null>(null);
+  const [bookingResult, setBookingResult] = useState<{ id: string; reference: string } | null>(
+    null,
+  );
   const [emailAccountCheck, setEmailAccountCheck] = useState<
     "idle" | "checking" | "existing" | "new" | "none"
   >("idle");
@@ -563,13 +578,9 @@ function BookingFlow() {
     mutationFn: async () => {
       const code = coupon.trim();
       if (!code) throw new Error("Enter a coupon code");
-      const { data, error } = await supabase.rpc("check_promo_code", {
-        _salon_id: business!.id,
-        _code: code,
-        _amount: basePrice,
+      const row = await checkPromoCode({
+        data: { businessId: business!.id, code, amount: basePrice },
       });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : null;
       if (!row || !row.valid || !row.promotion_id) {
         const reason =
           row?.reason === "expired"
@@ -617,6 +628,7 @@ function BookingFlow() {
             .eq("id", user.id);
           if (profileError) throw profileError;
         }
+        if (!branchId) throw new Error("Booking is incomplete");
         const starts = new Date(slot);
         const ends = new Date(starts.getTime() + service.duration_minutes * 60_000);
         const { data, error } = await supabase
@@ -624,6 +636,7 @@ function BookingFlow() {
           .insert({
             customer_id: user.id,
             business_id: business!.id,
+            branch_id: branchId,
             service_id: service.id,
             staff_id: staffId,
             starts_at: starts.toISOString(),
@@ -669,7 +682,7 @@ function BookingFlow() {
       }
       // Guest: stay on step 5 and show the success card instead of navigating
       // (there's no /bookings to send a guest to — it's auth-guarded).
-      setBookingResult({ id: data.id });
+      setBookingResult({ id: data.id, reference: data.reference });
       const email = guestInfo.email.trim();
       if (!email) {
         setEmailAccountCheck("none");
@@ -751,9 +764,11 @@ function BookingFlow() {
   const joinWaitlist = useMutation({
     mutationFn: async () => {
       if (!user || !serviceId || !staffId) throw new Error("Pick a service and specialist first");
+      if (!branchId) throw new Error("Pick a service and specialist first");
       const { error } = await supabase.from("waitlist_entries").insert({
         customer_id: user.id,
         business_id: business!.id,
+        branch_id: branchId,
         service_id: serviceId,
         staff_id: staffId,
         day,
@@ -894,7 +909,43 @@ function BookingFlow() {
           <BusinessReviews businessId={business.id} isOwner={business.owner_id === user?.id} />
         )}
 
-        {tab === "book" && (
+        {tab === "book" && needsBranchChoice && !selectedBranchId && (
+          <section className="mt-7 animate-fade-up">
+            <h2 className="text-2xl font-extrabold">Choose a location</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {business?.name} has {branches.length} locations — pick the one that works for you.
+            </p>
+            <div className="mt-4 grid gap-3">
+              {branches.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setSelectedBranchId(b.id)}
+                  className="press flex items-center justify-between gap-4 rounded-3xl glass p-5 text-start transition-colors"
+                >
+                  <span>
+                    <span className="block text-sm font-bold">
+                      {b.name}
+                      {b.is_main && (
+                        <span className="ms-2 rounded-full bg-secondary px-2 py-0.5 text-[0.65rem] font-semibold text-secondary-foreground">
+                          Main
+                        </span>
+                      )}
+                    </span>
+                    {(b.city || b.address) && (
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {[b.address, b.city].filter(Boolean).join(", ")}
+                      </span>
+                    )}
+                  </span>
+                  <ArrowLeft className="size-4 rotate-180 text-muted-foreground rtl:rotate-0" />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {tab === "book" && (branchId || !needsBranchChoice) && (
           <>
             {/* Progress */}
             <ol className="mt-6 grid grid-cols-6 gap-1.5">
@@ -1429,6 +1480,12 @@ function BookingFlow() {
                 ) : (
                   <div className="rounded-3xl glass p-6 text-center">
                     <p className="text-2xl font-extrabold">🎉 Your booking has been confirmed.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Booking reference:{" "}
+                      <span className="font-mono font-bold text-foreground">
+                        {bookingResult.reference}
+                      </span>
+                    </p>
 
                     {emailAccountCheck === "checking" && (
                       <p className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -1554,7 +1611,7 @@ function BookingFlow() {
       </main>
 
       {/* Sticky action bar — hidden once the success card takes over on step 6 */}
-      {tab === "book" && !bookingResult && (
+      {tab === "book" && !bookingResult && (branchId || !needsBranchChoice) && (
         <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-3xl glass p-3">
             {step > 0 && (

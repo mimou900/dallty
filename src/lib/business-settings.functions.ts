@@ -7,6 +7,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
+type BusinessRow = Database["public"]["Tables"]["businesses"]["Row"];
 
 /**
  * Private contact details of a business (business email / private business
@@ -209,17 +210,24 @@ export const getBusinessSettings = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const admin = await assertManages(context, data.businessId);
-    const [{ data: business, error }, { data: hours, error: hoursError }] = await Promise.all([
+    const { resolveMainBranchId } = await import("@/lib/branch.server");
+    const branchId = await resolveMainBranchId(admin, data.businessId);
+    const [{ data: business, error }, { data: hoursRows, error: hoursError }] = await Promise.all([
       admin.from("businesses").select(SETTINGS_COLUMNS).eq("id", data.businessId).maybeSingle(),
       admin
-        .from("business_hours")
-        .select("weekday, is_closed, opens_at, closes_at")
-        .eq("business_id", data.businessId)
+        .from("branch_hours")
+        .select("weekday, opens_at, closes_at")
+        .eq("branch_id", branchId)
         .order("weekday"),
     ]);
     if (error) throw new Error(sanitizeDbError(error));
     if (hoursError) throw new Error(sanitizeDbError(hoursError));
-    return { business: business as Record<string, any> | null, hours: hours ?? [] };
+    // branch_hours has no is_closed flag -- a weekday with no row is closed. This settings page
+    // only ever wrote a single interval per weekday, so translating 1:1 keeps its is_closed
+    // toggle working exactly as before, just reading the table the availability engine (Project
+    // 09 Phase 2) actually consumes instead of the superseded business_hours.
+    const hours = (hoursRows ?? []).map((h) => ({ ...h, is_closed: false }));
+    return { business: business as Partial<BusinessRow> | null, hours };
   });
 
 /** Saves an allow-listed patch of settings, plus the weekly opening hours. */
@@ -246,11 +254,24 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
     }
 
     if (data.hours && data.hours.length > 0) {
-      const rows = data.hours.map((h) => ({ ...h, business_id: data.businessId }));
-      const { error } = await admin
-        .from("business_hours")
-        .upsert(rows, { onConflict: "business_id,weekday" });
-      if (error) throw new Error(sanitizeDbError(error));
+      const { resolveMainBranchId } = await import("@/lib/branch.server");
+      const branchId = await resolveMainBranchId(admin, data.businessId);
+
+      const { error: delErr } = await admin.from("branch_hours").delete().eq("branch_id", branchId);
+      if (delErr) throw new Error(sanitizeDbError(delErr));
+
+      const openRows = data.hours
+        .filter((h) => !h.is_closed)
+        .map((h) => ({
+          branch_id: branchId,
+          weekday: h.weekday,
+          opens_at: h.opens_at,
+          closes_at: h.closes_at,
+        }));
+      if (openRows.length) {
+        const { error } = await admin.from("branch_hours").insert(openRows);
+        if (error) throw new Error(sanitizeDbError(error));
+      }
     }
 
     return { ok: true };

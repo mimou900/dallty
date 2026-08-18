@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { businessRegistrationSchema, type BusinessRegistration } from "@/lib/business-schema";
 import { slugify, resolveUniqueSlug } from "@/lib/slug-service";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 /**
  * Finishes a business registration: attaches the pending business record to
@@ -109,7 +110,7 @@ export const registerBusiness = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     if (b.services.length) {
       await supabaseAdmin.from("services").insert(

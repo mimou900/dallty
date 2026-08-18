@@ -129,14 +129,35 @@ function AdminAvailabilityPage() {
     if (!staffList.some((s) => s.id === staffId)) setStaffId(staffList[0].id);
   }, [staffList, staffId]);
 
-  const dayHoursQuery = useQuery({
-    queryKey: ["day-hours", staffId],
+  // Every staff schedule now belongs to a specific branch (Project 09 Phase 1/2). This page
+  // manages the staff member's primary branch only -- a full cross-branch schedule editor is a
+  // future refinement once specialists commonly split time across branches; for now this
+  // matches resolveStaffPrimaryBranchId()'s placeholder pattern used everywhere else.
+  const primaryBranchQuery = useQuery({
+    queryKey: ["primary-branch", staffId],
     enabled: Boolean(staffId),
     queryFn: async () => {
       const { data, error: e } = await supabase
-        .from("staff_day_hours")
+        .from("staff_branches")
+        .select("branch_id")
+        .eq("staff_id", staffId!)
+        .eq("is_primary", true)
+        .single();
+      if (e) throw e;
+      return data.branch_id as string;
+    },
+  });
+  const branchId = primaryBranchQuery.data;
+
+  const dayHoursQuery = useQuery({
+    queryKey: ["day-hours", staffId, branchId],
+    enabled: Boolean(staffId && branchId),
+    queryFn: async () => {
+      const { data, error: e } = await supabase
+        .from("staff_branch_day_hours")
         .select("*")
         .eq("staff_id", staffId!)
+        .eq("branch_id", branchId!)
         .order("day");
       if (e) throw e;
       return data ?? [];
@@ -144,13 +165,14 @@ function AdminAvailabilityPage() {
   });
 
   const schedulesQuery = useQuery({
-    queryKey: ["schedules", staffId],
-    enabled: Boolean(staffId),
+    queryKey: ["schedules", staffId, branchId],
+    enabled: Boolean(staffId && branchId),
     queryFn: async () => {
       const { data, error: e } = await supabase
-        .from("staff_schedules")
+        .from("staff_branch_schedules")
         .select("*")
         .eq("staff_id", staffId!)
+        .eq("branch_id", branchId!)
         .order("weekday");
       if (e) throw e;
       return data ?? [];
@@ -207,12 +229,23 @@ function AdminAvailabilityPage() {
 
   const setDayHours = useMutation({
     mutationFn: async (input: { starts_at: string; ends_at: string }) => {
-      const { error: e } = await supabase
-        .from("staff_day_hours")
-        .upsert(
-          { staff_id: staffId!, day: dayKey, starts_at: input.starts_at, ends_at: input.ends_at },
-          { onConflict: "staff_id,day" },
-        );
+      // No unique constraint on (staff_id, branch_id, day) -- deliberate, so a future editor can
+      // support multiple intervals in one day (split shifts). This page only ever sets one, so
+      // replace-by-delete-then-insert keeps that single-interval behavior without an upsert.
+      const { error: delErr } = await supabase
+        .from("staff_branch_day_hours")
+        .delete()
+        .eq("staff_id", staffId!)
+        .eq("branch_id", branchId!)
+        .eq("day", dayKey);
+      if (delErr) throw delErr;
+      const { error: e } = await supabase.from("staff_branch_day_hours").insert({
+        staff_id: staffId!,
+        branch_id: branchId!,
+        day: dayKey,
+        starts_at: input.starts_at,
+        ends_at: input.ends_at,
+      });
       if (e) throw e;
       if (closedRow) {
         const { error: delError } = await supabase
@@ -232,7 +265,10 @@ function AdminAvailabilityPage() {
   const closeDay = useMutation({
     mutationFn: async () => {
       if (override) {
-        const { error: e } = await supabase.from("staff_day_hours").delete().eq("id", override.id);
+        const { error: e } = await supabase
+          .from("staff_branch_day_hours")
+          .delete()
+          .eq("id", override.id);
         if (e) throw e;
       }
       if (!closedRow) {
@@ -252,7 +288,10 @@ function AdminAvailabilityPage() {
   const useUsual = useMutation({
     mutationFn: async () => {
       if (!override) return;
-      const { error: e } = await supabase.from("staff_day_hours").delete().eq("id", override.id);
+      const { error: e } = await supabase
+        .from("staff_branch_day_hours")
+        .delete()
+        .eq("id", override.id);
       if (e) throw e;
     },
     onSuccess: () => {
@@ -266,14 +305,14 @@ function AdminAvailabilityPage() {
       const payload = { starts_at: start, ends_at: end };
       if (usual) {
         const { error: e } = await supabase
-          .from("staff_schedules")
+          .from("staff_branch_schedules")
           .update(payload)
           .eq("id", usual.id);
         if (e) throw e;
       } else {
         const { error: e } = await supabase
-          .from("staff_schedules")
-          .insert({ staff_id: staffId!, weekday, ...payload });
+          .from("staff_branch_schedules")
+          .insert({ staff_id: staffId!, branch_id: branchId!, weekday, ...payload });
         if (e) throw e;
       }
     },
@@ -286,9 +325,16 @@ function AdminAvailabilityPage() {
 
   const addBreak = useMutation({
     mutationFn: async (input: { starts_at: string; ends_at: string; label: string }) => {
+      const { data: primary, error: branchError } = await supabase
+        .from("staff_branches")
+        .select("branch_id")
+        .eq("staff_id", staffId!)
+        .eq("is_primary", true)
+        .single();
+      if (branchError) throw branchError;
       const { error: e } = await supabase
         .from("staff_breaks")
-        .insert({ staff_id: staffId!, weekday, ...input });
+        .insert({ staff_id: staffId!, branch_id: primary.branch_id, weekday, ...input });
       if (e) throw e;
     },
     onSuccess: () => {
@@ -361,6 +407,14 @@ function AdminAvailabilityPage() {
     return (
       <p className="rounded-3xl glass p-6 text-sm text-muted-foreground">
         No specialists linked to your account yet.
+      </p>
+    );
+  }
+
+  if (staffId && primaryBranchQuery.isLoading) {
+    return (
+      <p className="flex items-center gap-2 rounded-3xl glass p-6 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> Loading…
       </p>
     );
   }

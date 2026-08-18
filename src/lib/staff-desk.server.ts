@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
 
@@ -17,7 +18,7 @@ export async function requireStaffRecord(
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(sanitizeDbError(error));
   if (!data) throw new Error("No specialist profile is linked to your account");
   return { staffId: data.id, businessId: data.business_id };
 }
