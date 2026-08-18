@@ -161,7 +161,7 @@ export function useStaffSchedules(staffIds: string[]) {
     enabled: staffIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("staff_schedules")
+        .from("staff_branch_schedules")
         .select("id, staff_id, weekday, starts_at, ends_at")
         .in("staff_id", staffIds);
       if (error) throw error;
@@ -184,7 +184,7 @@ export function useStaffDayRules(staffIds: string[]) {
           .in("staff_id", staffIds)
           .gte("day", today),
         supabase
-          .from("staff_day_hours")
+          .from("staff_branch_day_hours")
           .select("staff_id, day, starts_at, ends_at")
           .in("staff_id", staffIds)
           .gte("day", today),
