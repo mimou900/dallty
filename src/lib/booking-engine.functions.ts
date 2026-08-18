@@ -502,3 +502,144 @@ export const recordBookingConfirmation = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+const walkInInput = z
+  .object({
+    businessId: z.string().uuid(),
+    branchId: z.string().uuid().optional(), // omit -> business's Main branch
+    serviceIds: z.array(z.string().uuid()).min(1).max(10),
+    staffId: z.string().uuid(),
+    startsAt: z.string().datetime().optional(), // omit -> right now
+    customerId: z.string().uuid().optional(), // a returning customer with no appointment
+    customerName: z.string().trim().min(1).max(120).optional(),
+    customerPhone: z
+      .string()
+      .trim()
+      .regex(/^\+[1-9]\d{7,14}$/, "Invalid phone")
+      .optional(),
+    notes: z.string().trim().max(1000).optional(),
+  })
+  .refine((v) => v.customerId || (v.customerName && v.customerPhone), {
+    message: "A walk-in needs either an existing customer or a name and phone number",
+  });
+
+/**
+ * Books a walk-in — someone being served (or about to be) who never went through the online
+ * hold flow, whether or not they have a Dallty account (brief §31: staff walk-ins, guest
+ * customers). Any staff member or the business owner can create one for any specialist at the
+ * business, not just their own calendar — reception typically books walk-ins on behalf of
+ * whichever specialist is free, which createMyAppointment (staff-desk.functions.ts) doesn't
+ * cover since it's scoped to the signed-in specialist's own bookings only.
+ *
+ * Goes straight to 'confirmed', skipping the hold-then-confirm dance entirely: the customer is
+ * already physically present (or about to be), so there's nothing to hold a slot against. The
+ * bookings_no_overlap exclusion constraint still protects against double-booking the specialist
+ * against a concurrent online booking.
+ */
+export const createWalkInBooking = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => walkInInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const [{ data: owns }, { data: staffRow }] = await Promise.all([
+      supabaseAdmin.rpc("owns_business", {
+        _user_id: context.userId,
+        _salon_id: data.businessId,
+      }),
+      supabaseAdmin
+        .from("staff")
+        .select("id")
+        .eq("user_id", context.userId)
+        .eq("business_id", data.businessId)
+        .maybeSingle(),
+    ]);
+    if (!owns && !staffRow) throw new Error("NOT_AUTHORIZED");
+
+    const { resolveMainBranchId } = await import("@/lib/branch.server");
+    const branchId = data.branchId ?? (await resolveMainBranchId(supabaseAdmin, data.businessId));
+
+    const { data: staffBranch } = await supabaseAdmin
+      .from("staff_branches")
+      .select("staff_id")
+      .eq("staff_id", data.staffId)
+      .eq("branch_id", branchId)
+      .maybeSingle();
+    if (!staffBranch) throw new Error("SPECIALIST_UNAVAILABLE");
+
+    const lines = await resolveServiceLines(
+      supabaseAdmin,
+      data.businessId,
+      data.serviceIds,
+      data.staffId,
+    );
+    const totalDuration = lines.reduce((sum, l) => sum + l.durationMinutes, 0);
+    const { data: bufferMinutes } = await supabaseAdmin.rpc("resolve_buffer_minutes", {
+      _business_id: data.businessId,
+      _branch_id: branchId,
+      _service_id: lines[0].serviceId,
+    });
+    const startsAt = data.startsAt ? new Date(data.startsAt) : new Date();
+    const endsAt = new Date(startsAt.getTime() + (totalDuration + (bufferMinutes ?? 0)) * 60_000);
+    const totalPrice = lines.reduce((sum, l) => sum + l.price, 0);
+
+    const { data: business } = await supabaseAdmin
+      .from("businesses")
+      .select("currency")
+      .eq("id", data.businessId)
+      .single();
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from("bookings")
+      .insert({
+        customer_id: data.customerId ?? null,
+        customer_name: data.customerId ? null : (data.customerName ?? null),
+        customer_phone: data.customerId ? null : (data.customerPhone ?? null),
+        business_id: data.businessId,
+        branch_id: branchId,
+        service_id: lines[0].serviceId,
+        staff_id: data.staffId,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+        status: "confirmed",
+        total_price: totalPrice,
+        notes: data.notes ?? null,
+      } as never)
+      .select("id, reference")
+      .single();
+    if (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "23505" || code === "23P01") throw new Error("SLOT_UNAVAILABLE");
+      throw new Error(sanitizeDbError(error));
+    }
+
+    await supabaseAdmin.from("booking_items").insert(
+      lines.map((l, i) => ({
+        booking_id: inserted.id,
+        service_id: l.serviceId,
+        service_name: l.name,
+        service_name_ar: l.nameAr,
+        duration_minutes: l.durationMinutes,
+        price: l.price,
+        currency: business?.currency ?? "USD",
+        staff_id: data.staffId,
+        business_id: data.businessId,
+        sort_order: i,
+      })) as never,
+    );
+
+    await supabaseAdmin.from("admin_audit_log").insert({
+      actor_id: context.userId,
+      action: "booking.walk_in_created",
+      target_type: "booking",
+      target_id: inserted.id,
+      business_id: data.businessId,
+      details: {
+        staffId: data.staffId,
+        serviceIds: data.serviceIds,
+        isGuest: !data.customerId,
+      } as never,
+    } as never);
+
+    return { id: inserted.id as string, reference: inserted.reference as string };
+  });
