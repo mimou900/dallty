@@ -286,9 +286,16 @@ function AdminAvailabilityPage() {
 
   const addBreak = useMutation({
     mutationFn: async (input: { starts_at: string; ends_at: string; label: string }) => {
+      const { data: primary, error: branchError } = await supabase
+        .from("staff_branches")
+        .select("branch_id")
+        .eq("staff_id", staffId!)
+        .eq("is_primary", true)
+        .single();
+      if (branchError) throw branchError;
       const { error: e } = await supabase
         .from("staff_breaks")
-        .insert({ staff_id: staffId!, weekday, ...input });
+        .insert({ staff_id: staffId!, branch_id: primary.branch_id, weekday, ...input });
       if (e) throw e;
     },
     onSuccess: () => {

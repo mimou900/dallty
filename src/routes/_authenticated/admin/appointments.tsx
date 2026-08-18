@@ -186,6 +186,7 @@ function AppointmentsPage() {
     const { error } = await supabase.from("bookings").insert({
       customer_id: source.customer_id,
       business_id: source.business_id,
+      branch_id: source.branch_id,
       service_id: source.service_id,
       staff_id: source.staff_id,
       starts_at: addDays(new Date(source.starts_at), 7).toISOString(),

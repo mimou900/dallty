@@ -619,11 +619,19 @@ function BookingFlow() {
         }
         const starts = new Date(slot);
         const ends = new Date(starts.getTime() + service.duration_minutes * 60_000);
+        const { data: mainBranch, error: branchError } = await supabase
+          .from("business_branches")
+          .select("id")
+          .eq("business_id", business!.id)
+          .eq("is_main", true)
+          .single();
+        if (branchError) throw branchError;
         const { data, error } = await supabase
           .from("bookings")
           .insert({
             customer_id: user.id,
             business_id: business!.id,
+            branch_id: mainBranch.id,
             service_id: service.id,
             staff_id: staffId,
             starts_at: starts.toISOString(),
@@ -751,9 +759,17 @@ function BookingFlow() {
   const joinWaitlist = useMutation({
     mutationFn: async () => {
       if (!user || !serviceId || !staffId) throw new Error("Pick a service and specialist first");
+      const { data: mainBranch, error: branchError } = await supabase
+        .from("business_branches")
+        .select("id")
+        .eq("business_id", business!.id)
+        .eq("is_main", true)
+        .single();
+      if (branchError) throw branchError;
       const { error } = await supabase.from("waitlist_entries").insert({
         customer_id: user.id,
         business_id: business!.id,
+        branch_id: mainBranch.id,
         service_id: serviceId,
         staff_id: staffId,
         day,

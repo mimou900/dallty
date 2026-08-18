@@ -123,11 +123,15 @@ export const createMyAppointment = createServerFn({ method: "POST" })
     if (clashError) throw new Error(clashError.message);
     if ((clashes ?? []).length) throw new Error("You already have an appointment in that window");
 
+    const { resolveStaffPrimaryBranchId } = await import("@/lib/branch.server");
+    const branchId = await resolveStaffPrimaryBranchId(supabaseAdmin, staffId, businessId);
+
     const { data: created, error } = await supabaseAdmin
       .from("bookings")
       .insert({
         customer_id: data.customerId,
         business_id: businessId,
+        branch_id: branchId,
         service_id: service.id,
         staff_id: staffId,
         starts_at: starts.toISOString(),
