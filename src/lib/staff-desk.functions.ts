@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 /** Every appointment belonging to the signed-in specialist, with names resolved. */
 export const listMyAppointments = createServerFn({ method: "POST" })
@@ -19,7 +20,7 @@ export const listMyAppointments = createServerFn({ method: "POST" })
       .eq("staff_id", staffId)
       .order("starts_at", { ascending: false })
       .limit(1000);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     const customerIds = [
       ...new Set(
@@ -105,7 +106,7 @@ export const createMyAppointment = createServerFn({ method: "POST" })
       .select("id, duration_minutes, price, discount_price, business_id")
       .eq("id", data.serviceId)
       .single();
-    if (serviceError) throw new Error(serviceError.message);
+    if (serviceError) throw new Error(sanitizeDbError(serviceError));
     if (service.business_id !== businessId)
       throw new Error("That service belongs to another business");
 
@@ -120,7 +121,7 @@ export const createMyAppointment = createServerFn({ method: "POST" })
       .in("status", ["pending", "confirmed"])
       .lt("starts_at", ends.toISOString())
       .gt("ends_at", starts.toISOString());
-    if (clashError) throw new Error(clashError.message);
+    if (clashError) throw new Error(sanitizeDbError(clashError));
     if ((clashes ?? []).length) throw new Error("You already have an appointment in that window");
 
     const { resolveStaffPrimaryBranchId } = await import("@/lib/branch.server");
@@ -142,7 +143,7 @@ export const createMyAppointment = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return { id: created.id as string };
   });
 
@@ -162,7 +163,7 @@ export const rescheduleMyAppointment = createServerFn({ method: "POST" })
       .select("id, staff_id, starts_at, ends_at")
       .eq("id", data.bookingId)
       .single();
-    if (bookingError) throw new Error(bookingError.message);
+    if (bookingError) throw new Error(sanitizeDbError(bookingError));
     if (booking.staff_id !== staffId) throw new Error("That appointment is not yours");
 
     const length = +new Date(booking.ends_at) - +new Date(booking.starts_at);
@@ -184,6 +185,6 @@ export const rescheduleMyAppointment = createServerFn({ method: "POST" })
       .from("bookings")
       .update({ starts_at: starts.toISOString(), ends_at: ends.toISOString() })
       .eq("id", booking.id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return { ok: true };
   });

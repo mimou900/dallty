@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
 
@@ -22,7 +23,7 @@ export function safeOrigin(origin: string | null | undefined): string {
 
 /** Creates (or reuses) an auth account for a staff email and returns its user id. */
 export async function ensureStaffAuthUser(
-  admin: any,
+  admin: AnySupabase,
   email: string,
   fullName: string,
 ): Promise<{ userId: string; created: boolean }> {
@@ -39,7 +40,7 @@ export async function ensureStaffAuthUser(
 
   for (let page = 1; page <= 10; page++) {
     const { data, error: listError } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-    if (listError) throw new Error(listError.message);
+    if (listError) throw new Error(sanitizeDbError(listError));
     const users = data?.users ?? [];
     const match = users.find(
       (u: { email?: string }) => u.email?.toLowerCase() === email.toLowerCase(),
@@ -51,13 +52,13 @@ export async function ensureStaffAuthUser(
 }
 
 /** Generates a password-setup / recovery link for an email. */
-export async function passwordLink(admin: any, email: string, origin: string) {
+export async function passwordLink(admin: AnySupabase, email: string, origin: string) {
   const { data, error } = await admin.auth.admin.generateLink({
     type: "recovery",
     email,
     options: { redirectTo: `${origin}/reset-password` },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(sanitizeDbError(error));
   const link = data?.properties?.action_link as string | undefined;
   if (!link) throw new Error("Could not generate a password link");
   return link;

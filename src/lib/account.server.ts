@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 import { parseUserAgent } from "@/lib/user-agent";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
 
@@ -19,7 +20,7 @@ export async function emailExists(supabaseAdmin: AnySupabase, email: string): Pr
   const target = email.toLowerCase();
   for (let page = 1; page <= 10; page++) {
     const { data: list, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     const users = list?.users ?? [];
     if (users.some((u) => u.email?.toLowerCase() === target)) return true;
     if (users.length < 200) break;

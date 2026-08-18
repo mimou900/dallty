@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 const categoryInput = z.object({
   id: z.string().uuid().optional(),
@@ -25,7 +26,7 @@ export const listCategoriesAdmin = createServerFn({ method: "POST" })
       .from("categories")
       .select("*")
       .order("display_order");
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return data;
   });
 
@@ -38,7 +39,7 @@ export const upsertCategory = createServerFn({ method: "POST" })
     await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { error } = await supabaseAdmin.from("categories").upsert(data as never);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await logAdminAction(
       supabaseAdmin,
       context.userId,
@@ -68,7 +69,7 @@ export const listCountriesAdmin = createServerFn({ method: "POST" })
       .select("*")
       .order("display_order")
       .order("default_name");
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return data;
   });
 
@@ -84,7 +85,7 @@ export const upsertCountry = createServerFn({ method: "POST" })
       .from("countries")
       .update({ active: data.active, display_order: data.display_order } as never)
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await logAdminAction(supabaseAdmin, context.userId, "country.update", "country", data.id, data);
     return { ok: true };
   });
@@ -97,6 +98,6 @@ export const listCurrenciesAdmin = createServerFn({ method: "POST" })
     await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { data, error } = await supabaseAdmin.from("currencies").select("*").order("code");
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return data;
   });

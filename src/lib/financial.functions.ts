@@ -10,7 +10,14 @@ type AnySupabase = SupabaseClient<Database>;
 
 /** Emits a notification-engine domain event (Project 07). Never throws — a notification
  * failure must never roll back a financial transaction that already committed (brief §80 of
- * Project 07, same principle as notifyBusinessStatus's "never throws" in Project 02). */
+ * Project 07, same principle as notifyBusinessStatus's "never throws" in Project 02).
+ *
+ * `dedupeKey` is threaded into `emit_notification_event`'s own `_dedupe_key` param, which
+ * already enforces a real `ON CONFLICT (dedupe_key) ... DO NOTHING` at the DB level — that
+ * protection existed but was never engaged, since every call site here previously passed
+ * `null`. Callers should key on something that's freshly unique per real event (a row id
+ * generated once for this specific occurrence), never on something that would collide across
+ * two genuinely separate events. */
 async function emitFinancialEvent(
   supabaseAdmin: AnySupabase,
   params: {
@@ -20,6 +27,7 @@ async function emitFinancialEvent(
     paymentId: string | null;
     actorId: string;
     payload: Record<string, unknown>;
+    dedupeKey: string;
   },
 ) {
   try {
@@ -30,7 +38,7 @@ async function emitFinancialEvent(
       _payment_id: params.paymentId as never,
       _actor_id: params.actorId,
       _payload: params.payload as never,
-      _dedupe_key: null as never,
+      _dedupe_key: params.dedupeKey,
     });
   } catch (error) {
     console.error("[financial] emitFinancialEvent failed", error);
@@ -273,6 +281,7 @@ export const markCashPayment = createServerFn({ method: "POST" })
           paymentId: payment.id,
           actorId: context.userId,
           payload: { amount: finalServiceRevenue + tipAmount, currency },
+          dedupeKey: `payment_received:${payment.id}`,
         });
 
         return {
@@ -370,6 +379,10 @@ export const addExtraService = createServerFn({ method: "POST" })
         amount: newTotal,
         currency: business?.currency ?? "DZD",
       },
+      // item.id is a fresh id generated once for this specific addition — never reused,
+      // so this only dedupes a true retry of the same insert, not two separate additions
+      // of the same service.
+      dedupeKey: `extra_service_added:${item.id}`,
     });
 
     return { itemId: item.id, newTotal };
@@ -510,6 +523,7 @@ export const createRefund = createServerFn({ method: "POST" })
           paymentId: payment.id,
           actorId: context.userId,
           payload: { amount: data.amount, currency: payment.currency },
+          dedupeKey: `refund_completed:${refund.id}`,
         });
 
         return { refundId: refund.id, status: newStatus };

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
 
@@ -11,11 +12,7 @@ type AnySupabase = SupabaseClient<Database>;
  * caller to fall back to a random identifier instead of guessing.
  */
 export function slugify(name: string): { value: string; usable: boolean } {
-  const stripped = name
-    .normalize("NFC")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .normalize("NFC");
+  const stripped = name.normalize("NFC").normalize("NFD").replace(/[̀-ͯ]/g, "").normalize("NFC");
   const slug = stripped
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -50,7 +47,7 @@ export async function isReservedSlug(supabase: AnySupabase, slug: string): Promi
     .eq("active", true)
     .ilike("slug", slug)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(sanitizeDbError(error));
   return Boolean(data);
 }
 

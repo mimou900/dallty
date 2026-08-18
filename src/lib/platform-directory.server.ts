@@ -1,4 +1,5 @@
 import { assertSuperAdmin, adminClient } from "@/lib/platform.server";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 export type DirectoryEntity = "shops" | "staff" | "services" | "appointments";
 
@@ -50,7 +51,7 @@ export async function fetchDirectory(
     if (q) query = query.ilike("name", like);
     if (status) query = query.eq("status", status as "approved");
     const { data, count, error } = await query.order("name").range(from, to);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return {
       total: count ?? 0,
       page,
@@ -73,7 +74,7 @@ export async function fetchDirectory(
     if (status === "active") query = query.eq("is_active", true);
     if (status === "inactive") query = query.eq("is_active", false);
     const { data, count, error } = await query.order("full_name").range(from, to);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return {
       total: count ?? 0,
       page,
@@ -98,7 +99,7 @@ export async function fetchDirectory(
     if (status === "active") query = query.eq("is_active", true);
     if (status === "inactive") query = query.eq("is_active", false);
     const { data, count, error } = await query.order("name").range(from, to);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return {
       total: count ?? 0,
       page,
@@ -125,7 +126,7 @@ export async function fetchDirectory(
   const { data, count, error } = await query
     .order("starts_at", { ascending: false })
     .range(from, to);
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(sanitizeDbError(error));
   const rows = (data ?? []).map((b) => ({
     id: b.id,
     title: (b.services as { name?: string } | null)?.name ?? "Service",
