@@ -243,26 +243,36 @@ function BookingFlow() {
 
   const business = businessQuery.data;
 
-  // Every booking must resolve to a specific branch. Until Phase 6 adds a branch picker to
-  // this flow, every customer books at the business's Main branch — the same placeholder
-  // pattern used server-side in resolveMainBranchId().
-  const mainBranchQuery = useQuery({
-    queryKey: ["main-branch", business?.id],
+  // Every booking must resolve to a specific branch, chosen explicitly by the customer when a
+  // business has more than one (Business -> Branch -> Services -> ...). A single-branch
+  // business — every real business today — skips the branch screen entirely.
+  const branchesQuery = useQuery({
+    queryKey: ["branches", business?.id],
     enabled: Boolean(business?.id),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("business_branches")
-        .select("id")
+        .select("id, name, is_main, city, address, latitude, longitude")
         .eq("business_id", business!.id)
-        .eq("is_main", true)
-        .single();
+        .eq("status", "active")
+        .order("is_main", { ascending: false });
       if (error) throw error;
       return data;
     },
     staleTime: 60_000,
   });
 
-  const branchId = mainBranchQuery.data?.id;
+  const branches = useMemo(() => branchesQuery.data ?? [], [branchesQuery.data]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const needsBranchChoice = branches.length > 1;
+
+  // Auto-skip: a single-branch business never shows the branch step at all.
+  useEffect(() => {
+    if (needsBranchChoice || !branches.length || selectedBranchId) return;
+    setSelectedBranchId(branches[0].id);
+  }, [needsBranchChoice, branches, selectedBranchId]);
+
+  const branchId = needsBranchChoice ? (selectedBranchId ?? undefined) : branches[0]?.id;
 
   const servicesQuery = useQuery({
     queryKey: ["services", business?.id],
@@ -899,7 +909,43 @@ function BookingFlow() {
           <BusinessReviews businessId={business.id} isOwner={business.owner_id === user?.id} />
         )}
 
-        {tab === "book" && (
+        {tab === "book" && needsBranchChoice && !selectedBranchId && (
+          <section className="mt-7 animate-fade-up">
+            <h2 className="text-2xl font-extrabold">Choose a location</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {business?.name} has {branches.length} locations — pick the one that works for you.
+            </p>
+            <div className="mt-4 grid gap-3">
+              {branches.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setSelectedBranchId(b.id)}
+                  className="press flex items-center justify-between gap-4 rounded-3xl glass p-5 text-start transition-colors"
+                >
+                  <span>
+                    <span className="block text-sm font-bold">
+                      {b.name}
+                      {b.is_main && (
+                        <span className="ms-2 rounded-full bg-secondary px-2 py-0.5 text-[0.65rem] font-semibold text-secondary-foreground">
+                          Main
+                        </span>
+                      )}
+                    </span>
+                    {(b.city || b.address) && (
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {[b.address, b.city].filter(Boolean).join(", ")}
+                      </span>
+                    )}
+                  </span>
+                  <ArrowLeft className="size-4 rotate-180 text-muted-foreground rtl:rotate-0" />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {tab === "book" && (branchId || !needsBranchChoice) && (
           <>
             {/* Progress */}
             <ol className="mt-6 grid grid-cols-6 gap-1.5">
@@ -1565,7 +1611,7 @@ function BookingFlow() {
       </main>
 
       {/* Sticky action bar — hidden once the success card takes over on step 6 */}
-      {tab === "book" && !bookingResult && (
+      {tab === "book" && !bookingResult && (branchId || !needsBranchChoice) && (
         <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-3xl glass p-3">
             {step > 0 && (
