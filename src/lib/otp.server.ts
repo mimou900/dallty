@@ -2,6 +2,7 @@ import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
 export type OtpPurpose = "login_step_up" | "change_email" | "change_email_new" | "change_password";
@@ -103,7 +104,7 @@ export async function sendOtpCode(
         user_agent: params.userAgent ?? null,
       })
       .eq("id", latest.id);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
   } else {
     const { error } = await supabaseAdmin.from("auth_otp_codes").insert({
       user_id: params.userId,
@@ -114,7 +115,7 @@ export async function sendOtpCode(
       max_attempts: maxAttempts,
       user_agent: params.userAgent ?? null,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
   }
 
   let recipient = params.recipient ?? params.target;
@@ -149,7 +150,7 @@ export async function verifyOtpCode(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(sanitizeDbError(error));
   if (!row) throw new Error("No pending code — request a new one");
   if (new Date(row.expires_at).getTime() < Date.now()) {
     throw new Error("This code has expired — request a new one");

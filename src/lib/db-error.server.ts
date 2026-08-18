@@ -17,13 +17,11 @@
  * to server-function errors too, which that middleware doesn't reach (see src/server.ts's
  * CSP-testing session notes for why: the RPC layer's own error serialization runs first).
  *
- * Applied in this project to the customer/anonymous-facing server functions
- * (account.functions.ts, email-trust.functions.ts, business-slug.functions.ts,
- * business-settings.functions.ts) — the ~10 remaining files with the same raw
- * `throw new Error(error.message)` pattern are Super-Admin-only, a trusted-operator
- * audience where a raw Postgres error is a UX-quality issue rather than a public schema-
- * leak risk, and retrofitting all of them was judged too large a blast radius to do safely
- * in this pass. Documented as a known, prioritized, incomplete fix — not silently ignored.
+ * Applied across every server-function file in this project that previously threw a raw
+ * Supabase/Postgres error back to the caller (customer/business/staff-facing surfaces and
+ * Super-Admin-only ones alike) — see the Security & Anti-Fraud Foundation project's sweep
+ * for the full file list. New server functions should use this from the start rather than
+ * `throw error`/`throw new Error(error.message)`.
  */
 export function sanitizeDbError(
   error: { message: string },

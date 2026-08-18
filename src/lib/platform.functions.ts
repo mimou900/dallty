@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 const userIdInput = z.object({ userId: z.string().uuid() });
 
@@ -14,7 +15,7 @@ export const listPlatformUsers = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
 
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     const ids = data.users.map((u) => u.id);
     const [{ data: roles }, { data: profiles }] = await Promise.all([
@@ -53,7 +54,7 @@ export const setUserSuspended = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
       ban_duration: data.suspended ? "876000h" : "none",
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await logAdminAction(
       supabaseAdmin,
       context.userId,
@@ -76,7 +77,7 @@ export const verifyPlatformUser = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
       email_confirm: true,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await logAdminAction(supabaseAdmin, context.userId, "user.verify", "user", data.userId);
     return { ok: true };
   });
@@ -92,7 +93,7 @@ export const deletePlatformUser = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await logAdminAction(supabaseAdmin, context.userId, "user.delete", "user", data.userId);
     return { ok: true };
   });
@@ -118,7 +119,7 @@ export const listPlatformBusinesses = createServerFn({ method: "POST" })
       )
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     const ownerIds = [...new Set((data ?? []).map((s) => s.owner_id).filter(Boolean))] as string[];
     const { data: owners } = ownerIds.length
@@ -161,7 +162,7 @@ export const setBusinessStatus = createServerFn({ method: "POST" })
       .eq("id", data.businessId)
       .select("id, name, business_email, owner_id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     let ownerName: string | undefined;
     let ownerEmail = business?.business_email ?? null;
@@ -287,7 +288,7 @@ export const getAuthSettings = createServerFn({ method: "POST" })
       )
       .eq("id", true)
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return data;
   });
 
@@ -316,7 +317,7 @@ export const updateAuthSettings = createServerFn({ method: "POST" })
         otp_max_attempts: data.otpMaxAttempts,
       })
       .eq("id", true);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await logAdminAction(supabaseAdmin, context.userId, "auth_settings.update", "auth_settings");
     return { ok: true };
   });
@@ -333,7 +334,7 @@ export const getAuthRolePolicies = createServerFn({ method: "POST" })
       .from("auth_role_policies")
       .select("role, otp_enabled, is_locked")
       .order("role");
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return data;
   });
 
@@ -356,14 +357,14 @@ export const updateAuthRolePolicy = createServerFn({ method: "POST" })
       .select("is_locked")
       .eq("role", data.role)
       .single();
-    if (readError) throw new Error(readError.message);
+    if (readError) throw new Error(sanitizeDbError(readError));
     if (existing.is_locked) throw new Error(`${data.role} requires OTP and cannot be changed`);
 
     const { error } = await supabaseAdmin
       .from("auth_role_policies")
       .update({ otp_enabled: data.otpEnabled })
       .eq("role", data.role);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await logAdminAction(
       supabaseAdmin,
       context.userId,

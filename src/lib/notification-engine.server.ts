@@ -15,6 +15,7 @@ import {
 } from "@/lib/notification-policy";
 import { isWhatsAppAvailable } from "@/lib/whatsapp-provider";
 import { isSmsAvailable } from "@/lib/sms-provider";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
 
@@ -365,7 +366,7 @@ export async function processNotificationOutbox(supabaseAdmin: AnySupabase, batc
   const { data: claimed, error } = await supabaseAdmin.rpc("claim_notification_outbox_batch", {
     _batch_size: batchSize,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(sanitizeDbError(error));
 
   const summary = { claimed: claimed?.length ?? 0, processed: 0, retried: 0, failed: 0 };
 

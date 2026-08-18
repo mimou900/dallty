@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 const businessInput = z.object({ businessId: z.string().uuid() });
 
@@ -24,7 +25,7 @@ export const listBusinessCustomers = createServerFn({ method: "POST" })
       .eq("business_id", data.businessId)
       .order("starts_at", { ascending: false })
       .limit(2000);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
 
     const customerIds = [
       ...new Set(

@@ -38,6 +38,13 @@ import {
   createGuestBooking,
   sendGuestAccountInvite,
 } from "@/lib/account.functions";
+import {
+  getBusinessPublicStaff,
+  getBusinessAvailabilityOverview,
+  getStaffDayAvailability,
+  getAvailableSlots,
+  checkPromoCode,
+} from "@/lib/business-detail.functions";
 
 export const Route = createFileRoute("/business/$businessSlug")({
   beforeLoad: async ({ params }) => {
@@ -254,13 +261,7 @@ function BookingFlow() {
   const staffQuery = useQuery({
     queryKey: ["staff", business?.id],
     enabled: Boolean(business?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_business_public_staff", {
-        _salon_id: business!.id,
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: async () => getBusinessPublicStaff({ data: { businessId: business!.id } }),
   });
 
   /**
@@ -270,14 +271,8 @@ function BookingFlow() {
   const availabilityQuery = useQuery({
     queryKey: ["availability-summary", business?.id],
     enabled: Boolean(business?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_business_availability_summary", {
-        _salon_id: business!.id,
-        _days: 14,
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: async () =>
+      getBusinessAvailabilityOverview({ data: { businessId: business!.id, days: 14 } }),
   });
 
   const availability = availabilityQuery.data ?? [];
@@ -336,15 +331,10 @@ function BookingFlow() {
     queries: eligibleStaff.map((m) => ({
       queryKey: ["day-availability", m.id, serviceId],
       enabled: Boolean(serviceId),
-      queryFn: async () => {
-        const { data, error } = await supabase.rpc("get_staff_day_availability", {
-          _staff_id: m.id,
-          _service_id: serviceId!,
-          _days: 14,
-        });
-        if (error) throw error;
-        return (data ?? []) as DayAvailability[];
-      },
+      queryFn: async () =>
+        (await getStaffDayAvailability({
+          data: { staffId: m.id, serviceId: serviceId!, days: 14 },
+        })) as DayAvailability[],
     })),
   });
 
@@ -377,15 +367,8 @@ function BookingFlow() {
   const slotsQuery = useQuery({
     queryKey: ["slots", staffId, serviceId, day],
     enabled: Boolean(staffId && serviceId && step >= 3),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_available_slots", {
-        _staff_id: staffId!,
-        _service_id: serviceId!,
-        _day: day,
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: async () =>
+      getAvailableSlots({ data: { staffId: staffId!, serviceId: serviceId!, day } }),
   });
 
   /**
@@ -396,15 +379,10 @@ function BookingFlow() {
   const dayAvailabilityQuery = useQuery({
     queryKey: ["day-availability", staffId, serviceId],
     enabled: Boolean(staffId && serviceId),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_staff_day_availability", {
-        _staff_id: staffId!,
-        _service_id: serviceId!,
-        _days: 14,
-      });
-      if (error) throw error;
-      return (data ?? []) as DayAvailability[];
-    },
+    queryFn: async () =>
+      (await getStaffDayAvailability({
+        data: { staffId: staffId!, serviceId: serviceId!, days: 14 },
+      })) as DayAvailability[],
   });
 
   const dayStatuses = dayAvailabilityQuery.data ?? [];
@@ -563,13 +541,9 @@ function BookingFlow() {
     mutationFn: async () => {
       const code = coupon.trim();
       if (!code) throw new Error("Enter a coupon code");
-      const { data, error } = await supabase.rpc("check_promo_code", {
-        _salon_id: business!.id,
-        _code: code,
-        _amount: basePrice,
+      const row = await checkPromoCode({
+        data: { businessId: business!.id, code, amount: basePrice },
       });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : null;
       if (!row || !row.valid || !row.promotion_id) {
         const reason =
           row?.reason === "expired"

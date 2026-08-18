@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
 type AccountType = Database["public"]["Enums"]["ledger_account_type"];
@@ -71,7 +72,7 @@ export async function postLedgerGroup(
     .from("ledger_transactions")
     .insert(rows as never)
     .select();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(sanitizeDbError(error));
   return { groupId, rows: data };
 }
 

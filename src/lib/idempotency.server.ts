@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
 
@@ -16,11 +17,11 @@ export class DuplicateRequestError extends Error {
  * same triple while the first is still running throws `DuplicateRequestError`; a second call
  * after the first completed returns the ORIGINAL cached response without re-running `fn` —
  * this is what makes a client-side retry (flaky connection, double-tap) safe instead of
- * double-executing a booking/payment/refund/etc. once those systems exist.
+ * double-executing a booking/payment/refund.
  *
- * No consumer exists yet (booking/payment/coupon/affiliate aren't built) — this is
- * reusable foundation, per the Master Architecture's "build only what has a consumer"
- * discipline applied to the *shape* of the helper, not to a specific call site yet.
+ * Real consumers: `confirmBookingHold` (booking-engine.functions.ts), `markCashPayment` and
+ * `createRefund` (financial.functions.ts). Coupon/affiliate systems still don't exist, so
+ * there's nothing to wrap for those yet.
  */
 export async function withIdempotency<T>(
   supabaseAdmin: AnySupabase,
@@ -51,7 +52,7 @@ export async function withIdempotency<T>(
       }
       throw new DuplicateRequestError();
     }
-    throw new Error(insertError.message);
+    throw new Error(sanitizeDbError(insertError));
   }
 
   try {

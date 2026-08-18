@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sanitizeDbError } from "@/lib/db-error.server";
 
 const reservedSlugInput = z.object({
   id: z.string().uuid().optional(),
@@ -24,7 +25,7 @@ export const listReservedSlugsAdmin = createServerFn({ method: "POST" })
     await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { data, error } = await supabaseAdmin.from("reserved_slugs").select("*").order("slug");
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     return data;
   });
 
@@ -37,7 +38,7 @@ export const upsertReservedSlug = createServerFn({ method: "POST" })
     await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
     const { error } = await supabaseAdmin.from("reserved_slugs").upsert(data as never);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(sanitizeDbError(error));
     await logAdminAction(
       supabaseAdmin,
       context.userId,
