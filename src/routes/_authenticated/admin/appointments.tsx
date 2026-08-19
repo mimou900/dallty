@@ -6,6 +6,7 @@ import { BellRing, CalendarPlus, Check, Copy, Printer, Search, UserCog, X } from
 import { toast } from "sonner";
 import { CallButton } from "@/components/dallty/phone-field";
 import { SearchableSelect } from "@/components/admin/searchable-select";
+import { WalkInDialog } from "@/components/admin/walk-in-dialog";
 import { formatPhoneDisplay } from "@/lib/phone";
 import { useTranslation } from "@/lib/i18n/hooks";
 import {
@@ -258,6 +259,12 @@ function AppointmentsPage() {
           >
             <CalendarPlus className="size-4" /> New appointment
           </Link>
+          {(businessScope !== "all" ? businessScope : allBusinesses[0]?.id) && (
+            <WalkInDialog
+              businessId={businessScope !== "all" ? businessScope : allBusinesses[0].id}
+              onCreated={() => queryClient.invalidateQueries({ queryKey: ["admin-bookings"] })}
+            />
+          )}
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">

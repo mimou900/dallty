@@ -297,6 +297,24 @@ export function useManagedStaff(businessIds: string[]) {
   });
 }
 
+/** Active branches across the managed business(es) — used by walk-in/branch-scoped UI. */
+export function useManagedBranches(businessIds: string[]) {
+  return useQuery({
+    queryKey: ["admin-branches", businessIds],
+    enabled: businessIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("business_branches")
+        .select("id, business_id, name, is_main")
+        .in("business_id", businessIds)
+        .eq("status", "active")
+        .order("is_main", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function useManagedServices(businessIds: string[]) {
   return useQuery({
     queryKey: ["admin-services", businessIds],
