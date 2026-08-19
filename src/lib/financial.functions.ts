@@ -45,16 +45,33 @@ async function emitFinancialEvent(
   }
 }
 
+/**
+ * Project 11: extended to also accept a granular has_permission() grant (e.g.
+ * receptionist's payments.mark_paid/payments.create), not just owner/manager/platform-admin.
+ * A missing/undefined permissionKey preserves the exact pre-Project-11 behavior for callers
+ * that haven't been updated yet.
+ */
 async function assertCanManageBookingFinance(
   supabaseAdmin: AnySupabase,
   userId: string,
   businessId: string,
+  permissionKey?: string,
+  branchId?: string | null,
 ) {
-  const [{ data: owns }, { data: isAdmin }] = await Promise.all([
+  const { hasPermission } = await import("@/lib/permissions.server");
+  const [{ data: owns }, { data: isAdmin }, permitted] = await Promise.all([
     supabaseAdmin.rpc("owns_business", { _user_id: userId, _salon_id: businessId }),
     supabaseAdmin.rpc("is_platform_admin", { _user_id: userId }),
+    permissionKey
+      ? hasPermission(
+          { supabase: supabaseAdmin, userId } as never,
+          businessId,
+          permissionKey,
+          branchId,
+        )
+      : Promise.resolve(false),
   ]);
-  if (!owns && !isAdmin) throw new Error("FORBIDDEN");
+  if (!owns && !isAdmin && !permitted) throw new Error("FORBIDDEN");
   return { isOwnerOrAdmin: true };
 }
 
@@ -98,14 +115,22 @@ export const markCashPayment = createServerFn({ method: "POST" })
       async () => {
         const { data: booking, error: bookingErr } = await supabaseAdmin
           .from("bookings")
-          .select("id, business_id, staff_id, service_id, total_price, payment_status, status")
+          .select(
+            "id, business_id, branch_id, staff_id, service_id, total_price, payment_status, status",
+          )
           .eq("id", data.bookingId)
           .maybeSingle();
         if (bookingErr) throw new Error(sanitizeDbError(bookingErr));
         if (!booking) throw new Error("BOOKING_NOT_FOUND");
         if (booking.status === "cancelled") throw new Error("BOOKING_NOT_MODIFIABLE");
 
-        await assertCanManageBookingFinance(supabaseAdmin, context.userId, booking.business_id);
+        await assertCanManageBookingFinance(
+          supabaseAdmin,
+          context.userId,
+          booking.business_id,
+          "payments.mark_paid",
+          booking.branch_id,
+        );
 
         const { data: business } = await supabaseAdmin
           .from("businesses")
@@ -309,13 +334,19 @@ export const addExtraService = createServerFn({ method: "POST" })
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from("bookings")
-      .select("id, business_id, staff_id, total_price")
+      .select("id, business_id, branch_id, staff_id, total_price")
       .eq("id", data.bookingId)
       .maybeSingle();
     if (bookingErr) throw new Error(sanitizeDbError(bookingErr));
     if (!booking) throw new Error("BOOKING_NOT_FOUND");
 
-    await assertCanManageBookingFinance(supabaseAdmin, context.userId, booking.business_id);
+    await assertCanManageBookingFinance(
+      supabaseAdmin,
+      context.userId,
+      booking.business_id,
+      "payments.create",
+      booking.branch_id,
+    );
 
     const { data: service, error: svcErr } = await supabaseAdmin
       .from("services")
