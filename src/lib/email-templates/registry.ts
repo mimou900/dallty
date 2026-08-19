@@ -7,10 +7,11 @@ import { template as accountChangeNoticeTemplate } from "./account-change-notice
 import { template as notificationTemplate } from "./notification";
 
 export interface TemplateEntry {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- props genuinely vary per template
   component: ComponentType<any>;
-  subject: string | ((data: Record<string, any>) => string);
+  subject: string | ((data: Record<string, unknown>) => string);
   displayName?: string;
-  previewData?: Record<string, any>;
+  previewData?: Record<string, unknown>;
   /** Fixed recipient — overrides caller-provided recipientEmail when set. */
   to?: string;
 }

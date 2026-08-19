@@ -13,20 +13,9 @@ import {
   Section,
   Text,
 } from "@react-email/components";
+import { BrandHeader } from "./brand-header";
 
-import {
-  brandName,
-  brandTag,
-  button,
-  card,
-  container,
-  divider,
-  footer,
-  h1,
-  link,
-  main,
-  text,
-} from "./brand";
+import { button, card, container, divider, footer, h1, link, main, text } from "./brand";
 
 interface InviteEmailProps {
   siteName: string;
@@ -40,8 +29,7 @@ export const InviteEmail = ({ siteName, siteUrl, confirmationUrl }: InviteEmailP
     <Preview>Your booking is confirmed — create your {siteName} account</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brandName}>{siteName}</Text>
-        <Text style={brandTag}>Beauty booking, refined</Text>
+        <BrandHeader />
         <Section style={card}>
           <Heading style={h1}>Your booking is confirmed 🎉</Heading>
           <Text style={text}>

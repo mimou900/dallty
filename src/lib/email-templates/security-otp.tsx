@@ -12,19 +12,9 @@ import {
   Text,
 } from "@react-email/components";
 import type { TemplateEntry } from "./registry";
+import { BrandHeader } from "./brand-header";
 
-import {
-  brandName,
-  brandTag,
-  card,
-  codeStyle,
-  container,
-  divider,
-  footer,
-  h1,
-  main,
-  text,
-} from "./brand";
+import { card, codeStyle, container, divider, footer, h1, main, text } from "./brand";
 
 export type OtpPurpose = "login_step_up" | "change_email" | "change_password";
 
@@ -60,8 +50,7 @@ const Email = ({ code = "000000", purpose = "login_step_up", expiryMinutes = 10 
       <Preview>{c.subject}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Text style={brandName}>dallty</Text>
-          <Text style={brandTag}>Beauty booking, refined</Text>
+          <BrandHeader />
           <Section style={card}>
             <Heading style={h1}>{c.heading}</Heading>
             <Text style={text}>{c.body}</Text>
@@ -80,7 +69,7 @@ const Email = ({ code = "000000", purpose = "login_step_up", expiryMinutes = 10 
 
 export const template = {
   component: Email,
-  subject: (data: Record<string, any>) =>
+  subject: (data: Record<string, unknown>) =>
     (COPY[(data?.purpose as OtpPurpose) ?? "login_step_up"] ?? COPY.login_step_up).subject,
   displayName: "Security OTP code",
   previewData: {

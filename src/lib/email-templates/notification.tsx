@@ -57,7 +57,7 @@ const Email = ({
       <Preview>{subject}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Text style={brand}>Dallty</Text>
+          <Text style={wordmark}>Dallty</Text>
           <Heading style={heading_}>{heading}</Heading>
           <Text style={text}>{body}</Text>
           {ctaUrl ? (
@@ -111,7 +111,13 @@ export const template = {
 
 const main = { backgroundColor: "#ffffff", fontFamily: "Arial, Helvetica, sans-serif" };
 const container = { padding: "28px 26px", maxWidth: "560px" };
-const brand = { fontSize: "14px", fontWeight: 700, letterSpacing: "2px", color: "#0f766e" };
+const wordmark = {
+  fontSize: "24px",
+  fontWeight: 800,
+  letterSpacing: "-0.01em",
+  color: "#0f766e",
+  margin: "0 0 8px",
+};
 const heading_ = { fontSize: "24px", fontWeight: 800, color: "#0b1a17", margin: "10px 0 4px" };
 const text = { fontSize: "15px", lineHeight: "24px", color: "#33413d" };
 const button = {

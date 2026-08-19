@@ -12,19 +12,9 @@ import {
   Text,
 } from "@react-email/components";
 import type { TemplateEntry } from "./registry";
+import { BrandHeader } from "./brand-header";
 
-import {
-  brandName,
-  brandTag,
-  button,
-  card,
-  container,
-  divider,
-  footer,
-  h1,
-  main,
-  text,
-} from "./brand";
+import { button, card, container, divider, footer, h1, main, text } from "./brand";
 
 export type AccountChange = "email" | "password" | "phone";
 
@@ -64,8 +54,7 @@ const Email = ({ change = "password", detail, device, timestamp, secureAccountUr
       <Preview>{c.subject}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Text style={brandName}>dallty</Text>
-          <Text style={brandTag}>Beauty booking, refined</Text>
+          <BrandHeader />
           <Section style={card}>
             <Heading style={h1}>{c.heading}</Heading>
             <Text style={text}>{c.body}</Text>
@@ -97,7 +86,7 @@ const Email = ({ change = "password", detail, device, timestamp, secureAccountUr
 
 export const template = {
   component: Email,
-  subject: (data: Record<string, any>) =>
+  subject: (data: Record<string, unknown>) =>
     (COPY[(data?.change as AccountChange) ?? "password"] ?? COPY.password).subject,
   displayName: "Account change notice",
   previewData: {

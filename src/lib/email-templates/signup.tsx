@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from "react";
 
 import {
   Body,
@@ -12,27 +12,16 @@ import {
   Preview,
   Section,
   Text,
-} from '@react-email/components'
+} from "@react-email/components";
+import { BrandHeader } from "./brand-header";
 
-import {
-  brandName,
-  brandTag,
-  button,
-  card,
-  container,
-  divider,
-  footer,
-  h1,
-  link,
-  main,
-  text,
-} from './brand'
+import { button, card, container, divider, footer, h1, link, main, text } from "./brand";
 
 interface SignupEmailProps {
-  siteName: string
-  siteUrl: string
-  recipient: string
-  confirmationUrl: string
+  siteName: string;
+  siteUrl: string;
+  recipient: string;
+  confirmationUrl: string;
 }
 
 export const SignupEmail = ({
@@ -46,34 +35,31 @@ export const SignupEmail = ({
     <Preview>Confirm your email to start booking on {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brandName}>{siteName}</Text>
-        <Text style={brandTag}>Beauty booking, refined</Text>
+        <BrandHeader />
         <Section style={card}>
           <Heading style={h1}>Confirm your email</Heading>
           <Text style={text}>
-            Welcome to{' '}
+            Welcome to{" "}
             <Link href={siteUrl} style={link}>
               <strong>{siteName}</strong>
             </Link>
-            . Confirm{' '}
+            . Confirm{" "}
             <Link href={`mailto:${recipient}`} style={link}>
               {recipient}
-            </Link>{' '}
-            and your account is ready — browse salons, pick a time, and book in
-            a few taps.
+            </Link>{" "}
+            and your account is ready — browse salons, pick a time, and book in a few taps.
           </Text>
           <Button style={button} href={confirmationUrl}>
             Verify email
           </Button>
           <Hr style={divider} />
           <Text style={footer}>
-            If you didn't create a {siteName} account, you can safely ignore
-            this email.
+            If you didn't create a {siteName} account, you can safely ignore this email.
           </Text>
         </Section>
       </Container>
     </Body>
   </Html>
-)
+);
 
-export default SignupEmail
+export default SignupEmail;
