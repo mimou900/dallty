@@ -620,6 +620,14 @@ function Index() {
               </nav>
             </div>
           </div>
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
+            <Link to="/privacy" className="hover:text-foreground">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="hover:text-foreground">
+              Terms of Use
+            </Link>
+          </div>
           <p className="text-center">{t("footer")}</p>
         </footer>
       </main>
