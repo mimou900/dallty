@@ -358,6 +358,7 @@ export type Database = {
           customer_phone: string | null;
           discount_amount: number;
           ends_at: string;
+          guest_hold_token: string | null;
           hold_expires_at: string | null;
           id: string;
           notes: string | null;
@@ -388,6 +389,7 @@ export type Database = {
           customer_phone?: string | null;
           discount_amount?: number;
           ends_at: string;
+          guest_hold_token?: string | null;
           hold_expires_at?: string | null;
           id?: string;
           notes?: string | null;
@@ -418,6 +420,7 @@ export type Database = {
           customer_phone?: string | null;
           discount_amount?: number;
           ends_at?: string;
+          guest_hold_token?: string | null;
           hold_expires_at?: string | null;
           id?: string;
           notes?: string | null;
@@ -3788,6 +3791,7 @@ export type Database = {
           customer_phone: string | null;
           discount_amount: number;
           ends_at: string;
+          guest_hold_token: string | null;
           hold_expires_at: string | null;
           id: string;
           notes: string | null;
