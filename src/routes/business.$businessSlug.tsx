@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { useTranslation } from "@/lib/i18n/hooks";
+import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { NavMenu } from "@/components/dallty/site-nav";
 import { FavoriteButton } from "@/components/dallty/favorite-button";
 import { BusinessReviews } from "@/components/dallty/business-reviews";
@@ -33,11 +34,7 @@ import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-fiel
 import { guessCountryCode, isValidE164, splitE164, toE164 } from "@/lib/phone";
 import { getCountryByCode, getDefaultCountry, useCategories } from "@/lib/reference-data";
 import { useLocale } from "@/lib/i18n";
-import {
-  checkEmailHasAccount,
-  createGuestBooking,
-  sendGuestAccountInvite,
-} from "@/lib/account.functions";
+import { checkEmailHasAccount, sendGuestAccountInvite } from "@/lib/account.functions";
 import {
   getBusinessPublicStaff,
   getBusinessAvailabilityOverview,
@@ -45,6 +42,14 @@ import {
   getAvailableSlots,
   checkPromoCode,
 } from "@/lib/business-detail.functions";
+import {
+  createBookingHold,
+  confirmBookingHold,
+  cancelBookingHold,
+  createGuestBookingHold,
+  confirmGuestBookingHold,
+  cancelGuestBookingHold,
+} from "@/lib/booking-engine.functions";
 
 export const Route = createFileRoute("/business/$businessSlug")({
   beforeLoad: async ({ params }) => {
@@ -112,6 +117,49 @@ export const Route = createFileRoute("/business/$businessSlug")({
 
 const STEPS = ["Service", "Specialist", "Date", "Time", "Your Info", "Confirm"] as const;
 
+/**
+ * Maps the server's machine-readable booking error codes (booking-engine.functions.ts
+ * BOOKING_ERROR_CODES) to a localized, customer-facing message (en/fr/ar via booking.json's
+ * "hold" namespace). Never shows a raw error, RPC name, or Postgres detail to the customer —
+ * an unrecognized code (including a bare network failure) falls back to a generic message
+ * rather than leaking internals.
+ */
+function bookingErrorMessage(
+  code: string,
+  tb: (key: NamespaceKeyMap["booking"]) => string,
+): string {
+  switch (code) {
+    case "SLOT_UNAVAILABLE":
+      return tb("hold.error_slot_unavailable");
+    case "HOLD_EXPIRED":
+      return tb("hold.error_hold_expired");
+    case "BOOKING_NOT_FOUND":
+      return tb("hold.error_booking_not_found");
+    case "UNAUTHORIZED_BOOKING":
+      return tb("hold.error_unauthorized");
+    case "BOOKING_ALREADY_CONFIRMED":
+      return tb("hold.error_already_confirmed");
+    case "SPECIALIST_UNAVAILABLE":
+      return tb("hold.error_specialist_unavailable");
+    case "NO_ELIGIBLE_SPECIALIST":
+      return tb("hold.error_no_eligible_specialist");
+    case "BUSINESS_CLOSED":
+      return tb("hold.error_business_closed");
+    case "BOOKING_HORIZON_EXCEEDED":
+      return tb("hold.error_horizon_exceeded");
+    case "MINIMUM_NOTICE_REQUIRED":
+      return tb("hold.error_minimum_notice");
+    case "BOOKING_LIMIT_REACHED":
+      return tb("hold.error_limit_reached");
+    case "INVALID_BOOKING_CONTEXT":
+      return tb("hold.error_invalid_context");
+    case "NETWORK_ERROR":
+      return tb("hold.error_network");
+    default:
+      return tb("hold.error_generic");
+  }
+}
+
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "book", label: "Book" },
@@ -158,6 +206,7 @@ function BookingFlow() {
   const { data: categories } = useCategories();
   const { lang } = useLocale();
   const { t } = useTranslation("common");
+  const { t: tb } = useTranslation("booking");
 
   const { book: bookIntent, tab: tabParam } = Route.useSearch();
   // Tab lives in the URL so deep links, refreshes and the back button all work.
@@ -382,8 +431,10 @@ function BookingFlow() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextAvailableQueries.map((q) => q.dataUpdatedAt).join(","), eligibleStaff.length]);
 
-  /** Selecting a service resets the specialist, day and time, then advances. */
+  /** Selecting a service resets the specialist, day and time, then advances. Releases any hold
+   * from a previously-chosen time — it no longer matches this selection. */
   function selectService(id: string) {
+    resetHold();
     setServiceId(id);
     setStaffId(null);
     setSlot(null);
@@ -392,6 +443,7 @@ function BookingFlow() {
 
   /** Selecting a specialist resets the time, then advances to the date step. */
   function selectStaff(id: string) {
+    resetHold();
     setStaffId(id);
     setSlot(null);
     setStep(2);
@@ -616,9 +668,131 @@ function BookingFlow() {
     setCouponError(null);
   }, [serviceId]);
 
-  const createBooking = useMutation({
+  // ============================================================
+  // Booking state machine (Project 10): IDLE -> HOLDING -> HELD -> CONFIRMING -> SUCCESS,
+  // with HOLD_EXPIRED / SLOT_UNAVAILABLE / ERROR side exits. The browser never decides
+  // availability, price, or booking status — every transition here reflects a server
+  // response, never an optimistic local guess.
+  // ============================================================
+  type BookingPhase =
+    | "idle"
+    | "holding"
+    | "held"
+    | "confirming"
+    | "success"
+    | "hold_expired"
+    | "slot_unavailable"
+    | "error";
+  type HoldState = {
+    holdId: string;
+    reference: string;
+    staffId: string;
+    expiresAt: string;
+    totalPrice: number;
+    currency: string;
+    guestToken?: string;
+  };
+
+  const [bookingPhase, setBookingPhase] = useState<BookingPhase>("idle");
+  const [hold, setHold] = useState<HoldState | null>(null);
+  const [bookingErrorCode, setBookingErrorCode] = useState<string | null>(null);
+  // Generated once per hold, reused across every confirm retry for that hold so a flaky
+  // connection or a double-tap can never create two bookings (withIdempotency, server-side).
+  const idempotencyKeyRef = useRef<string | null>(null);
+
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (bookingPhase !== "held" && bookingPhase !== "confirming") return;
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [bookingPhase]);
+  // Purely cosmetic — the server re-checks hold_expires_at itself at confirm time regardless.
+  const holdSecondsLeft = hold
+    ? Math.max(0, Math.floor((new Date(hold.expiresAt).getTime() - nowTick) / 1000))
+    : 0;
+  useEffect(() => {
+    if (bookingPhase === "held" && hold && holdSecondsLeft <= 0) setBookingPhase("hold_expired");
+  }, [bookingPhase, hold, holdSecondsLeft]);
+
+  // Best-effort release if the customer navigates away entirely (closes the tab, goes back to
+  // search) while still holding a slot — not required for correctness (the hold expires on its
+  // own regardless), just frees the slot for other customers sooner.
+  const holdRef = useRef<HoldState | null>(null);
+  const bookingPhaseRef = useRef(bookingPhase);
+  useEffect(() => {
+    holdRef.current = hold;
+  }, [hold]);
+  useEffect(() => {
+    bookingPhaseRef.current = bookingPhase;
+  }, [bookingPhase]);
+  useEffect(() => {
+    return () => {
+      if (holdRef.current && bookingPhaseRef.current !== "success") releaseHold(holdRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Best-effort — frees the slot for other customers a little sooner. The hold's own expiry
+   * is what actually guarantees release, so a lost request here is never a correctness issue. */
+  function releaseHold(target: HoldState | null) {
+    if (!target) return;
+    if (target.guestToken) {
+      cancelGuestBookingHold({
+        data: { holdId: target.holdId, guestToken: target.guestToken },
+      }).catch(() => {});
+    } else {
+      cancelBookingHold({ data: { holdId: target.holdId } }).catch(() => {});
+    }
+  }
+
+  function resetHold() {
+    releaseHold(hold);
+    setHold(null);
+    setBookingPhase("idle");
+    setBookingErrorCode(null);
+    idempotencyKeyRef.current = null;
+  }
+
+  const createHold = useMutation({
+    mutationFn: async (params: { staffId: string | null; startsAt: string }) => {
+      if (!service || !branchId) throw new Error("INVALID_BOOKING_CONTEXT");
+      const payload = {
+        businessId: business!.id,
+        branchId,
+        serviceIds: [service.id],
+        staffId: params.staffId,
+        startsAt: params.startsAt,
+      };
+      return user
+        ? await createBookingHold({ data: payload })
+        : await createGuestBookingHold({ data: payload });
+    },
+    onMutate: () => {
+      setBookingPhase("holding");
+      setBookingErrorCode(null);
+    },
+    onSuccess: (result) => {
+      setHold(result as HoldState);
+      idempotencyKeyRef.current = crypto.randomUUID();
+      setBookingPhase("held");
+      // "Any specialist" resolves to a real one server-side — reflect that choice back.
+      if (result.staffId !== staffId) setStaffId(result.staffId);
+      setStep(4);
+    },
+    onError: (error) => {
+      const code = error instanceof Error ? error.message : "NETWORK_ERROR";
+      setBookingErrorCode(code);
+      setBookingPhase(code === "SLOT_UNAVAILABLE" ? "slot_unavailable" : "error");
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
+      if (code !== "SLOT_UNAVAILABLE") toast.error(bookingErrorMessage(code, tb));
+    },
+  });
+
+  const confirmBooking = useMutation({
     mutationFn: async () => {
-      if (!service || !staffId || !slot) throw new Error("Booking is incomplete");
+      if (!hold) throw new Error("BOOKING_NOT_FOUND");
+      if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID();
+      const couponCode = promo ? coupon.trim() : undefined;
       if (user) {
         if (needsPhone) {
           if (!isValidE164(phoneE164)) throw new Error("Add a valid phone number to confirm");
@@ -628,43 +802,33 @@ function BookingFlow() {
             .eq("id", user.id);
           if (profileError) throw profileError;
         }
-        if (!branchId) throw new Error("Booking is incomplete");
-        const starts = new Date(slot);
-        const ends = new Date(starts.getTime() + service.duration_minutes * 60_000);
-        const { data, error } = await supabase
-          .from("bookings")
-          .insert({
-            customer_id: user.id,
-            business_id: business!.id,
-            branch_id: branchId,
-            service_id: service.id,
-            staff_id: staffId,
-            starts_at: starts.toISOString(),
-            ends_at: ends.toISOString(),
-            total_price: promo ? promo.final : basePrice,
-            original_price: promo ? basePrice : null,
-            discount_amount: promo ? promo.discount : 0,
-            promotion_id: promo ? promo.id : null,
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        return data;
+        return await confirmBookingHold({
+          data: {
+            holdId: hold.holdId,
+            idempotencyKey: idempotencyKeyRef.current,
+            customerPhone: needsPhone ? phoneE164 : undefined,
+            couponCode,
+          },
+        });
       }
-      // Guest checkout — no session at all, created server-side.
+      // Guest checkout — no session at all, confirmed server-side via the hold's guestToken.
       if (!guestInfoReady) throw new Error("Add your name and phone number to confirm");
-      return await createGuestBooking({
+      if (!hold.guestToken) throw new Error("INVALID_BOOKING_CONTEXT");
+      return await confirmGuestBookingHold({
         data: {
-          businessId: business!.id,
-          serviceId: service.id,
-          staffId,
-          slot,
-          name: guestInfo.name.trim(),
-          phone: guestPhoneE164,
-          email: guestInfo.email.trim() || undefined,
-          couponCode: promo ? coupon.trim() : undefined,
+          holdId: hold.holdId,
+          guestToken: hold.guestToken,
+          idempotencyKey: idempotencyKeyRef.current,
+          customerName: guestInfo.name.trim(),
+          customerPhone: guestPhoneE164,
+          customerEmail: guestInfo.email.trim() || undefined,
+          couponCode,
         },
       });
+    },
+    onMutate: () => {
+      setBookingPhase("confirming");
+      setBookingErrorCode(null);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["slots"] });
@@ -672,6 +836,7 @@ function BookingFlow() {
       queryClient.invalidateQueries({ queryKey: ["day-availability"] });
       clearPendingBooking();
       setAutoConfirm(false);
+      setBookingPhase("success");
       if (user) {
         // Unchanged existing behavior for signed-in customers.
         queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
@@ -701,43 +866,48 @@ function BookingFlow() {
         .catch(() => setEmailAccountCheck("none"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Booking failed";
-      toast.error(
-        message.includes("duplicate") ? "That slot was just taken. Pick another time." : message,
-      );
-      queryClient.invalidateQueries({ queryKey: ["slots"] });
-      // Don't retry the same failed intent on the next visit.
-      clearPendingBooking();
+      const code = error instanceof Error ? error.message : "NETWORK_ERROR";
+      setBookingErrorCode(code);
       setAutoConfirm(false);
-      setStep(3);
+      if (code === "HOLD_EXPIRED") {
+        setBookingPhase("hold_expired");
+        setHold(null);
+        clearPendingBooking();
+        return;
+      }
+      if (code === "BOOKING_ALREADY_CONFIRMED") {
+        // A duplicate submission landed after the first one already went through (e.g. a
+        // retried request racing its own earlier success) — this IS the success case.
+        setBookingPhase("success");
+        return;
+      }
+      setBookingPhase("error");
+      toast.error(bookingErrorMessage(code, tb));
     },
   });
 
-  // Finish the booking the customer started before the sign-in detour.
+  // Finish the booking the customer started before the sign-in detour: create the hold now
+  // that they're authenticated, then confirm it, same two-step flow as a live customer.
   useEffect(() => {
-    if (!autoConfirm || !user || !service || !staffId || !slot) return;
-    if (createBooking.isPending || createBooking.isSuccess) return;
+    if (!autoConfirm || !user || !service || !slot) return;
     if (!profileQuery.isSuccess) return;
     if (needsPhone) {
-      // Stop and ask for the missing number instead of failing the booking.
       setAutoConfirm(false);
       clearPendingBooking();
       setStep(4);
       toast.info("Add your phone number to finish the booking.");
       return;
     }
-    setAutoConfirm(false);
-    createBooking.mutate();
-  }, [
-    autoConfirm,
-    user,
-    service,
-    staffId,
-    slot,
-    createBooking,
-    needsPhone,
-    profileQuery.isSuccess,
-  ]);
+    if (bookingPhase === "idle" && !createHold.isPending) {
+      createHold.mutate({ staffId, startsAt: slot });
+      return;
+    }
+    if (bookingPhase === "held" && !confirmBooking.isPending && !confirmBooking.isSuccess) {
+      setAutoConfirm(false);
+      confirmBooking.mutate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoConfirm, user, service, staffId, slot, needsPhone, profileQuery.isSuccess, bookingPhase]);
 
   const waitlistQuery = useQuery({
     queryKey: ["waitlist", user?.id, staffId, serviceId, day],
@@ -795,7 +965,10 @@ function BookingFlow() {
     Boolean(serviceId),
     Boolean(staffId),
     Boolean(day) && dayBookable,
-    Boolean(slot),
+    // The time step advances automatically once its hold succeeds (createHold.onSuccess) —
+    // "held" here just guards the sticky-footer Continue button from double-advancing while
+    // the hold request for the just-tapped slot is still in flight or already failed.
+    Boolean(slot) && bookingPhase === "held",
     user ? phoneReady : guestInfoReady,
     true,
   ][step];
@@ -1166,6 +1339,7 @@ function BookingFlow() {
                     ready={Boolean(staffId && serviceId)}
                     value={day}
                     onSelect={(value) => {
+                      resetHold();
                       setDay(value);
                       setSlot(null);
                       setStep(3);
@@ -1269,26 +1443,35 @@ function BookingFlow() {
                   </div>
                 ) : (
                   <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                    {bookingPhase === "slot_unavailable" && (
+                      <p className="col-span-full rounded-2xl bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive">
+                        {bookingErrorMessage("SLOT_UNAVAILABLE", tb)}
+                      </p>
+                    )}
                     {slotsQuery.data?.map((s) => {
                       const active = slot === s.slot;
+                      const pickingThis = active && createHold.isPending;
                       return (
                         <button
                           key={s.slot}
                           type="button"
-                          disabled={!s.available}
+                          disabled={!s.available || createHold.isPending}
                           onClick={() => {
+                            resetHold();
                             setSlot(s.slot);
-                            setStep(4);
+                            createHold.mutate({ staffId, startsAt: s.slot });
                           }}
                           aria-pressed={active}
-                          className={`min-h-12 rounded-2xl text-sm font-bold transition-colors ${
+                          aria-busy={pickingThis}
+                          className={`flex min-h-12 items-center justify-center gap-1.5 rounded-2xl text-sm font-bold transition-colors ${
                             active
                               ? "bg-primary text-primary-foreground"
                               : s.available
                                 ? "glass"
                                 : "bg-muted text-muted-foreground line-through"
-                          }`}
+                          } ${createHold.isPending && !pickingThis ? "opacity-50" : ""}`}
                         >
+                          {pickingThis && <Loader2 className="size-3.5 animate-spin" />}
                           {formatInTimezone(
                             s.slot,
                             businessTz,
@@ -1306,14 +1489,38 @@ function BookingFlow() {
             {/* Step 5 — customer information */}
             {step === 4 && (
               <section className="mt-7 animate-fade-up">
-                <h2 className="text-2xl font-extrabold">Your information</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {user
-                    ? "Just need a bit more to confirm your appointment."
-                    : "So the shop knows who's booking."}
-                </p>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div>
+                    <h2 className="text-2xl font-extrabold">Your information</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {user
+                        ? "Just need a bit more to confirm your appointment."
+                        : "So the shop knows who's booking."}
+                    </p>
+                  </div>
+                  <HoldCountdown phase={bookingPhase} secondsLeft={holdSecondsLeft} tb={tb} />
+                </div>
 
-                {identityLoading ? (
+                {bookingPhase === "hold_expired" && (
+                  <div className="mt-5 space-y-3 rounded-3xl bg-destructive/10 p-5 text-center">
+                    <p className="text-sm font-semibold text-destructive">
+                      {bookingErrorMessage("HOLD_EXPIRED", tb)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetHold();
+                        setSlot(null);
+                        setStep(3);
+                      }}
+                      className="press min-h-11 rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
+                    >
+                      {tb("hold.pick_new_time")}
+                    </button>
+                  </div>
+                )}
+
+                {bookingPhase === "hold_expired" ? null : identityLoading ? (
                   <div className="mt-5 h-32 animate-pulse rounded-3xl bg-muted" />
                 ) : user ? (
                   needsPhone && (
@@ -1386,7 +1593,42 @@ function BookingFlow() {
               <section className="mt-7 animate-fade-up">
                 {!bookingResult ? (
                   <>
-                    <h2 className="text-2xl font-extrabold">Confirm your booking</h2>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                      <h2 className="text-2xl font-extrabold">Confirm your booking</h2>
+                      <HoldCountdown phase={bookingPhase} secondsLeft={holdSecondsLeft} tb={tb} />
+                    </div>
+                    {bookingPhase === "hold_expired" && (
+                      <div className="mt-4 space-y-3 rounded-3xl bg-destructive/10 p-5 text-center">
+                        <p className="text-sm font-semibold text-destructive">
+                          {bookingErrorMessage("HOLD_EXPIRED", tb)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            resetHold();
+                            setSlot(null);
+                            setStep(3);
+                          }}
+                          className="press min-h-11 rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
+                        >
+                          {tb("hold.pick_new_time")}
+                        </button>
+                      </div>
+                    )}
+                    {bookingPhase === "error" && (
+                      <div className="mt-4 space-y-3 rounded-3xl bg-destructive/10 p-5 text-center">
+                        <p className="text-sm font-semibold text-destructive">
+                          {bookingErrorMessage(bookingErrorCode ?? "", tb)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => confirmBooking.mutate()}
+                          className="press min-h-11 rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
+                        >
+                          {tb("hold.try_again")}
+                        </button>
+                      </div>
+                    )}
                     <div className="mt-5 space-y-3 rounded-3xl glass p-6">
                       <Row label="Business" value={business?.name ?? ""} />
                       <Row
@@ -1635,11 +1877,15 @@ function BookingFlow() {
             ) : (
               <button
                 type="button"
-                disabled={createBooking.isPending || (user ? !phoneReady : !guestInfoReady)}
-                onClick={() => createBooking.mutate()}
+                disabled={
+                  confirmBooking.isPending ||
+                  bookingPhase !== "held" ||
+                  (user ? !phoneReady : !guestInfoReady)
+                }
+                onClick={() => confirmBooking.mutate()}
                 className="press flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
               >
-                {createBooking.isPending ? (
+                {confirmBooking.isPending ? (
                   <Loader2 className="size-5 animate-spin" />
                 ) : (
                   <Check className="size-5" />
@@ -1663,6 +1909,46 @@ function BookingFlow() {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Visible countdown of the server-issued hold's remaining time. Purely informational — the
+ * server re-checks hold_expires_at itself at confirm time regardless of what this shows, so a
+ * clock skew or a paused tab never lets a customer confirm past the real deadline.
+ */
+function HoldCountdown({
+  phase,
+  secondsLeft,
+  tb,
+}: {
+  phase:
+    | "idle"
+    | "holding"
+    | "held"
+    | "confirming"
+    | "success"
+    | "hold_expired"
+    | "slot_unavailable"
+    | "error";
+  secondsLeft: number;
+  tb: (key: NamespaceKeyMap["booking"], vars?: Record<string, string | number>) => string;
+}) {
+  if (phase !== "held" && phase !== "confirming") return null;
+  const urgent = secondsLeft <= 60;
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
+  const ss = String(secondsLeft % 60).padStart(2, "0");
+  return (
+    <span
+      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold tabular-nums ${
+        urgent ? "bg-destructive/15 text-destructive" : "glass-soft"
+      }`}
+      role="timer"
+      aria-live="polite"
+    >
+      <Clock className="size-3.5" />
+      {tb("hold.countdown", { mm, ss })}
+    </span>
   );
 }
 

@@ -15,5 +15,25 @@
   "nav_appointments": "Bookings",
   "nav_my_appointments": "My appointments",
   "quick_open_calendar": "Open calendar",
-  "quick_new_booking": "New booking"
+  "quick_new_booking": "New booking",
+  "hold": {
+    "countdown": "Held {{mm}}:{{ss}}",
+    "expired_message": "Your held time has expired. Pick a new time to continue.",
+    "pick_new_time": "Pick a new time",
+    "try_again": "Try again",
+    "error_slot_unavailable": "That time was just taken. Pick another slot.",
+    "error_hold_expired": "Your held time has expired. Pick a new time to continue.",
+    "error_booking_not_found": "We couldn't find that booking. Please start again.",
+    "error_unauthorized": "This booking doesn't belong to this session.",
+    "error_already_confirmed": "This booking is already confirmed.",
+    "error_specialist_unavailable": "That specialist is no longer available for this time.",
+    "error_no_eligible_specialist": "No specialist is available for this service right now.",
+    "error_business_closed": "This shop isn't accepting bookings right now.",
+    "error_horizon_exceeded": "That date is too far ahead to book yet.",
+    "error_minimum_notice": "This time is too soon — pick a later slot.",
+    "error_limit_reached": "Too many attempts — please try again in a few minutes.",
+    "error_invalid_context": "Something about this booking changed. Please start again.",
+    "error_network": "Connection problem — please check your internet and try again.",
+    "error_generic": "Something went wrong confirming your booking. Please try again."
+  }
 }

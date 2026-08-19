@@ -15,5 +15,25 @@
   "nav_appointments": "Réservations",
   "nav_my_appointments": "Mes rendez-vous",
   "quick_open_calendar": "Ouvrir le calendrier",
-  "quick_new_booking": "Nouvelle réservation"
+  "quick_new_booking": "Nouvelle réservation",
+  "hold": {
+    "countdown": "Réservé {{mm}}:{{ss}}",
+    "expired_message": "Votre créneau réservé a expiré. Choisissez un nouveau créneau pour continuer.",
+    "pick_new_time": "Choisir un nouveau créneau",
+    "try_again": "Réessayer",
+    "error_slot_unavailable": "Ce créneau vient d'être pris. Choisissez-en un autre.",
+    "error_hold_expired": "Votre créneau réservé a expiré. Choisissez un nouveau créneau pour continuer.",
+    "error_booking_not_found": "Réservation introuvable. Veuillez recommencer.",
+    "error_unauthorized": "Cette réservation n'appartient pas à cette session.",
+    "error_already_confirmed": "Cette réservation est déjà confirmée.",
+    "error_specialist_unavailable": "Ce spécialiste n'est plus disponible pour ce créneau.",
+    "error_no_eligible_specialist": "Aucun spécialiste n'est disponible pour ce service pour le moment.",
+    "error_business_closed": "Cet établissement n'accepte pas de réservations pour le moment.",
+    "error_horizon_exceeded": "Cette date est trop éloignée pour réserver.",
+    "error_minimum_notice": "Ce créneau est trop proche — choisissez un horaire plus tardif.",
+    "error_limit_reached": "Trop de tentatives — veuillez réessayer dans quelques minutes.",
+    "error_invalid_context": "Un détail de cette réservation a changé. Veuillez recommencer.",
+    "error_network": "Problème de connexion — vérifiez votre connexion internet et réessayez.",
+    "error_generic": "Une erreur est survenue lors de la confirmation. Veuillez réessayer."
+  }
 }
