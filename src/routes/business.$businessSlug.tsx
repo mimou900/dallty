@@ -1457,6 +1457,27 @@ function BookingFlow() {
                           type="button"
                           disabled={!s.available || createHold.isPending}
                           onClick={() => {
+                            // Online booking requires an authenticated customer account (no
+                            // anonymous/guest booking) -- stash the exact selection and send
+                            // the customer to sign in; the pending-booking restore effect
+                            // above picks this back up and creates the hold once signed in,
+                            // same mechanism as the existing sign-in detour.
+                            if (!user) {
+                              savePendingBooking({
+                                businessId: businessSlug,
+                                serviceId,
+                                staffId,
+                                day,
+                                slot: s.slot,
+                                step: 4,
+                                autoConfirm: true,
+                              });
+                              navigate({
+                                to: "/auth",
+                                search: { next: `/business/${businessSlug}` },
+                              });
+                              return;
+                            }
                             resetHold();
                             setSlot(s.slot);
                             createHold.mutate({ staffId, startsAt: s.slot });

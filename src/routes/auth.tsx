@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Apple, Loader2, Scissors, Store } from "lucide-react";
+import { Apple, ArrowLeft, Loader2, Mail, Phone, Scissors, Store } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { checkPhoneHasAccount, checkSignupPassword } from "@/lib/account.functions";
 import { checkEmailDomainAllowed } from "@/lib/email-trust.functions";
@@ -23,17 +24,10 @@ import { LanguageSwitcher } from "@/components/dallty/language-switcher";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 
-// Launch scope is Email+Password only, per the account spec. Magic-link and
-// phone-OTP sign-in are architected below (working handlers, untouched
-// behaviour) but hidden until the product is ready to offer them. Same for
-// Google — the OAuth call already works; it's flagged off so launch matches
-// "email+password now, other providers later" exactly.
-const SHOW_ALT_METHODS = false;
-const SHOW_OAUTH_BUTTONS = false;
-
 const searchSchema = z.object({
   next: z.string().optional(),
-  // Deep-link support for the post-booking "Log In" / "Create Account" prompts.
+  // Deep-link support for the post-booking "Log In" / "Create Account" prompts. "signup" now
+  // only affects copy (the flow itself is identical either way — see "continue" below).
   mode: z.enum(["signin", "signup"]).optional(),
   email: z.string().trim().max(255).optional(),
 });
@@ -46,7 +40,7 @@ export const Route = createFileRoute("/auth")({
       {
         name: "description",
         content:
-          "Sign in with your email and password. Create your Dallty account as a customer, business owner or specialist.",
+          "Continue with your phone, email, Google or Apple account to book with Dallty in seconds.",
       },
       { property: "og:title", content: "Sign in to Dallty" },
       { property: "og:description", content: "Book salons, barbers, nails and spa in seconds." },
@@ -73,6 +67,7 @@ const phoneOnly = z
   .string()
   .trim()
   .regex(/^\+[1-9]\d{7,15}$/, "Use international format, e.g. +2135xxxxxxxx");
+const otpCode = z.string().trim().min(4).max(10);
 
 function safeNext(next?: string) {
   if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
@@ -82,35 +77,52 @@ function safeNext(next?: string) {
 const inputClass =
   "min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2";
 
-type Method = "password" | "magic" | "phone";
+/**
+ * "choose" is the primary, default entry point (brief: "continue with phone/email/Google/
+ * Apple" instead of an up-front Login-vs-Signup choice). "password" is the pre-existing
+ * email+password form, kept reachable as a fallback (account recovery, and the business/staff
+ * side still expects it) but no longer the default. "phone"/"email" each collect the contact
+ * method first, then the code (via the `otpSent` flag) once one has been sent. "complete-profile"
+ * only appears when the
+ * signed-in account is missing full_name/phone -- i.e. it's either brand new, or an older
+ * account that never finished onboarding -- never for an already-complete profile, regardless
+ * of which method was used to sign in.
+ */
+type Step = "choose" | "password" | "phone" | "email" | "complete-profile";
 
 function AuthPage() {
   const { next, mode: modeParam, email: emailParam } = Route.useSearch();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const checkOtpRequired = useServerFn(checkLoginOtpRequired);
   const sendLoginOtp = useServerFn(requestOtp);
   const { lang: locale } = useLocale();
   const { t } = useTranslation("auth");
-  const [method, setMethod] = useState<Method>("password");
+  const [step, setStep] = useState<Step>("choose");
   const [mode, setMode] = useState<"signin" | "signup">(modeParam ?? "signin");
   const [role, setRole] = useState<(typeof roleOptions)[number]["value"]>("client");
   const [email, setEmail] = useState(emailParam ?? "");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [remember, setRemember] = useState(true);
-  const [phone, setPhone] = useState("");
   const [contactPhone, setContactPhone] = useState<PhoneFieldValue>(() => ({
     countryCode: guessCountryCode(),
     national: "",
   }));
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [magicSent, setMagicSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Which contact method actually authenticated this session -- decides which field is still
+  // missing on the complete-profile step (the OTHER one).
+  const [verifiedVia, setVerifiedVia] = useState<"phone" | "email" | "oauth" | null>(null);
 
   const destination = safeNext(next);
   const dir = dirFor(locale);
+  const phoneE164 = toE164(
+    (getCountryByCode(contactPhone.countryCode) ?? getDefaultCountry()).calling_code,
+    contactPhone.national,
+  );
 
   /** Honour ?next=, otherwise send each role to its own home. */
   async function goHome() {
@@ -120,6 +132,199 @@ function AuthPage() {
 
   function fail(err: unknown) {
     toast.error(friendlyError(err, "Something went wrong. Please try again."));
+  }
+
+  // Fires whenever this page observes an active session -- an OTP verify or an OAuth redirect
+  // both land here the same way (supabase-js's own auth listener picks up the new session
+  // regardless of which method produced it). Checks whether the account still needs a name/
+  // contact-method/password before letting it through, so a brand-new account never reaches
+  // the rest of the app half-set-up, but an already-complete one is never asked twice.
+  const routedRef = useRef(false);
+  useEffect(() => {
+    if (authLoading || !user || routedRef.current) return;
+    routedRef.current = true;
+    (async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, phone")
+        .eq("id", user.id)
+        .maybeSingle();
+      const needsName = !profile?.full_name?.trim();
+      const needsPhone = !profile?.phone?.trim();
+      if (needsName || needsPhone) {
+        setFullName(profile?.full_name ?? (user.user_metadata?.full_name as string) ?? "");
+        if (!verifiedVia) {
+          // Landed here already signed in (e.g. straight OAuth redirect) rather than through
+          // one of this page's own OTP steps -- infer the method from Supabase's own record
+          // of it, never from which fields happen to be populated (an OAuth user always has
+          // an email on file too, so that alone isn't a safe signal).
+          const provider = user.app_metadata?.provider;
+          setVerifiedVia(
+            provider === "google" || provider === "apple"
+              ? "oauth"
+              : provider === "phone"
+                ? "phone"
+                : "email",
+          );
+        }
+        setStep("complete-profile");
+        return;
+      }
+      await goHome();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user]);
+
+  async function continuePhone(e: React.FormEvent) {
+    e.preventDefault();
+    const parsed = phoneOnly.safeParse(phoneE164);
+    if (!parsed.success) {
+      toast.error(t("phone_invalid"));
+      return;
+    }
+    setBusy(true);
+    try {
+      setRememberMe(remember);
+      // Never reveals whether this phone already has an account -- the same request either
+      // signs an existing user in or silently starts creating one; the branch only appears
+      // after the code is verified.
+      const { error } = await supabase.auth.signInWithOtp({ phone: parsed.data });
+      if (error) throw error;
+      setOtpSent(true);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyPhone(e: React.FormEvent) {
+    e.preventDefault();
+    const parsed = otpCode.safeParse(otp);
+    if (!parsed.success) {
+      toast.error("Enter the code we sent you");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: phoneE164,
+        token: parsed.data,
+        type: "sms",
+      });
+      if (error) throw error;
+      setVerifiedVia("phone");
+      // The routedRef effect above takes it from here once `user` updates.
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function continueEmail(e: React.FormEvent) {
+    e.preventDefault();
+    const parsed = emailOnly.safeParse(email);
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0].message);
+      return;
+    }
+    setBusy(true);
+    try {
+      setRememberMe(remember);
+      const { error } = await supabase.auth.signInWithOtp({
+        email: parsed.data,
+        options: { shouldCreateUser: true },
+      });
+      if (error) throw error;
+      setOtpSent(true);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyEmail(e: React.FormEvent) {
+    e.preventDefault();
+    const parsed = otpCode.safeParse(otp);
+    if (!parsed.success) {
+      toast.error("Enter the code we sent you");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: parsed.data,
+        type: "email",
+      });
+      if (error) throw error;
+      setVerifiedVia("email");
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function completeProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+    const needsPhoneField = verifiedVia !== "phone";
+    const needsPasswordField = verifiedVia !== "oauth";
+    setFieldErrors({});
+    if (!fullName.trim()) {
+      toast.error(t("full_name"));
+      return;
+    }
+    if (needsPhoneField) {
+      const dial = (getCountryByCode(contactPhone.countryCode) ?? getDefaultCountry()).calling_code;
+      if (!isValidNational(dial, contactPhone.national)) {
+        setFieldErrors({ phone: t("phone_invalid") });
+        toast.error(t("phone_invalid"));
+        return;
+      }
+    }
+    if (needsPasswordField && password) {
+      const check = await checkSignupPassword({
+        data: { password, accountType: "client" },
+      });
+      if (!check.valid) {
+        toast.error(check.errors[0] ?? "Password does not meet requirements");
+        return;
+      }
+    }
+    setBusy(true);
+    try {
+      if (needsPhoneField) {
+        const dupe = await checkPhoneHasAccount({ data: { phone: phoneE164 } });
+        if (dupe.exists) {
+          setFieldErrors({ phone: "This phone number is already registered." });
+          toast.error("This phone number is already registered.");
+          setBusy(false);
+          return;
+        }
+      }
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          full_name: fullName.trim(),
+          ...(needsPhoneField ? { phone: phoneE164, country_code: contactPhone.countryCode } : {}),
+        })
+        .eq("id", user.id);
+      if (profileError) throw profileError;
+      if (needsPasswordField && password) {
+        const { error: pwError } = await supabase.auth.updateUser({ password });
+        if (pwError) throw pwError;
+      }
+      toast.success(t("welcome"));
+      await goHome();
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -254,76 +459,6 @@ function AuthPage() {
     }
   }
 
-  async function handleMagicLink(e: React.FormEvent) {
-    e.preventDefault();
-    const parsed = emailOnly.safeParse(email);
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0].message);
-      return;
-    }
-    setBusy(true);
-    try {
-      setRememberMe(remember);
-      const { error } = await supabase.auth.signInWithOtp({
-        email: parsed.data,
-        options: {
-          emailRedirectTo: `${window.location.origin}${destination ?? ""}`,
-          data: { role },
-        },
-      });
-      if (error) throw error;
-      setMagicSent(true);
-      toast.success("Magic link sent — check your inbox.");
-    } catch (err) {
-      fail(err);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleSendOtp(e: React.FormEvent) {
-    e.preventDefault();
-    const parsed = phoneOnly.safeParse(phone);
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0].message);
-      return;
-    }
-    setBusy(true);
-    try {
-      setRememberMe(remember);
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: parsed.data,
-        options: { data: { role } },
-      });
-      if (error) throw error;
-      setOtpSent(true);
-      toast.success("Code sent by SMS.");
-    } catch (err) {
-      fail(err);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleVerifyOtp(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        phone: phone.trim(),
-        token: otp.trim(),
-        type: "sms",
-      });
-      if (error) throw error;
-      toast.success(t("signed_in"));
-      await goHome();
-    } catch (err) {
-      fail(err);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleForgotPassword() {
     const parsed = emailOnly.safeParse(email);
     if (!parsed.success) {
@@ -344,31 +479,28 @@ function AuthPage() {
     }
   }
 
-  async function handleGoogle() {
+  async function handleOAuth(provider: "google" | "apple") {
     setBusy(true);
     try {
       setRememberMe(remember);
       if (destination) saveNextPath(destination);
-      // Supabase's own OAuth flow: on success it redirects the browser to
-      // Google itself, so there is normally nothing to do after a
-      // successful call — the page navigates away.
+      // Supabase's own OAuth flow: on success it redirects the browser away, so there is
+      // normally nothing to do after a successful call. Returns to THIS page (not the
+      // homepage) so the routedRef effect above can run the same complete-profile check
+      // every other method goes through.
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: window.location.origin },
+        provider,
+        options: { redirectTo: `${window.location.origin}/auth` },
       });
       if (error) {
-        toast.error("Google sign-in failed");
+        toast.error(`${provider === "google" ? "Google" : "Apple"} sign-in failed`);
       }
     } finally {
       setBusy(false);
     }
   }
 
-  const methods: { key: Method; label: string }[] = [
-    { key: "password", label: "Password" },
-    { key: "magic", label: "Magic link" },
-    { key: "phone", label: "Phone" },
-  ];
+  const showBack = step !== "choose" && step !== "complete-profile";
 
   return (
     <div
@@ -382,238 +514,121 @@ function AuthPage() {
 
       <main className="w-full max-w-md rounded-4xl glass p-7 sm:p-9">
         <div className="mb-7 flex items-center justify-between gap-3">
-          <Link to="/" className="flex items-center gap-3">
-            <LogoMark className="size-11" />
-            <span className="text-lg font-extrabold">Dallty</span>
-          </Link>
+          {showBack ? (
+            <button
+              type="button"
+              onClick={() => {
+                setStep("choose");
+                setOtp("");
+                setOtpSent(false);
+              }}
+              aria-label="Back"
+              className="grid size-10 place-items-center rounded-2xl glass-soft"
+            >
+              <ArrowLeft className="size-5 rtl:rotate-180" />
+            </button>
+          ) : (
+            <Link to="/" className="flex items-center gap-3">
+              <LogoMark className="size-11" />
+              <span className="text-lg font-extrabold">Dallty</span>
+            </Link>
+          )}
           <LanguageSwitcher />
         </div>
 
-        <h1 className="text-3xl font-extrabold">
-          {mode === "signin" ? t("sign_in_title") : t("sign_up_title")}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {mode === "signin" ? t("sign_in_sub") : t("sign_up_sub")}
-        </p>
+        {step === "choose" && (
+          <>
+            <h1 className="text-3xl font-extrabold">{t("welcome")}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{t("sign_in_sub")}</p>
 
-        {SHOW_ALT_METHODS && (
-          <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl glass-soft p-1">
-            {methods.map((m) => (
+            <div className="mt-6 space-y-2">
               <button
-                key={m.key}
                 type="button"
-                onClick={() => setMethod(m.key)}
-                aria-pressed={method === m.key}
-                className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition-colors ${
-                  method === m.key ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                }`}
+                onClick={() => setStep("phone")}
+                className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold"
               >
-                {m.label}
+                <Phone className="size-4 shrink-0" />
+                {t("continue_with_phone")}
               </button>
-            ))}
-          </div>
-        )}
-
-        {mode === "signup" && (
-          <fieldset className="mt-6">
-            <legend className="mb-2 text-sm font-semibold">{t("role_legend")}</legend>
-            <div className="grid gap-2">
-              {roleOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setRole(option.value)}
-                  aria-pressed={role === option.value}
-                  className={`flex min-h-12 items-center justify-between rounded-2xl px-4 py-3 text-start text-sm font-semibold transition-colors ${
-                    role === option.value
-                      ? "bg-primary text-primary-foreground"
-                      : "glass-soft text-foreground"
-                  }`}
-                >
-                  <span>{t("role_client")}</span>
-                  <span
-                    className={
-                      role === option.value
-                        ? "text-xs font-medium opacity-80"
-                        : "text-xs font-medium text-muted-foreground"
-                    }
-                  >
-                    {t("role_client_hint")}
-                  </span>
-                </button>
-              ))}
-              <Link
-                to="/business/signup"
-                className="flex min-h-12 items-center justify-between rounded-2xl glass-soft px-4 py-3 text-sm font-semibold"
+              <button
+                type="button"
+                onClick={() => setStep("email")}
+                className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold"
               >
-                <span>{t("role_business")}</span>
-                <span className="text-xs font-medium text-muted-foreground">
-                  {t("role_business_hint")}
-                </span>
-              </Link>
-            </div>
-          </fieldset>
-        )}
-
-        {method === "password" && (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-            {mode === "signup" && (
-              <div>
-                <label htmlFor="fullName" className="mb-1.5 block text-sm font-semibold">
-                  {t("full_name")}
-                </label>
-                <input
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  autoComplete="name"
-                  className={inputClass}
-                />
-              </div>
-            )}
-            {mode === "signup" && (
-              <PhoneField
-                id="signup-phone"
-                value={contactPhone}
-                onChange={setContactPhone}
-                label={t("phone")}
-                required
-                dir={dir}
-              />
-            )}
-            {mode === "signup" && fieldErrors.phone && (
-              <p className="-mt-2 text-xs font-medium text-destructive">{fieldErrors.phone}</p>
-            )}
-
-            <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-semibold">
-                {t("email")}
-              </label>
-              <input
-                id="email"
-                name="username"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="username"
-                className={inputClass}
-              />
-              {fieldErrors.email && (
-                <p className="mt-1.5 text-xs font-medium text-destructive">{fieldErrors.email}</p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="password" className="mb-1.5 block text-sm font-semibold">
-                {t("password")}
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                className={inputClass}
-              />
-              {mode === "signup" && (
-                <PasswordStrength value={password} policy="client" className="mt-2" />
-              )}
+                <Mail className="size-4 shrink-0" />
+                {t("continue_with_email")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOAuth("google")}
+                disabled={busy}
+                className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold disabled:opacity-60"
+              >
+                <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
+                  <path
+                    fill="#FFC107"
+                    d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+                  />
+                  <path
+                    fill="#FF3D00"
+                    d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
+                  />
+                  <path
+                    fill="#4CAF50"
+                    d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+                  />
+                  <path
+                    fill="#1976D2"
+                    d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
+                  />
+                </svg>
+                {t("google")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOAuth("apple")}
+                disabled={busy}
+                className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold disabled:opacity-60"
+              >
+                <Apple className="size-4 shrink-0" />
+                {t("apple")}
+              </button>
             </div>
 
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="size-4 accent-primary"
-                />
-                {t("remember")}
-              </label>
-              {mode === "signin" && (
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  className="text-sm font-semibold underline underline-offset-4"
-                >
-                  {t("forgot")}
-                </button>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={busy || (mode === "signup" && !isPasswordStrong(password, "client"))}
-              className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
-            >
-              {busy && <Loader2 className="size-4 animate-spin" />}
-              {mode === "signin" ? t("sign_in") : t("sign_up")}
-            </button>
-          </form>
-        )}
-
-        {SHOW_ALT_METHODS && method === "magic" && (
-          <form onSubmit={handleMagicLink} className="mt-6 space-y-3">
-            <div>
-              <label htmlFor="magic-email" className="mb-1.5 block text-sm font-semibold">
-                {t("email")}
-              </label>
-              <input
-                id="magic-email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                className={inputClass}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {magicSent
-                ? "Link sent. Open it on this device to finish signing in."
-                : "We'll email you a one-tap sign-in link — no password needed."}
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => setStep("password")}
+                className="font-semibold text-foreground underline underline-offset-4"
+              >
+                {t("use_password_instead")}
+              </button>
             </p>
-            <button
-              type="submit"
-              disabled={busy}
-              className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
-            >
-              {busy && <Loader2 className="size-4 animate-spin" />}
-              {magicSent ? "Resend magic link" : "Email me a magic link"}
-            </button>
-          </form>
+          </>
         )}
 
-        {SHOW_ALT_METHODS && method === "phone" && (
-          <form onSubmit={otpSent ? handleVerifyOtp : handleSendOtp} className="mt-6 space-y-3">
-            <div>
-              <label htmlFor="phone" className="mb-1.5 block text-sm font-semibold">
-                {t("phone")}
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                required
-                placeholder="+2135xxxxxxxx"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                autoComplete="tel"
-                disabled={otpSent}
-                className={`${inputClass} disabled:opacity-60`}
-              />
-            </div>
+        {step === "phone" && (
+          <form onSubmit={otpSent ? verifyPhone : continuePhone} className="mt-1 space-y-3">
+            <h1 className="text-2xl font-extrabold">{t("continue_with_phone")}</h1>
+            <PhoneField
+              id="phone-continue"
+              value={contactPhone}
+              onChange={setContactPhone}
+              label={t("phone")}
+              required
+              dir={dir}
+              disabled={otpSent || busy}
+            />
             {otpSent && (
               <div>
-                <label htmlFor="otp" className="mb-1.5 block text-sm font-semibold">
-                  6-digit code
+                <label htmlFor="phone-otp-code" className="mb-1.5 block text-sm font-semibold">
+                  {t("otp_code")}
                 </label>
                 <input
-                  id="otp"
+                  id="phone-otp-code"
                   inputMode="numeric"
                   required
-                  maxLength={8}
+                  maxLength={10}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   autoComplete="one-time-code"
@@ -627,7 +642,7 @@ function AuthPage() {
               className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
             >
               {busy && <Loader2 className="size-4 animate-spin" />}
-              {otpSent ? "Verify and sign in" : "Send code"}
+              {otpSent ? t("verify_code") : t("send_code")}
             </button>
             {otpSent && (
               <button
@@ -638,70 +653,309 @@ function AuthPage() {
                 }}
                 className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
               >
-                Use a different number
+                {t("use_different_number")}
               </button>
             )}
           </form>
         )}
 
-        {SHOW_OAUTH_BUTTONS && (
-          <>
-            <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              {t("or")}
-              <span className="h-px flex-1 bg-border" />
+        {step === "email" && (
+          <form onSubmit={otpSent ? verifyEmail : continueEmail} className="mt-1 space-y-3">
+            <h1 className="text-2xl font-extrabold">{t("continue_with_email")}</h1>
+            <div>
+              <label htmlFor="email-continue" className="mb-1.5 block text-sm font-semibold">
+                {t("email")}
+              </label>
+              <input
+                id="email-continue"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                disabled={otpSent}
+                className={`${inputClass} disabled:opacity-60`}
+              />
             </div>
+            {otpSent && (
+              <div>
+                <label htmlFor="email-otp-code" className="mb-1.5 block text-sm font-semibold">
+                  {t("otp_code")}
+                </label>
+                <input
+                  id="email-otp-code"
+                  inputMode="numeric"
+                  required
+                  maxLength={10}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  autoComplete="one-time-code"
+                  className={`${inputClass} tracking-[0.4em]`}
+                />
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={busy}
+              className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {busy && <Loader2 className="size-4 animate-spin" />}
+              {otpSent ? t("verify_code") : t("send_code")}
+            </button>
+            {otpSent && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtp("");
+                }}
+                className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+              >
+                {t("use_different_email")}
+              </button>
+            )}
+          </form>
+        )}
 
-            <div className="space-y-2">
+        {step === "password" && (
+          <>
+            <h1 className="text-3xl font-extrabold">
+              {mode === "signin" ? t("sign_in_title") : t("sign_up_title")}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {mode === "signin" ? t("sign_in_sub") : t("sign_up_sub")}
+            </p>
+
+            {mode === "signup" && (
+              <fieldset className="mt-6">
+                <legend className="mb-2 text-sm font-semibold">{t("role_legend")}</legend>
+                <div className="grid gap-2">
+                  {roleOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setRole(option.value)}
+                      aria-pressed={role === option.value}
+                      className={`flex min-h-12 items-center justify-between rounded-2xl px-4 py-3 text-start text-sm font-semibold transition-colors ${
+                        role === option.value
+                          ? "bg-primary text-primary-foreground"
+                          : "glass-soft text-foreground"
+                      }`}
+                    >
+                      <span>{t("role_client")}</span>
+                      <span
+                        className={
+                          role === option.value
+                            ? "text-xs font-medium opacity-80"
+                            : "text-xs font-medium text-muted-foreground"
+                        }
+                      >
+                        {t("role_client_hint")}
+                      </span>
+                    </button>
+                  ))}
+                  <Link
+                    to="/business/signup"
+                    className="flex min-h-12 items-center justify-between rounded-2xl glass-soft px-4 py-3 text-sm font-semibold"
+                  >
+                    <span>{t("role_business")}</span>
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {t("role_business_hint")}
+                    </span>
+                  </Link>
+                </div>
+              </fieldset>
+            )}
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-3">
+              {mode === "signup" && (
+                <div>
+                  <label htmlFor="fullName" className="mb-1.5 block text-sm font-semibold">
+                    {t("full_name")}
+                  </label>
+                  <input
+                    id="fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    autoComplete="name"
+                    className={inputClass}
+                  />
+                </div>
+              )}
+              {mode === "signup" && (
+                <PhoneField
+                  id="signup-phone"
+                  value={contactPhone}
+                  onChange={setContactPhone}
+                  label={t("phone")}
+                  required
+                  dir={dir}
+                />
+              )}
+              {mode === "signup" && fieldErrors.phone && (
+                <p className="-mt-2 text-xs font-medium text-destructive">{fieldErrors.phone}</p>
+              )}
+
+              <div>
+                <label htmlFor="email" className="mb-1.5 block text-sm font-semibold">
+                  {t("email")}
+                </label>
+                <input
+                  id="email"
+                  name="username"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="username"
+                  className={inputClass}
+                />
+                {fieldErrors.email && (
+                  <p className="mt-1.5 text-xs font-medium text-destructive">{fieldErrors.email}</p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="password" className="mb-1.5 block text-sm font-semibold">
+                  {t("password")}
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  className={inputClass}
+                />
+                {mode === "signup" && (
+                  <PasswordStrength value={password} policy="client" className="mt-2" />
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="size-4 accent-primary"
+                  />
+                  {t("remember")}
+                </label>
+                {mode === "signin" && (
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-sm font-semibold underline underline-offset-4"
+                  >
+                    {t("forgot")}
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={busy || (mode === "signup" && !isPasswordStrong(password, "client"))}
+                className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
+              >
+                {busy && <Loader2 className="size-4 animate-spin" />}
+                {mode === "signin" ? t("sign_in") : t("sign_up")}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              {mode === "signin" ? t("new_here") : t("have_account")}{" "}
               <button
                 type="button"
-                onClick={handleGoogle}
-                disabled={busy}
-                className="press flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl glass-soft text-base font-semibold disabled:opacity-60"
+                onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+                className="font-semibold text-foreground underline underline-offset-4"
               >
-                <img src="https://www.google.com/favicon.ico" alt="" width={18} height={18} />
-                {t("google")}
+                {mode === "signin" ? t("switch_sign_up") : t("switch_sign_in")}
               </button>
-              <button
-                type="button"
-                disabled
-                title={t("apple_soon")}
-                className="flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-3 rounded-2xl glass-soft text-base font-semibold opacity-50"
-              >
-                <Apple className="size-4" />
-                {t("apple")}
-                <span className="text-xs font-bold uppercase tracking-wide">{t("apple_soon")}</span>
-              </button>
-            </div>
+            </p>
           </>
         )}
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          {mode === "signin" ? t("new_here") : t("have_account")}{" "}
-          <button
-            type="button"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-            className="font-semibold text-foreground underline underline-offset-4"
-          >
-            {mode === "signin" ? t("switch_sign_up") : t("switch_sign_in")}
-          </button>
-        </p>
+        {step === "complete-profile" && (
+          <form onSubmit={completeProfile} className="mt-1 space-y-3">
+            <h1 className="text-2xl font-extrabold">{t("complete_profile_title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("complete_profile_sub")}</p>
+            <div>
+              <label htmlFor="complete-name" className="mb-1.5 block text-sm font-semibold">
+                {t("full_name")}
+              </label>
+              <input
+                id="complete-name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                autoComplete="name"
+                required
+                className={inputClass}
+              />
+            </div>
+            {verifiedVia !== "phone" && (
+              <>
+                <PhoneField
+                  id="complete-phone"
+                  value={contactPhone}
+                  onChange={setContactPhone}
+                  label={t("phone")}
+                  required
+                  dir={dir}
+                />
+                {fieldErrors.phone && (
+                  <p className="-mt-2 text-xs font-medium text-destructive">{fieldErrors.phone}</p>
+                )}
+              </>
+            )}
+            {verifiedVia !== "oauth" && (
+              <div>
+                <label htmlFor="complete-password" className="mb-1.5 block text-sm font-semibold">
+                  {t("password")}{" "}
+                  <span className="font-medium text-muted-foreground">(optional)</span>
+                </label>
+                <input
+                  id="complete-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  className={inputClass}
+                />
+                {password && <PasswordStrength value={password} policy="client" className="mt-2" />}
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={busy}
+              className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {busy && <Loader2 className="size-4 animate-spin" />}
+              {t("finish_setup")}
+            </button>
+          </form>
+        )}
 
-        <Link
-          to="/business/signup"
-          className="press mt-4 flex min-h-11 items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold"
-        >
-          <Store className="size-4" />
-          {t("business")}
-        </Link>
+        {step !== "complete-profile" && (
+          <>
+            <Link
+              to="/business/signup"
+              className="press mt-4 flex min-h-11 items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold"
+            >
+              <Store className="size-4" />
+              {t("business")}
+            </Link>
 
-        <Link
-          to="/staff/signup"
-          className="press mt-2 flex min-h-11 items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold"
-        >
-          <Scissors className="size-4" />
-          {t("join_team")}
-        </Link>
+            <Link
+              to="/staff/signup"
+              className="press mt-2 flex min-h-11 items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold"
+            >
+              <Scissors className="size-4" />
+              {t("join_team")}
+            </Link>
+          </>
+        )}
       </main>
     </div>
   );
