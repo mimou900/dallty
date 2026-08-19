@@ -259,6 +259,51 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_confirmation_calls: {
+        Row: {
+          booking_id: string
+          business_id: string
+          created_at: string
+          id: string
+          note: string | null
+          outcome: Database["public"]["Enums"]["confirmation_call_outcome"]
+          staff_user_id: string
+        }
+        Insert: {
+          booking_id: string
+          business_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          outcome: Database["public"]["Enums"]["confirmation_call_outcome"]
+          staff_user_id: string
+        }
+        Update: {
+          booking_id?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          outcome?: Database["public"]["Enums"]["confirmation_call_outcome"]
+          staff_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_confirmation_calls_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_confirmation_calls_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_items: {
         Row: {
           added_by: string | null
@@ -345,6 +390,57 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_status_history: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          booking_id: string
+          business_id: string
+          created_at: string
+          from_status: Database["public"]["Enums"]["booking_status"] | null
+          id: string
+          reason: string | null
+          to_status: Database["public"]["Enums"]["booking_status"]
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          booking_id: string
+          business_id: string
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["booking_status"] | null
+          id?: string
+          reason?: string | null
+          to_status: Database["public"]["Enums"]["booking_status"]
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          booking_id?: string
+          business_id?: string
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["booking_status"] | null
+          id?: string
+          reason?: string | null
+          to_status?: Database["public"]["Enums"]["booking_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_status_history_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_status_history_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -3925,6 +4021,14 @@ export type Database = {
         | "expired"
         | "no_show"
       business_status: "pending" | "approved" | "rejected" | "suspended"
+      confirmation_call_outcome:
+        | "pending"
+        | "called"
+        | "no_answer"
+        | "confirmed"
+        | "reschedule_requested"
+        | "cancelled"
+        | "wrong_number"
       email_domain_category:
         | "trusted_free_provider"
         | "business_domain"
@@ -4119,6 +4223,15 @@ export const Constants = {
         "no_show",
       ],
       business_status: ["pending", "approved", "rejected", "suspended"],
+      confirmation_call_outcome: [
+        "pending",
+        "called",
+        "no_answer",
+        "confirmed",
+        "reschedule_requested",
+        "cancelled",
+        "wrong_number",
+      ],
       email_domain_category: [
         "trusted_free_provider",
         "business_domain",
