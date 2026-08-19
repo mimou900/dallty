@@ -1067,10 +1067,14 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
   confirmation-call queue and walk-in booking.
 - **Documentation location:** `DALLTY_BOOKING_ENGINE.md` ("Project 10 update" section, read
   first), this file (this entry).
-- **Git commit:** Branch `project-10-customer-booking-hold-confirm`, four commits (DB
-  lockdown, engine rewrite, UI rewrite, critical-bug fixes), merged to `main`.
-- **Production status:** Live in production — see the verification report for this project's
-  deployment for the exact commit and confirmed-working checks.
+- **Git commit:** `d2e3b2b` through `7f6b182` (5 commits on
+  `project-10-customer-booking-hold-confirm`: DB lockdown, engine rewrite, UI rewrite,
+  critical-bug fixes, docs), merged to `main` at `e74c013`
+  ("Merge project-10-customer-booking-hold-confirm into main: Project 10").
+- **Production status:** **Live in production**, deployed and verified 2026-08-19 — homepage
+  rendered correctly with real data on both `https://www.dallty.com` and `https://dallty.com`
+  (redirects to `www`), and a live Supabase REST request returned 200 against commit
+  `e74c013`.
 
 ---
 
