@@ -278,7 +278,7 @@ function BookingFlow() {
       const { data, error } = await supabase
         .from("businesses")
         .select(
-          "id, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, amenities, languages, awards, certifications, brands, cancellation_policy, cancellation_policy_ar, house_rules, house_rules_ar, owner_story, owner_story_ar, faq, video_tour_url, instagram_url, tiktok_url, address, status, business_type, categories, website_url, facebook_url, country, district, postal_code, maps_url, employee_count, branch_count, logo_url, cover_url, is_listed, is_verified, country_code, currency, timezone",
+          "id, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, amenities, languages, awards, certifications, brands, cancellation_policy, cancellation_policy_ar, house_rules, house_rules_ar, owner_story, owner_story_ar, faq, video_tour_url, instagram_url, tiktok_url, address, status, business_type, categories, website_url, facebook_url, country, district, postal_code, maps_url, employee_count, branch_count, logo_url, cover_url, is_listed, is_verified, country_code, currency, timezone, require_deposit, deposit_percent",
         )
         .eq("slug", businessSlug)
         .maybeSingle();
@@ -837,12 +837,12 @@ function BookingFlow() {
       clearPendingBooking();
       setAutoConfirm(false);
       setBookingPhase("success");
+      setBookingResult({ id: data.id, reference: data.reference });
       if (user) {
-        // Unchanged existing behavior for signed-in customers.
+        // Full-screen success takeover (below) shows briefly, then redirects to /bookings
+        // itself — see the timed-redirect effect near the mutation's declaration.
         queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
         queryClient.invalidateQueries({ queryKey: ["booking-profile"] });
-        toast.success("Booking confirmed — see you soon!");
-        navigate({ to: "/bookings" });
         return;
       }
       // Guest: stay on step 5 and show the success card instead of navigating
@@ -885,6 +885,16 @@ function BookingFlow() {
       toast.error(bookingErrorMessage(code, tb));
     },
   });
+
+  // Full-screen success takeover, signed-in customers only (guests get the inline success
+  // card below instead — there's no /bookings to send them to, it's auth-guarded). Shows
+  // briefly then redirects on its own; the booking itself is already fully committed by the
+  // time this fires, so the delay is pure UX, never something correctness depends on.
+  useEffect(() => {
+    if (bookingPhase !== "success" || !user) return;
+    const id = setTimeout(() => navigate({ to: "/bookings" }), 2400);
+    return () => clearTimeout(id);
+  }, [bookingPhase, user, navigate]);
 
   // Finish the booking the customer started before the sign-in detour: create the hold now
   // that they're authenticated, then confirm it, same two-step flow as a live customer.
@@ -991,6 +1001,45 @@ function BookingFlow() {
 
   return (
     <div className="relative min-h-dvh pb-32">
+      {bookingPhase === "success" && user && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-background px-6 animate-fade-up">
+          <div className="text-center">
+            <div className="mx-auto grid size-20 place-items-center rounded-full bg-primary text-primary-foreground">
+              <Check className="size-10" />
+            </div>
+            <h1 className="mt-6 text-2xl font-extrabold">Booking confirmed</h1>
+            {service && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {service.name}
+                {staffMember ? ` with ${staffMember.full_name}` : ""}
+              </p>
+            )}
+            {slot && (
+              <p className="mt-1 text-sm font-semibold text-muted-foreground">
+                {formatInTimezone(
+                  slot,
+                  businessTz,
+                  {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  },
+                  lang,
+                )}
+              </p>
+            )}
+            {bookingResult && (
+              <p className="mt-3 font-mono text-xs font-bold text-muted-foreground">
+                {bookingResult.reference}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 start-[-10%] size-[34rem] rounded-full bg-primary/15 blur-3xl" />
         <div className="absolute bottom-0 end-[-10%] size-[30rem] rounded-full bg-gold/15 blur-3xl" />
@@ -1736,6 +1785,31 @@ function BookingFlow() {
                         <p className="mt-2 text-xs font-semibold text-primary">
                           {promo.code} applied — you save{" "}
                           {formatMoney(promo.discount, currency, lang)}.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Payment method — "Pay at salon" is the only option that actually
+                        collects anything today; no online payment gateway is wired up yet
+                        (see DALLTY_FINANCIAL_ARCHITECTURE.md). A business's deposit setting,
+                        if any, is shown as information only — the amount actually due is
+                        always resolved server-side at confirm time, never trusted from here. */}
+                    <div className="mt-4 rounded-3xl glass-soft p-4">
+                      <p className="text-sm font-bold">Payment</p>
+                      <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl bg-card/70 px-4 py-3">
+                        <span className="text-sm font-semibold">Pay at salon</span>
+                        <Check className="size-4 text-primary" />
+                      </div>
+                      {business?.require_deposit && Number(business.deposit_percent) > 0 && (
+                        <p className="mt-2 text-xs font-semibold text-muted-foreground">
+                          This shop requires a {business.deposit_percent}% deposit (about{" "}
+                          {formatMoney(
+                            ((promo ? promo.final : basePrice) * Number(business.deposit_percent)) /
+                              100,
+                            currency,
+                            lang,
+                          )}
+                          ), collected in person. The exact amount is confirmed at the salon.
                         </p>
                       )}
                     </div>
