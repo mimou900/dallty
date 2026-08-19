@@ -2,8 +2,95 @@
 
 **Status:** Living document. Produced by Project 05 (Booking Engine, Availability &
 Reservation Concurrency); extended by Project 09 (Booking Engine & Availability Foundation —
-branch-awareness, availability rewrite, confirmation state machine).
+branch-awareness, availability rewrite, confirmation state machine); extended by Project 10
+(Customer Booking HOLD → CONFIRMATION Flow — closed the direct-insert path this document's own
+Project 09 section flagged as still open).
 **Last updated:** 2026-08-19.
+
+## Project 10 update (2026-08-19) — customer UI moved onto hold→confirm; direct-insert closed
+
+Project 09 built and live-tested `createBookingHold`/`confirmBookingHold`, but explicitly left
+them unwired to any UI (see the Project 09 section below, "Deliberately not done") — the
+customer-facing flow kept inserting a live-status row directly, and guest checkout
+(`createGuestBooking`) did too. Project 10 closes that gap for both signed-in and guest
+customers, and fixes three previously-invisible bugs found only by calling the real deployed
+HTTP endpoints instead of testing the database layer in isolation.
+
+1. **Guest hold support.** `createGuestBookingHold`/`confirmGuestBookingHold`/
+   `cancelGuestBookingHold` — no Supabase session required, sharing the exact same `holdCore`/
+   `confirmCore` internals as the signed-in path (not a second engine). A guest hold is created
+   anonymously (`guest_hold_token`, a server-generated random UUID, is the ownership proof —
+   never a client-supplied id); contact details are collected only at confirm time, matching
+   when the UI actually has them. `createGuestBooking` (the old direct-insert function) is
+   deleted outright, not deprecated.
+
+2. **`branch_services` finally consulted.** The gap this document flagged in "Duration and
+   price resolution" above — `resolveServiceLines` never read `branch_services` — is closed.
+   Price/duration hierarchy, most specific wins: `staff_services` scoped to this branch → this
+   staff member's global `staff_services` override → `branch_services` → the service's own
+   default. `eligibleStaffIds` also now requires `staff_branches` assignment to the requested
+   branch, closing a related gap where a hold could be created against a specialist who
+   doesn't work at the selected branch at all.
+
+3. **Coupons move to confirm time.** The pre-existing UI applies a promo code at the
+   confirmation step, which now comes *after* hold creation — so the discount is resolved
+   fresh from `check_promo_code` at confirm, not carried over from hold creation (a code valid
+   when the hold was created could have expired or exhausted its uses minutes later; confirm
+   is where it's re-verified, same principle as re-verifying the slot itself).
+
+4. **Client state machine.** `business.$businessSlug.tsx`: IDLE → HOLDING → HELD → CONFIRMING →
+   SUCCESS, with HOLD_EXPIRED/SLOT_UNAVAILABLE/ERROR side exits — every transition reflects a
+   server response, never an optimistic guess. Picking a time now creates the hold immediately
+   (same instant the UI visually "locks" it); a countdown shows the server-issued
+   `hold_expires_at`, purely cosmetic since confirm always re-checks server-side regardless of
+   what the countdown shows. Confirm sends a client-generated idempotency key, reused across
+   retries for that hold, so a flaky connection or double-tap can't create two bookings.
+
+5. **Direct customer-insert path closed at the database, not just the UI.** Dropped the
+   `authenticated`-role "Customers create own bookings" RLS INSERT policy on `bookings` — the
+   only remaining INSERT policy for that table is the staff/owner one
+   (`admin/appointments.tsx`'s manual booking-duplicate feature, out of this project's scope,
+   still works via it). `bookings_identity_present` extended so an anonymous guest hold (no
+   `customer_id`, no `customer_name`/`customer_phone` yet) still satisfies the constraint via
+   `guest_hold_token IS NOT NULL`.
+
+6. **Three critical, previously-invisible bugs — found by calling the real deployed HTTP
+   server-function endpoints for the first time, not by testing the database layer alone.**
+   `confirmBookingHold` has existed since Project 09 Phase 3; nothing had ever actually called
+   it end-to-end until this project wired a UI (and, for verification, a script) to it.
+   - `guard_bookings_customer_update()` (Project 03's anti-mass-assignment trigger) fires for
+     `service_role` UPDATEs too — `BYPASSRLS` skips RLS *policy* checks, not table *triggers*.
+     Its non-privileged branch only ever allowed `status → 'cancelled'`; every hold→confirm
+     transition (`held→pending/confirmed`, and `held→expired` via cancel/sweep) was silently
+     rejected with "You may only cancel or reschedule your own booking". **Confirming a hold
+     has never actually worked in production before this fix.** Fixed by treating
+     `auth.uid() IS NULL` (a service-role call carries no JWT) as privileged — safe because
+     RLS's own UPDATE policy already requires a non-null `auth.uid()` for any authenticated
+     actor to reach a row at all, so no attacker-controlled request can ever present as
+     `auth.uid() IS NULL` here.
+   - `idempotency_keys`' `UNIQUE (actor_id, operation, idempotency_key)` never deduplicated for
+     `actor_id = NULL` (guests) — standard SQL treats `NULL` as distinct from `NULL`. Two guest
+     confirm attempts with the identical idempotency key just inserted two separate rows and
+     ran the confirm logic twice; no duplicate booking resulted only because the confirm
+     logic's own status re-check happened to catch the second run (and returned the wrong
+     response, not a duplicate). Fixed with a unique index on
+     `COALESCE(actor_id, '00000000-...')`.
+   - `withIdempotency()`'s cached-response lookup used `.eq("actor_id", actorId)`
+     unconditionally — for `actorId = null` this compiles to `actor_id = null`, which (like
+     plain SQL) never matches anything, so a guest could never retrieve their own completed
+     response on retry, only ever `DuplicateRequestError`. Fixed to use `.is("actor_id", null)`
+     when `actorId` is null.
+   - All three verified live against the Preview deployment after each fix: 12 genuinely
+     concurrent `createGuestBookingHold` HTTP requests for the identical slot → 1 success, 11
+     `SLOT_UNAVAILABLE`; a same-key confirm retry after the original completed now returns the
+     identical cached booking instead of an error; forged `guestToken` → `UNAUTHORIZED_BOOKING`;
+     nonexistent hold id → `BOOKING_NOT_FOUND`; a hold whose `hold_expires_at` was forced into
+     the past → `HOLD_EXPIRED`, and the row correctly flips to `status = 'expired'`.
+
+**Still not built, carried forward honestly**: a dedicated confirmation-call UI and a dedicated
+walk-in-booking UI for the staff/business dashboard — the server functions
+(`recordBookingConfirmation`, `createWalkInBooking`) have existed since Project 09 and remain
+callable, but no dashboard screen drives them yet.
 
 ## Project 09 update (2026-08-19) — branches, availability rewrite, confirmation state machine
 
@@ -260,11 +347,12 @@ Project 00's audit — are now the first tier actually read: effective duration/
 **As of Project 09**, branches are fully wired into booking (see the Project 09 update at the
 top): `branch_services` overrides price/duration/availability per branch, `staff_services`
 gained a nullable `branch_id` for branch-specific specialist pricing, and buffer resolution
-gained a branch tier (service → branch → business → country default). The customer-facing
-selection flow itself still resolves prices through `createBookingHold`'s existing
-`resolveServiceLines` — unchanged by Project 09 — which does not yet read `branch_services`
-overrides; it resolves duration/price from `staff_services`/`services` only. Threading
-branch-specific pricing through that specific resolution path remains open for a future pass.
+gained a branch tier (service → branch → business → country default).
+
+**As of Project 10**, `resolveServiceLines` (the actual resolution path `createBookingHold`/
+`createGuestBookingHold`/`createWalkInBooking` all use) finally reads both: hierarchy, most
+specific wins — `staff_services` scoped to the branch → `staff_services` global →
+`branch_services` → `services.discount_price ?? services.price`/`duration_minutes`.
 
 ## Multi-service booking (brief §13-14)
 
@@ -315,12 +403,13 @@ manual UTC-offset arithmetic, in this codebase or after this project.
 
 ## Walk-ins, guest customers (brief §46-48)
 
-`createMyAppointment` (`src/lib/staff-desk.functions.ts`) and guest checkout
-(`createGuestBooking`, `src/lib/account.functions.ts`) both insert directly into `bookings`
-with a live status — both inherit the same overlap protection from `bookings_no_overlap`, with
-no code change required, since the constraint applies to the table itself regardless of which
-code path performs the insert. Neither is migrated onto the two-phase hold→confirm flow — see
-"Deliberately not done" below for why.
+`createMyAppointment` (`src/lib/staff-desk.functions.ts`) still inserts directly into
+`bookings` with a live status, protected identically by `bookings_no_overlap` — staff-facing,
+out of Project 10's scope (see the Project 10 update at the top: only the *customer*-facing
+direct-insert path was in scope, staff/walk-in paths are explicitly exempted). Guest checkout
+no longer does: `createGuestBooking` (`src/lib/account.functions.ts`) is deleted as of Project
+10, replaced by `createGuestBookingHold`/`confirmGuestBookingHold` — see the Project 10 update
+at the top.
 
 **As of Project 09**, a real gap this left is closed: `createMyAppointment` only ever books
 the *signed-in specialist's own* calendar for an *existing* customer — there was no path for
@@ -339,26 +428,13 @@ the table was empty).
 
 ## Deliberately not done in this project
 
-**Still true as of Project 09 — re-confirmed, not just carried forward unchecked.**
+**As of Project 10**, the item that lived here through Project 05 and Project 09 — "the
+customer-facing booking UI was not rewired to the hold→confirm flow" — is done; see the
+Project 10 update at the top. What's still genuinely open:
 
-**The customer-facing booking UI (`business.$businessSlug.tsx`) was not rewired to the new
-hold→confirm flow.** This is an explicit, reasoned scope decision, not an oversight:
-
-- That flow is large (~1,400 lines), already handles promo codes, guest checkout, and
-  auto-confirm-after-sign-in-redirect — none of which the new `createBookingHold`/
-  `confirmBookingHold` functions currently support (no coupon parameter exists on them).
-  Wiring it in fully would mean extending those functions with promo-code logic *and*
-  risking regressions across three intertwined customer flows I could not exhaustively
-  re-verify in this pass.
-- Critically, **this does not weaken the concurrency guarantee**: the existing direct-insert
-  flow (and guest checkout) write rows with a live status (`confirmed`), which the exclusion
-  constraint covers identically to a held row. The stress tests above used exactly this
-  insert shape. Double-booking is prevented for the *existing* UI today, with zero frontend
-  changes — the hold system adds a *UX* layer (visible 15-minute countdown, explicit
-  reserve-then-confirm steps, slot-lost messaging) on top of correctness that already holds
-  without it.
-- The hold-based server functions are built, tested, and available for the next project that
-  takes on the customer booking UI to wire in.
+**No dedicated dashboard UI for the confirmation-call queue or for launching a walk-in
+booking.** `recordBookingConfirmation` and `createWalkInBooking` (Project 09) are real,
+callable, tested server functions with no screen driving them yet.
 
 **Reminders** (§56): need a server-side scheduled job (24h/1h/15min before); no `pg_cron` or
 equivalent exists in this project. Not built — would be theater without a real scheduler.
@@ -403,12 +479,21 @@ existing customer); customer branch-selection UI; a critical fix to two admin ho
 that had gone silently disconnected from the rewritten engine; a real 12-way concurrency test;
 a security test pass that found and fixed a live RPC-authorization exposure.
 
-**PLANNED, explicitly not built:** customer-facing UI wiring to the hold flow (existing UI
-kept, now safe via the same DB constraint, re-confirmed still true in Project 09);
-promo-code support in the new hold functions; `branch_services` price/duration overrides not
-yet read by `resolveServiceLines` (the resolution path `createBookingHold`/
-`createWalkInBooking` actually use); reminders (needs a scheduler); group/recurring booking
-UI; waitlist notification-eligibility wiring beyond the pre-existing trigger; realtime/
+**IMPLEMENTED, live-tested (Project 10):** customer-facing UI (signed-in and guest) wired onto
+`createBookingHold`/`confirmBookingHold`/`createGuestBookingHold`/`confirmGuestBookingHold`;
+guest hold ownership via server-issued `guest_hold_token`; `resolveServiceLines` now reads
+`branch_services` and branch-scoped `staff_services`; coupon resolution moved to confirm time;
+client-side booking state machine with a visible (non-authoritative) hold countdown;
+idempotency-key reuse across confirm retries; the old `createGuestBooking` direct-insert
+function deleted; the customer INSERT RLS policy on `bookings` dropped (staff/owner INSERT
+policy, used by an unrelated admin feature, left intact); three critical bugs found and fixed
+by testing the real deployed HTTP endpoints for the first time
+(`guard_bookings_customer_update` blocking every hold→confirm transition since Project 09;
+`idempotency_keys`' NULL-actor_id dedup gap; `withIdempotency`'s NULL-actor_id cached-response
+lookup gap) — all three verified live against the Preview afterward.
+
+**PLANNED, explicitly not built:** reminders (needs a scheduler); group/recurring booking UI;
+waitlist notification-eligibility wiring beyond the pre-existing trigger; realtime/
 live-availability UI refresh polish (unchanged since Project 05); a dedicated dashboard UI for
 staff to work the confirmation-call queue or launch a walk-in booking (the server functions
 exist; the buttons/screens to drive them from the staff/business dashboard don't yet).
