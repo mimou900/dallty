@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from "react";
 
 import {
   Body,
@@ -10,23 +10,13 @@ import {
   Preview,
   Section,
   Text,
-} from '@react-email/components'
+} from "@react-email/components";
+import { BrandHeader } from "./brand-header";
 
-import {
-  brandName,
-  brandTag,
-  card,
-  codeStyle,
-  container,
-  divider,
-  footer,
-  h1,
-  main,
-  text,
-} from './brand'
+import { card, codeStyle, container, divider, footer, h1, main, text } from "./brand";
 
 interface ReauthenticationEmailProps {
-  token: string
+  token: string;
 }
 
 export const ReauthenticationEmail = ({ token }: ReauthenticationEmailProps) => (
@@ -35,23 +25,19 @@ export const ReauthenticationEmail = ({ token }: ReauthenticationEmailProps) => 
     <Preview>Your Dallty verification code</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brandName}>dallty</Text>
-        <Text style={brandTag}>Beauty booking, refined</Text>
+        <BrandHeader />
         <Section style={card}>
           <Heading style={h1}>Confirm it's you</Heading>
-          <Text style={text}>
-            Enter this verification code to confirm your identity:
-          </Text>
+          <Text style={text}>Enter this verification code to confirm your identity:</Text>
           <Text style={codeStyle}>{token}</Text>
           <Hr style={divider} />
           <Text style={footer}>
-            This code expires shortly. If you didn't request it, you can safely
-            ignore this email.
+            This code expires shortly. If you didn't request it, you can safely ignore this email.
           </Text>
         </Section>
       </Container>
     </Body>
   </Html>
-)
+);
 
-export default ReauthenticationEmail
+export default ReauthenticationEmail;
