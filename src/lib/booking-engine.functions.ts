@@ -12,14 +12,17 @@ const HOLD_DURATION_MINUTES = 15;
 
 /**
  * Errors are thrown with these exact codes as the message so the client can map them to a
- * localized string (brief §64) rather than showing a raw/generic error. Never
- * "Something went wrong" when the reason is known and safe to share (§65).
+ * localized string (Project 10 brief §64-65) rather than showing a raw/generic error, RPC
+ * name, or Postgres detail. Shared by both the signed-in and guest hold/confirm paths — a
+ * guest and a signed-in customer hitting the same failure see the same code.
  */
 export const BOOKING_ERROR_CODES = [
   "SLOT_UNAVAILABLE",
   "HOLD_EXPIRED",
-  "HOLD_NOT_FOUND",
-  "HOLD_NOT_OWNED",
+  "BOOKING_NOT_FOUND",
+  "UNAUTHORIZED_BOOKING",
+  "BOOKING_ALREADY_CONFIRMED",
+  "INVALID_BOOKING_CONTEXT",
   "SERVICE_UNAVAILABLE",
   "SPECIALIST_UNAVAILABLE",
   "BUSINESS_CLOSED",
@@ -27,17 +30,54 @@ export const BOOKING_ERROR_CODES = [
   "MINIMUM_NOTICE_REQUIRED",
   "BOOKING_NOT_MODIFIABLE",
   "NO_ELIGIBLE_SPECIALIST",
+  "BOOKING_LIMIT_REACHED",
+  "BOOKING_CONFIRMATION_FAILED",
 ] as const;
 
 /**
+ * Resolves a business-supplied (client-requested, never trusted blindly) branch id, or falls
+ * back to the business's Main branch when the client didn't send one (e.g. single-branch
+ * businesses never show a branch picker — Project 09 Phase 6). The browser is never
+ * authoritative for which branch a booking lands in (Project 10 brief §2) — this re-validates
+ * that the id, if supplied, is actually an active branch of THIS business before using it.
+ */
+async function resolveBranchId(
+  supabaseAdmin: AnySupabase,
+  businessId: string,
+  requestedBranchId: string | null | undefined,
+) {
+  if (!requestedBranchId) {
+    const { resolveMainBranchId } = await import("@/lib/branch.server");
+    return resolveMainBranchId(supabaseAdmin, businessId);
+  }
+  const { data, error } = await supabaseAdmin
+    .from("business_branches")
+    .select("id")
+    .eq("id", requestedBranchId)
+    .eq("business_id", businessId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (error) throw new Error(sanitizeDbError(error));
+  if (!data) throw new Error("INVALID_BOOKING_CONTEXT");
+  return data.id;
+}
+
+/**
  * Resolves selected services' effective duration/price server-side — never trusts a
- * client-supplied total. Reads staff_services.custom_price/custom_duration_minutes, which
- * existed in the schema since an earlier project but were never consulted by any booking
- * path (confirmed dead in Project 00's audit) — this is the first real consumer.
+ * client-supplied total. Branch-aware pricing hierarchy (most specific wins, same nullable-
+ * override shape used everywhere else in the branch schema — Project 09 Phase 1):
+ *   1. staff_services row scoped to THIS branch (staff_id, service_id, branch_id = _branchId)
+ *   2. staff_services row with branch_id IS NULL (staff's global custom price/duration)
+ *   3. branch_services row for (branchId, serviceId) — business's branch-level override
+ *   4. services.discount_price / services.price / services.duration_minutes — the base default
+ * Closes the previously-documented Project 09 gap: branch_services existed since Phase 1 but
+ * was never consulted by the actual booking-price-resolution path (recorded PENDING in the
+ * master architecture doc's Project 09 entry) — this is the first real consumer.
  */
 async function resolveServiceLines(
   supabaseAdmin: AnySupabase,
   businessId: string,
+  branchId: string,
   serviceIds: string[],
   staffId: string,
 ) {
@@ -51,51 +91,76 @@ async function resolveServiceLines(
     if (!s.is_active || s.business_id !== businessId) throw new Error("SERVICE_UNAVAILABLE");
   }
 
-  const { data: overrides, error: ovErr } = await supabaseAdmin
-    .from("staff_services")
-    .select("service_id, custom_price, custom_duration_minutes")
-    .eq("staff_id", staffId)
-    .in("service_id", serviceIds);
+  const [{ data: staffOverrides, error: ovErr }, { data: branchOverrides, error: brErr }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("staff_services")
+        .select("service_id, branch_id, custom_price, custom_duration_minutes")
+        .eq("staff_id", staffId)
+        .in("service_id", serviceIds),
+      supabaseAdmin
+        .from("branch_services")
+        .select("service_id, price, duration_minutes")
+        .eq("branch_id", branchId)
+        .eq("is_active", true)
+        .in("service_id", serviceIds),
+    ]);
   if (ovErr) throw new Error(sanitizeDbError(ovErr));
-  const overrideByService = new Map(
-    (overrides ?? []).map(
-      (o: {
-        service_id: string;
-        custom_price: number | null;
-        custom_duration_minutes: number | null;
-      }) => [o.service_id, o],
-    ),
-  );
+  if (brErr) throw new Error(sanitizeDbError(brErr));
+
+  const branchOverrideByService = new Map((branchOverrides ?? []).map((o) => [o.service_id, o]));
+  // Prefer the branch-specific staff_services row over the staff's global one when both exist.
+  const staffOverrideByService = new Map<
+    string,
+    { custom_price: number | null; custom_duration_minutes: number | null }
+  >();
+  for (const o of staffOverrides ?? []) {
+    const existing = staffOverrideByService.get(o.service_id);
+    if (!existing || o.branch_id === branchId) {
+      staffOverrideByService.set(o.service_id, o);
+    }
+  }
 
   // Preserve the order the client selected them in, not the DB's arbitrary return order.
   return serviceIds.map((id) => {
     const s = services.find((x: { id: string }) => x.id === id)!;
-    const ov = overrideByService.get(id) as
-      { custom_price?: number; custom_duration_minutes?: number } | undefined;
+    const staffOv = staffOverrideByService.get(id);
+    const branchOv = branchOverrideByService.get(id);
     return {
       serviceId: s.id,
       name: s.name as string,
       nameAr: s.name_ar as string | null,
-      durationMinutes: ov?.custom_duration_minutes ?? s.duration_minutes,
-      price: Number(ov?.custom_price ?? s.discount_price ?? s.price),
+      durationMinutes:
+        staffOv?.custom_duration_minutes ?? branchOv?.duration_minutes ?? s.duration_minutes,
+      price: Number(staffOv?.custom_price ?? branchOv?.price ?? s.discount_price ?? s.price),
     };
   });
 }
 
+/** Staff eligible for every selected service AND actually assigned to the requested branch —
+ * never offers (or lets a hold be created against) a specialist who doesn't work there
+ * (Project 10 brief §2: branch is never client-authoritative). */
 async function eligibleStaffIds(
   supabaseAdmin: AnySupabase,
-  businessId: string,
+  branchId: string,
   serviceIds: string[],
 ) {
-  const { data, error } = await supabaseAdmin
-    .from("staff_services")
-    .select("staff_id, service_id, staff:staff_id(is_active)")
-    .in("service_id", serviceIds);
-  if (error) throw new Error(sanitizeDbError(error));
+  const [{ data: svcRows, error: svcErr }, { data: branchRows, error: branchErr }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("staff_services")
+        .select("staff_id, service_id, staff:staff_id(is_active)")
+        .in("service_id", serviceIds),
+      supabaseAdmin.from("staff_branches").select("staff_id").eq("branch_id", branchId),
+    ]);
+  if (svcErr) throw new Error(sanitizeDbError(svcErr));
+  if (branchErr) throw new Error(sanitizeDbError(branchErr));
+
+  const branchStaffIds = new Set((branchRows ?? []).map((r) => r.staff_id));
   const counts = new Map<string, number>();
-  for (const row of data ?? []) {
+  for (const row of svcRows ?? []) {
     const staff = row.staff as { is_active?: boolean } | null;
-    if (!staff?.is_active) continue;
+    if (!staff?.is_active || !branchStaffIds.has(row.staff_id)) continue;
     counts.set(row.staff_id, (counts.get(row.staff_id) ?? 0) + 1);
   }
   // A staff member qualifies only if they're assigned to EVERY selected service (§16).
@@ -105,28 +170,198 @@ async function eligibleStaffIds(
     .sort(); // stable, deterministic tie-breaker (§15) — not random.
 }
 
-const createHoldInput = z.object({
+const holdInputShape = {
   businessId: z.string().uuid(),
+  branchId: z.string().uuid().nullable().optional(),
   serviceIds: z.array(z.string().uuid()).min(1).max(10),
   staffId: z.string().uuid().nullable(), // null = "any specialist"
   startsAt: z.string().datetime(),
-});
+};
+const createHoldInput = z.object(holdInputShape);
+// Guest holds are created anonymously -- same as a signed-in customer's hold, the slot locks
+// the instant a time is picked, before any contact details exist. Identity is collected only
+// at confirm time (confirmGuestHoldInput below), never as a precondition of holding.
+const createGuestHoldInput = z.object(holdInputShape);
+
+type HoldParams = {
+  businessId: string;
+  branchId?: string | null;
+  serviceIds: string[];
+  staffId: string | null;
+  startsAt: string;
+  actorUserId: string | null;
+  guestToken: string | null;
+};
 
 /**
- * Creates a server-side 15-minute hold. The ONLY thing that makes this safe under
- * concurrent requests is the `bookings_no_overlap` exclusion constraint (see the booking-
- * engine-core migration) — this function does not itself implement locking; it just issues
- * one INSERT per candidate and lets Postgres decide atomically. Never trusts client-supplied
- * price/duration/end-time (§12) — everything is recomputed here from `services`/
- * `staff_services`.
+ * Creates a server-side hold. The ONLY thing that makes this safe under concurrent requests is
+ * the `bookings_no_overlap` exclusion constraint (see the booking-engine-core migration) — this
+ * function does not itself implement locking; it just issues one INSERT per candidate and lets
+ * Postgres decide atomically. Never trusts client-supplied price/duration/end-time/branch (§12)
+ * — everything is recomputed here from `services`/`staff_services`/`branch_services`.
+ *
+ * Shared core for both the signed-in (createBookingHold) and guest (createGuestBookingHold)
+ * entry points — same engine, same safety guarantees, different ownership mechanism only
+ * (customer_id for signed-in, a random guest_hold_token for guests — Project 10 brief §12/§74).
  */
+async function holdCore(supabaseAdmin: AnySupabase, params: HoldParams) {
+  const { logSecurityEvent } = await import("@/lib/security-event.server");
+  await supabaseAdmin.rpc("sweep_expired_holds");
+
+  const { data: business, error: bizErr } = await supabaseAdmin
+    .from("businesses")
+    .select(
+      "id, timezone, currency, min_notice_hours, max_booking_days, booking_confirmation, hold_minutes, country_code",
+    )
+    .eq("id", params.businessId)
+    .maybeSingle();
+  if (bizErr) throw new Error(sanitizeDbError(bizErr));
+  if (!business) throw new Error("BUSINESS_CLOSED");
+
+  // Hold duration: business override -> country default -> hardcoded fallback (brief §26).
+  let holdMinutes = business.hold_minutes ?? HOLD_DURATION_MINUTES;
+  if (business.hold_minutes == null) {
+    const { data: country } = await supabaseAdmin
+      .from("countries")
+      .select("default_hold_minutes")
+      .eq("iso_code", business.country_code)
+      .maybeSingle();
+    if (country?.default_hold_minutes != null) holdMinutes = country.default_hold_minutes;
+  }
+
+  const branchId = await resolveBranchId(supabaseAdmin, params.businessId, params.branchId);
+
+  const startsAt = new Date(params.startsAt);
+  const minNoticeMs = (business.min_notice_hours ?? 0) * 3600_000;
+  if (startsAt.getTime() < Date.now() + minNoticeMs) throw new Error("MINIMUM_NOTICE_REQUIRED");
+  const horizonMs = (business.max_booking_days ?? 60) * 86_400_000;
+  if (startsAt.getTime() > Date.now() + horizonMs) throw new Error("BOOKING_HORIZON_EXCEEDED");
+
+  // Resolve candidate staff (either the one explicit choice, or every eligible "any
+  // specialist" candidate) BEFORE resolving prices, since price/duration can differ per
+  // staff member (custom overrides).
+  let candidates: string[];
+  const eligible = await eligibleStaffIds(supabaseAdmin, branchId, params.serviceIds);
+  if (params.staffId) {
+    if (!eligible.includes(params.staffId)) throw new Error("SPECIALIST_UNAVAILABLE");
+    candidates = [params.staffId];
+  } else {
+    if (!eligible.length) throw new Error("NO_ELIGIBLE_SPECIALIST");
+    candidates = eligible;
+  }
+
+  const expiresAt = new Date(Date.now() + holdMinutes * 60_000);
+  let lastError: unknown = null;
+
+  for (const staffId of candidates) {
+    const lines = await resolveServiceLines(
+      supabaseAdmin,
+      params.businessId,
+      branchId,
+      params.serviceIds,
+      staffId,
+    );
+    const totalDuration = lines.reduce((sum, l) => sum + l.durationMinutes, 0);
+    const { data: bufferMinutes } = await supabaseAdmin.rpc("resolve_buffer_minutes", {
+      _business_id: params.businessId,
+      _branch_id: branchId,
+      _service_id: lines[0].serviceId,
+    });
+    const endsAt = new Date(startsAt.getTime() + (totalDuration + (bufferMinutes ?? 0)) * 60_000);
+    // A coupon, if any, is resolved and applied at CONFIRM time (confirmCore), not here — the
+    // hold is created the instant a time is picked, before the customer has reached the
+    // confirmation step where they'd even type a code, and price must be re-validated at
+    // confirm regardless of what it was at hold time (a code can expire/exhaust in between).
+    const totalPrice = lines.reduce((sum, l) => sum + l.price, 0);
+
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from("bookings")
+      .insert({
+        customer_id: params.actorUserId,
+        guest_hold_token: params.guestToken,
+        business_id: params.businessId,
+        branch_id: branchId,
+        service_id: lines[0].serviceId,
+        staff_id: staffId,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+        status: "held",
+        hold_expires_at: expiresAt.toISOString(),
+        total_price: totalPrice,
+      } as never)
+      .select("id, reference")
+      .single();
+
+    if (!insertErr) {
+      await supabaseAdmin.from("booking_items").insert(
+        lines.map((l, i) => ({
+          booking_id: inserted.id,
+          service_id: l.serviceId,
+          service_name: l.name,
+          service_name_ar: l.nameAr,
+          duration_minutes: l.durationMinutes,
+          price: l.price,
+          currency: business.currency,
+          staff_id: staffId,
+          business_id: params.businessId,
+          sort_order: i,
+        })) as never,
+      );
+      if (params.actorUserId) {
+        await supabaseAdmin.from("admin_audit_log").insert({
+          actor_id: params.actorUserId,
+          action: "booking.held",
+          target_type: "booking",
+          target_id: inserted.id,
+          business_id: params.businessId,
+          details: {
+            staffId,
+            branchId,
+            serviceIds: params.serviceIds,
+            startsAt: params.startsAt,
+          } as never,
+        } as never);
+      }
+
+      return {
+        holdId: inserted.id as string,
+        reference: inserted.reference as string,
+        staffId,
+        branchId,
+        expiresAt: expiresAt.toISOString(),
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        totalPrice,
+        currency: business.currency,
+        items: lines,
+      };
+    }
+
+    lastError = insertErr;
+    // 23505/23P01 = unique/exclusion violation -> this candidate's slot is taken, try the
+    // next one. Any other error is a real failure, not a "try the next candidate" signal.
+    const code = (insertErr as { code?: string }).code;
+    if (code !== "23505" && code !== "23P01") throw new Error(sanitizeDbError(insertErr));
+  }
+
+  await logSecurityEvent(supabaseAdmin, {
+    actorId: params.actorUserId,
+    action: "booking.slot_unavailable",
+    targetType: "booking_hold",
+    businessId: params.businessId,
+    riskLevel: "low",
+    outcome: "denied",
+    details: { candidatesTried: candidates.length, lastError: (lastError as Error)?.message },
+  });
+  throw new Error("SLOT_UNAVAILABLE");
+}
+
 export const createBookingHold = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => createHoldInput.parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
-    const { logSecurityEvent } = await import("@/lib/security-event.server");
     const { getRequest } = await import("@tanstack/react-start/server");
 
     const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
@@ -134,145 +369,29 @@ export const createBookingHold = createServerFn({ method: "POST" })
     await assertRateLimit(supabaseAdmin, `create_hold:${context.userId}`, 20, 10);
     await assertRateLimit(supabaseAdmin, `create_hold_ip:${ip}`, 40, 10);
 
-    await supabaseAdmin.rpc("sweep_expired_holds");
+    return holdCore(supabaseAdmin, { ...data, actorUserId: context.userId, guestToken: null });
+  });
 
-    const { data: business, error: bizErr } = await supabaseAdmin
-      .from("businesses")
-      .select(
-        "id, timezone, currency, min_notice_hours, max_booking_days, booking_confirmation, hold_minutes, country_code",
-      )
-      .eq("id", data.businessId)
-      .maybeSingle();
-    if (bizErr) throw new Error(sanitizeDbError(bizErr));
-    if (!business) throw new Error("BUSINESS_CLOSED");
+/**
+ * Guest equivalent of createBookingHold — no Supabase session at all. Ownership of the hold is
+ * proven by a server-generated random token (never client-supplied, never guessable) returned
+ * once in this response and required back on confirm/cancel, the same shape as every other
+ * capability-token pattern in this codebase (Project 10 brief §12/§74: guests are not exempt
+ * from the hold->confirm rework).
+ */
+export const createGuestBookingHold = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => createGuestHoldInput.parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
 
-    // Hold duration: business override -> country default -> hardcoded fallback (brief §26:
-    // "Super-Admin/country configurable", same hierarchy shape as the buffer resolution).
-    let holdMinutes = business.hold_minutes ?? HOLD_DURATION_MINUTES;
-    if (business.hold_minutes == null) {
-      const { data: country } = await supabaseAdmin
-        .from("countries")
-        .select("default_hold_minutes")
-        .eq("iso_code", business.country_code)
-        .maybeSingle();
-      if (country?.default_hold_minutes != null) holdMinutes = country.default_hold_minutes;
-    }
+    const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
+    await assertRateLimit(supabaseAdmin, `create_guest_hold_ip:${ip}`, 15, 10);
 
-    // Every booking must resolve to a specific branch. Until Phase 6 adds a branch picker to
-    // the customer flow, every hold is created at the business's Main branch — the same
-    // placeholder pattern used everywhere else in Project 09 Phase 1/2.
-    const { resolveMainBranchId } = await import("@/lib/branch.server");
-    const branchId = await resolveMainBranchId(supabaseAdmin, data.businessId);
-
-    const startsAt = new Date(data.startsAt);
-    const minNoticeMs = (business.min_notice_hours ?? 0) * 3600_000;
-    if (startsAt.getTime() < Date.now() + minNoticeMs) throw new Error("MINIMUM_NOTICE_REQUIRED");
-    const horizonMs = (business.max_booking_days ?? 60) * 86_400_000;
-    if (startsAt.getTime() > Date.now() + horizonMs) throw new Error("BOOKING_HORIZON_EXCEEDED");
-
-    // Resolve candidate staff (either the one explicit choice, or every eligible "any
-    // specialist" candidate) BEFORE resolving prices, since price/duration can differ per
-    // staff member (custom overrides).
-    let candidates: string[];
-    if (data.staffId) {
-      const eligible = await eligibleStaffIds(supabaseAdmin, data.businessId, data.serviceIds);
-      if (!eligible.includes(data.staffId)) throw new Error("SPECIALIST_UNAVAILABLE");
-      candidates = [data.staffId];
-    } else {
-      candidates = await eligibleStaffIds(supabaseAdmin, data.businessId, data.serviceIds);
-      if (!candidates.length) throw new Error("NO_ELIGIBLE_SPECIALIST");
-    }
-
-    const expiresAt = new Date(Date.now() + holdMinutes * 60_000);
-    let lastError: unknown = null;
-
-    for (const staffId of candidates) {
-      const lines = await resolveServiceLines(
-        supabaseAdmin,
-        data.businessId,
-        data.serviceIds,
-        staffId,
-      );
-      const totalDuration = lines.reduce((sum, l) => sum + l.durationMinutes, 0);
-      const { data: bufferMinutes } = await supabaseAdmin.rpc("resolve_buffer_minutes", {
-        _business_id: data.businessId,
-        _branch_id: branchId,
-        _service_id: lines[0].serviceId,
-      });
-      const endsAt = new Date(startsAt.getTime() + (totalDuration + (bufferMinutes ?? 0)) * 60_000);
-      const totalPrice = lines.reduce((sum, l) => sum + l.price, 0);
-
-      const { data: inserted, error: insertErr } = await supabaseAdmin
-        .from("bookings")
-        .insert({
-          customer_id: context.userId,
-          business_id: data.businessId,
-          branch_id: branchId,
-          service_id: lines[0].serviceId,
-          staff_id: staffId,
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt.toISOString(),
-          status: "held",
-          hold_expires_at: expiresAt.toISOString(),
-          total_price: totalPrice,
-        } as never)
-        .select("id, reference")
-        .single();
-
-      if (!insertErr) {
-        await supabaseAdmin.from("booking_items").insert(
-          lines.map((l, i) => ({
-            booking_id: inserted.id,
-            service_id: l.serviceId,
-            service_name: l.name,
-            service_name_ar: l.nameAr,
-            duration_minutes: l.durationMinutes,
-            price: l.price,
-            currency: business.currency,
-            staff_id: staffId,
-            business_id: data.businessId,
-            sort_order: i,
-          })) as never,
-        );
-        await supabaseAdmin.from("admin_audit_log").insert({
-          actor_id: context.userId,
-          action: "booking.held",
-          target_type: "booking",
-          target_id: inserted.id,
-          business_id: data.businessId,
-          details: { staffId, serviceIds: data.serviceIds, startsAt: data.startsAt } as never,
-        } as never);
-
-        return {
-          holdId: inserted.id as string,
-          reference: inserted.reference as string,
-          staffId,
-          expiresAt: expiresAt.toISOString(),
-          startsAt: startsAt.toISOString(),
-          endsAt: endsAt.toISOString(),
-          totalPrice,
-          currency: business.currency,
-          items: lines,
-        };
-      }
-
-      lastError = insertErr;
-      // 23505/23P01 = unique/exclusion violation -> this candidate's slot is taken, try the
-      // next one. Any other error is a real failure, not a "try the next candidate" signal.
-      const code = (insertErr as { code?: string }).code;
-      if (code !== "23505" && code !== "23P01") throw new Error(sanitizeDbError(insertErr));
-    }
-
-    await logSecurityEvent(supabaseAdmin, {
-      actorId: context.userId,
-      action: "booking.slot_unavailable",
-      targetType: "booking_hold",
-      businessId: data.businessId,
-      riskLevel: "low",
-      outcome: "denied",
-      details: { candidatesTried: candidates.length, lastError: (lastError as Error)?.message },
-    });
-    throw new Error("SLOT_UNAVAILABLE");
+    const guestToken = crypto.randomUUID();
+    const result = await holdCore(supabaseAdmin, { ...data, actorUserId: null, guestToken });
+    return { ...result, guestToken };
   });
 
 const confirmHoldInput = z.object({
@@ -280,8 +399,120 @@ const confirmHoldInput = z.object({
   idempotencyKey: z.string().min(1).max(100).optional(),
   customerName: z.string().trim().min(1).max(120).optional(),
   customerPhone: z.string().trim().max(20).optional(),
+  couponCode: z.string().trim().max(40).optional(),
   notes: z.string().trim().max(1000).nullable().optional(),
 });
+
+type ConfirmParams = {
+  holdId: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  couponCode?: string;
+  notes?: string | null;
+  ownerCheck: (hold: { customer_id: string | null; guest_hold_token: string | null }) => boolean;
+  actorUserId: string | null;
+};
+
+/**
+ * Confirms a held slot into a real booking. Re-validates everything — never trusts the hold
+ * blindly, and never assumes that because a hold existed a moment ago it's still valid without
+ * checking again right now (§ "never assume a hold is still valid"). Shared core for both the
+ * signed-in and guest confirm entry points.
+ */
+async function confirmCore(supabaseAdmin: AnySupabase, params: ConfirmParams) {
+  const { data: hold, error: holdErr } = await supabaseAdmin
+    .from("bookings")
+    .select(
+      "id, status, hold_expires_at, customer_id, guest_hold_token, business_id, staff_id, total_price",
+    )
+    .eq("id", params.holdId)
+    .maybeSingle();
+  if (holdErr) throw new Error(sanitizeDbError(holdErr));
+  if (!hold) throw new Error("BOOKING_NOT_FOUND");
+  if (!params.ownerCheck(hold)) throw new Error("UNAUTHORIZED_BOOKING");
+  if (hold.status === "pending" || hold.status === "confirmed") {
+    throw new Error("BOOKING_ALREADY_CONFIRMED");
+  }
+  if (hold.status !== "held") throw new Error("BOOKING_NOT_FOUND");
+  if (!hold.hold_expires_at || new Date(hold.hold_expires_at) <= new Date()) {
+    await supabaseAdmin
+      .from("bookings")
+      .update({ status: "expired" } as never)
+      .eq("id", hold.id);
+    throw new Error("HOLD_EXPIRED");
+  }
+
+  const { data: business } = await supabaseAdmin
+    .from("businesses")
+    .select("booking_confirmation")
+    .eq("id", hold.business_id)
+    .single();
+  const finalStatus = business?.booking_confirmation === "automatic" ? "confirmed" : "pending";
+
+  // Coupon is resolved fresh from the live promotions table right now, at confirm time — never
+  // trusted from what the client showed earlier, and never carried over from hold creation
+  // (the hold predates the confirm step in the UI, so it was never applied there). A code that
+  // was valid a moment ago but has since expired/exhausted is simply not applied, same as the
+  // pre-existing checkPromoCode preview behavior — this never blocks the booking itself.
+  const basePrice = Number(hold.total_price);
+  let finalPrice = basePrice;
+  let originalPrice: number | null = null;
+  let discountAmount = 0;
+  let promotionId: string | null = null;
+  if (params.couponCode) {
+    const { data: rows } = await supabaseAdmin.rpc("check_promo_code", {
+      _salon_id: hold.business_id,
+      _code: params.couponCode,
+      _amount: basePrice,
+    });
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (row?.valid && row.promotion_id) {
+      originalPrice = basePrice;
+      discountAmount = Number(row.discount);
+      finalPrice = Number(row.final_price);
+      promotionId = row.promotion_id;
+    }
+  }
+
+  // The WHERE clause (status='held' AND hold_expires_at > now()) is the actual
+  // concurrency-safe re-check, not the SELECT above — the SELECT is only for a friendly
+  // error message. If two confirm calls raced for the same hold, only one UPDATE matches.
+  const { data: updated, error: updateErr } = await supabaseAdmin
+    .from("bookings")
+    .update({
+      status: finalStatus,
+      hold_expires_at: null,
+      total_price: finalPrice,
+      original_price: originalPrice,
+      discount_amount: discountAmount,
+      promotion_id: promotionId,
+      customer_name: params.customerName ?? null,
+      customer_phone: params.customerPhone ?? null,
+      customer_email: params.customerEmail ?? null,
+      notes: params.notes ?? null,
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq("id", hold.id)
+    .eq("status", "held")
+    .gt("hold_expires_at", new Date().toISOString())
+    .select("id, reference, starts_at, ends_at, status, total_price")
+    .single();
+  if (updateErr || !updated) throw new Error("HOLD_EXPIRED");
+
+  if (params.actorUserId) {
+    await supabaseAdmin.from("admin_audit_log").insert({
+      actor_id: params.actorUserId,
+      action: "booking.confirmed",
+      target_type: "booking",
+      target_id: hold.id,
+      business_id: hold.business_id,
+      details: { finalStatus } as never,
+    } as never);
+  }
+
+  return updated;
+}
 
 /** Confirms a held slot into a real booking. Re-validates everything — never trusts the hold blindly. */
 export const confirmBookingHold = createServerFn({ method: "POST" })
@@ -298,64 +529,69 @@ export const confirmBookingHold = createServerFn({ method: "POST" })
         operation: "confirm_booking_hold",
         key: data.idempotencyKey ?? data.holdId,
       },
-      async () => {
-        const { data: hold, error: holdErr } = await supabaseAdmin
-          .from("bookings")
-          .select("id, status, hold_expires_at, customer_id, business_id, staff_id")
-          .eq("id", data.holdId)
-          .maybeSingle();
-        if (holdErr) throw new Error(sanitizeDbError(holdErr));
-        if (!hold) throw new Error("HOLD_NOT_FOUND");
-        if (hold.customer_id !== context.userId) throw new Error("HOLD_NOT_OWNED");
-        if (hold.status !== "held") throw new Error("HOLD_NOT_FOUND");
-        if (!hold.hold_expires_at || new Date(hold.hold_expires_at) <= new Date()) {
-          await supabaseAdmin
-            .from("bookings")
-            .update({ status: "expired" } as never)
-            .eq("id", hold.id);
-          throw new Error("HOLD_EXPIRED");
-        }
+      () =>
+        confirmCore(supabaseAdmin, {
+          holdId: data.holdId,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          couponCode: data.couponCode,
+          notes: data.notes,
+          actorUserId: context.userId,
+          ownerCheck: (hold) => hold.customer_id === context.userId,
+        }),
+    );
+  });
 
-        const { data: business } = await supabaseAdmin
-          .from("businesses")
-          .select("booking_confirmation")
-          .eq("id", hold.business_id)
-          .single();
-        const finalStatus =
-          business?.booking_confirmation === "automatic" ? "confirmed" : "pending";
+const confirmGuestHoldInput = z.object({
+  holdId: z.string().uuid(),
+  guestToken: z.string().min(1).max(100),
+  idempotencyKey: z.string().min(1).max(100).optional(),
+  customerName: z.string().trim().min(1).max(120),
+  customerPhone: z
+    .string()
+    .trim()
+    .regex(/^\+[1-9]\d{7,14}$/, "Invalid phone"),
+  customerEmail: z.string().trim().email().max(255).optional(),
+  couponCode: z.string().trim().max(40).optional(),
+  notes: z.string().trim().max(1000).nullable().optional(),
+});
 
-        // The WHERE clause (status='held' AND hold_expires_at > now()) is the actual
-        // concurrency-safe re-check, not the SELECT above — the SELECT is only for a
-        // friendly error message. If two confirm calls raced (shouldn't happen for the
-        // same hold owned by one customer, but defense in depth), only one UPDATE matches.
-        const { data: updated, error: updateErr } = await supabaseAdmin
-          .from("bookings")
-          .update({
-            status: finalStatus,
-            hold_expires_at: null,
-            customer_name: data.customerName ?? null,
-            customer_phone: data.customerPhone ?? null,
-            notes: data.notes ?? null,
-            updated_at: new Date().toISOString(),
-          } as never)
-          .eq("id", hold.id)
-          .eq("status", "held")
-          .gt("hold_expires_at", new Date().toISOString())
-          .select("id, reference, starts_at, ends_at, status, total_price")
-          .single();
-        if (updateErr || !updated) throw new Error("HOLD_EXPIRED");
+/**
+ * Guest equivalent of confirmBookingHold. Ownership is the guest_hold_token returned by
+ * createGuestBookingHold — never a client-supplied customer id (§ "never trust a forged
+ * customer_id"). Idempotency keys the guest as `actor_id = null`, which is safe because the
+ * key itself defaults to the (globally unique) holdId — two different guests can never collide.
+ */
+export const confirmGuestBookingHold = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => confirmGuestHoldInput.parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { withIdempotency } = await import("@/lib/idempotency.server");
+    const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
 
-        await supabaseAdmin.from("admin_audit_log").insert({
-          actor_id: context.userId,
-          action: "booking.confirmed",
-          target_type: "booking",
-          target_id: hold.id,
-          business_id: hold.business_id,
-          details: { finalStatus } as never,
-        } as never);
+    const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
+    await assertRateLimit(supabaseAdmin, `confirm_guest_hold_ip:${ip}`, 20, 10);
 
-        return updated;
+    return withIdempotency(
+      supabaseAdmin,
+      {
+        actorId: null,
+        operation: "confirm_booking_hold_guest",
+        key: data.idempotencyKey ?? data.holdId,
       },
+      () =>
+        confirmCore(supabaseAdmin, {
+          holdId: data.holdId,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          customerEmail: data.customerEmail,
+          couponCode: data.couponCode,
+          notes: data.notes,
+          actorUserId: null,
+          ownerCheck: (hold) =>
+            hold.customer_id === null && hold.guest_hold_token === data.guestToken,
+        }),
     );
   });
 
@@ -372,6 +608,27 @@ export const cancelBookingHold = createServerFn({ method: "POST" })
       .update({ status: "expired" } as never)
       .eq("id", data.holdId)
       .eq("customer_id", context.userId)
+      .eq("status", "held");
+    if (error) throw new Error(sanitizeDbError(error));
+    return { ok: true };
+  });
+
+const cancelGuestHoldInput = z.object({
+  holdId: z.string().uuid(),
+  guestToken: z.string().min(1).max(100),
+});
+
+/** Guest equivalent of cancelBookingHold — same guest_hold_token ownership check as confirm. */
+export const cancelGuestBookingHold = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => cancelGuestHoldInput.parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("bookings")
+      .update({ status: "expired" } as never)
+      .eq("id", data.holdId)
+      .eq("guest_hold_token", data.guestToken)
+      .is("customer_id", null)
       .eq("status", "held");
     if (error) throw new Error(sanitizeDbError(error));
     return { ok: true };
@@ -535,6 +792,9 @@ const walkInInput = z
  * already physically present (or about to be), so there's nothing to hold a slot against. The
  * bookings_no_overlap exclusion constraint still protects against double-booking the specialist
  * against a concurrent online booking.
+ *
+ * Explicitly exempted from the Project 10 customer-facing hold->confirm rework (brief §75) —
+ * this is a staff-authorized workflow, not a customer-facing one, so it keeps its own shape.
  */
 export const createWalkInBooking = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -570,6 +830,7 @@ export const createWalkInBooking = createServerFn({ method: "POST" })
     const lines = await resolveServiceLines(
       supabaseAdmin,
       data.businessId,
+      branchId,
       data.serviceIds,
       data.staffId,
     );

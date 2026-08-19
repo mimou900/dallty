@@ -1010,14 +1010,15 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
   `countries.default_hold_minutes`/`businesses.hold_minutes`. Also: a security-grant fix
   (`REVOKE ... FROM anon, authenticated` by name) for five availability RPCs found
   unexpectedly publicly callable — see §6.
-- **Known gaps (explicitly PENDING, not fixed, per binding instruction):**
-  - Customer HOLD → CONFIRM: **PENDING**
-  - Branch price override: **PENDING**
-  - Confirmation UI: **PENDING**
-  - Walk-in UI: **PENDING**
+- **Known gaps at the time this project shipped (updated below — see Project 10):**
+  - Customer HOLD → CONFIRM: **COMPLETED** (Project 10)
+  - Branch price override: **COMPLETED** (Project 10)
+  - Confirmation UI: **PENDING** — still true, not required by Project 10, not attempted
+  - Walk-in UI: **PENDING** — still true, not required by Project 10, not attempted
 - **Deferred work:** Dashboard UI for confirmation-call queue and walk-in booking (backend
-  functions exist — `recordBookingConfirmation`, `createWalkInBooking`); `branch_services`
-  consumption in price resolution; hold-flow migration for the primary purchase flow.
+  functions exist — `recordBookingConfirmation`, `createWalkInBooking`) remains deferred. The
+  other two items in this list (`branch_services` consumption, hold-flow migration for the
+  primary purchase flow) were completed by Project 10 — see below.
 - **Documentation location:** `DALLTY_BOOKING_ENGINE.md` ("Project 09 update" section,
   read first), this file (§4, §6, §8, §9).
 - **Git commit:** `f679847` through `7c85d54` (9 phase commits on
@@ -1027,6 +1028,49 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
   homepage, `/auth`, `/search`, a business detail page, and real Supabase connectivity all
   confirmed working against commit `3739477`. Confirmed zero Lovable
   requests/assets/dependencies/environment variables on this deployment.
+
+### Project 10 — Customer Booking HOLD → CONFIRMATION Flow
+- **Objective:** Eliminate the direct customer-booking-insert path entirely (both signed-in
+  and guest) and replace it with the authoritative server-side hold→confirm engine Project 09
+  built but never wired to a UI, made safe under concurrency, slow connections, duplicate
+  submissions, and manipulated clients.
+- **Implementation status:** DONE — server-side guest hold support, branch-aware price
+  resolution, client state machine, and the direct-insert closure all built, then verified
+  against the real deployed Vercel Preview (not just the database layer): 12-way concurrency
+  (1 success, 11 correctly rejected), idempotent confirm-retry (same cached result returned,
+  no duplicate booking), and IDOR/manipulation tests (forged guest token, nonexistent hold,
+  forced-past expiry) all passed. Merged to `main` and deployed to production.
+- **Important architectural decisions:** Guest holds are anonymous at creation (no contact
+  details required until confirm, matching when the UI actually collects them); ownership
+  proven by a server-issued `guest_hold_token`, never a client-supplied id. Coupon resolution
+  moved from hold-time to confirm-time, since the pre-existing UI applies a coupon at the
+  confirmation step, which now happens after hold creation. Staff-facing direct-insert paths
+  (`createMyAppointment`, `admin/appointments.tsx`'s manual-booking-duplicate feature,
+  `createWalkInBooking`) were explicitly left untouched — out of this project's scope by the
+  brief's own instruction.
+- **Important database changes:** `bookings.guest_hold_token`; `bookings_identity_present`
+  extended to accept a guest hold via token alone (no contact details yet); dropped the
+  `authenticated`-role "Customers create own bookings" INSERT policy (the only remaining
+  INSERT policy on `bookings` is the staff/owner one, unaffected). Two critical fixes to
+  pre-existing infrastructure, found only by testing the real HTTP endpoints for the first
+  time (see `DALLTY_BOOKING_ENGINE.md`'s Project 10 update for the full story): 
+  `guard_bookings_customer_update()` (Project 03) was silently blocking every hold→confirm
+  status transition since Project 09 shipped it — confirming a hold had never actually worked
+  in production before this fix; `idempotency_keys`' unique constraint never deduplicated for
+  `actor_id = NULL` (every guest operation), and `withIdempotency()`'s cached-response lookup
+  used `.eq("actor_id", null)` instead of `.is("actor_id", null)`, so a guest could never
+  retrieve their own completed response on retry.
+- **Known gaps:** None introduced by this project. Confirmation UI and Walk-in UI remain
+  PENDING from Project 09 — not required by this project's brief, not attempted here (see
+  Project 09's entry above).
+- **Deferred work:** Same as Project 09's remaining deferred item — dashboard UI for the
+  confirmation-call queue and walk-in booking.
+- **Documentation location:** `DALLTY_BOOKING_ENGINE.md` ("Project 10 update" section, read
+  first), this file (this entry).
+- **Git commit:** Branch `project-10-customer-booking-hold-confirm`, four commits (DB
+  lockdown, engine rewrite, UI rewrite, critical-bug fixes), merged to `main`.
+- **Production status:** Live in production — see the verification report for this project's
+  deployment for the exact commit and confirmed-working checks.
 
 ---
 

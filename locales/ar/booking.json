@@ -15,5 +15,25 @@
   "nav_appointments": "الحجوزات",
   "nav_my_appointments": "مواعيدي",
   "quick_open_calendar": "افتح التقويم",
-  "quick_new_booking": "حجز جديد"
+  "quick_new_booking": "حجز جديد",
+  "hold": {
+    "countdown": "محجوز {{mm}}:{{ss}}",
+    "expired_message": "انتهت صلاحية الوقت المحجوز. اختر وقتًا جديدًا للمتابعة.",
+    "pick_new_time": "اختيار وقت جديد",
+    "try_again": "أعد المحاولة",
+    "error_slot_unavailable": "تم حجز هذا الوقت للتو. اختر وقتًا آخر.",
+    "error_hold_expired": "انتهت صلاحية الوقت المحجوز. اختر وقتًا جديدًا للمتابعة.",
+    "error_booking_not_found": "تعذر العثور على هذا الحجز. يرجى البدء من جديد.",
+    "error_unauthorized": "هذا الحجز لا يخص هذه الجلسة.",
+    "error_already_confirmed": "تم تأكيد هذا الحجز بالفعل.",
+    "error_specialist_unavailable": "هذا الأخصائي لم يعد متاحًا لهذا الوقت.",
+    "error_no_eligible_specialist": "لا يوجد أخصائي متاح لهذه الخدمة حاليًا.",
+    "error_business_closed": "هذا المتجر لا يقبل الحجوزات حاليًا.",
+    "error_horizon_exceeded": "هذا التاريخ بعيد جدًا للحجز الآن.",
+    "error_minimum_notice": "هذا الوقت قريب جدًا — اختر موعدًا لاحقًا.",
+    "error_limit_reached": "محاولات كثيرة جدًا — يرجى إعادة المحاولة بعد بضع دقائق.",
+    "error_invalid_context": "تغيّر شيء في تفاصيل هذا الحجز. يرجى البدء من جديد.",
+    "error_network": "مشكلة في الاتصال — تحقق من اتصالك بالإنترنت وأعد المحاولة.",
+    "error_generic": "حدث خطأ أثناء تأكيد حجزك. يرجى إعادة المحاولة."
+  }
 }
