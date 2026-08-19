@@ -39,13 +39,18 @@ export async function withIdempotency<T>(
   if (insertError) {
     // Unique violation -> a row for this triple already exists. Postgres error code 23505.
     if ((insertError as { code?: string }).code === "23505") {
-      const { data: existing } = await supabaseAdmin
+      // `.eq("actor_id", null)` compiles to `actor_id = null`, which PostgREST (like SQL
+      // itself) never matches -- it must be `actor_id IS NULL` via `.is()`. Without this,
+      // every guest (actorId always null) call landed here NEVER found its own "completed"
+      // row and got DuplicateRequestError forever, even long after the original succeeded --
+      // found live-testing Project 10's guest confirm path against the real deployment.
+      let query = supabaseAdmin
         .from("idempotency_keys")
         .select("status, response")
-        .eq("actor_id", actorId as never)
         .eq("operation", operation)
-        .eq("idempotency_key", key)
-        .maybeSingle();
+        .eq("idempotency_key", key);
+      query = actorId === null ? query.is("actor_id", null) : query.eq("actor_id", actorId);
+      const { data: existing } = await query.maybeSingle();
 
       if (existing?.status === "completed") {
         return existing.response as T;
