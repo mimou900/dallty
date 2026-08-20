@@ -345,7 +345,7 @@ export function useManagedBookings(businessIds: string[], fromISO: string, toISO
       let query = supabase
         .from("bookings")
         .select(
-          "id, business_id, branch_id, customer_id, service_id, staff_id, starts_at, ends_at, status, total_price, payment_status, paid_at, notes, created_at",
+          "id, business_id, branch_id, customer_id, service_id, staff_id, starts_at, ends_at, status, total_price, payment_status, confirmation_status, paid_at, notes, created_at",
         )
         .in("business_id", businessIds)
         .gte("starts_at", fromISO)
