@@ -25,6 +25,9 @@ import {
   YAxis,
 } from "recharts";
 
+import { useQuery } from "@tanstack/react-query";
+
+import { supabase } from "@/integrations/supabase/client";
 import {
   money,
   useActiveCurrency,
@@ -32,6 +35,7 @@ import {
   useManagedBusinesses,
   useManagedServices,
   useManagedStaff,
+  useMyStaffRecord,
 } from "@/lib/admin";
 import {
   exportReportCsv,
@@ -108,6 +112,50 @@ function ReportsPage() {
   const bookingsQuery = useManagedBookings(businessIds, historyWindow.from, historyWindow.to);
   const servicesQuery = useManagedServices(businessIds);
   const staffQuery = useManagedStaff(businessIds);
+  const { isStaffOnly } = useMyStaffRecord();
+
+  // Ledger-backed financial breakdown (brief §38): gross/tip/commission/staff-earning/net,
+  // read straight from ledger_transactions rather than re-derived from bookings.total_price
+  // the way the KPI grid above does. RLS on ledger_transactions already scopes this exactly
+  // per brief §37 with zero extra logic here: an owner's owns_business() grant returns every
+  // row for their business, while a specialist's is_business_staff() grant only returns rows
+  // where account_ref is their OWN staff.id (i.e. only their own staff_earning credits) —
+  // business-wide service_revenue/commission rows are invisible to them at the RLS layer.
+  const ledgerQuery = useQuery({
+    queryKey: ["admin-ledger", businessIds, range.from.toISOString(), range.to.toISOString()],
+    enabled: businessIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ledger_transactions")
+        .select("type, direction, amount, account_type")
+        .in("business_id", businessIds)
+        .gte("created_at", range.from.toISOString())
+        .lte("created_at", range.to.toISOString());
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const ledgerTotals = useMemo(() => {
+    const rows = ledgerQuery.data ?? [];
+    const sum = (predicate: (r: (typeof rows)[number]) => boolean) =>
+      rows.filter(predicate).reduce((s, r) => s + Number(r.amount), 0);
+    const gross = sum((r) => r.type === "service_revenue" && r.direction === "credit");
+    const tips = sum((r) => r.type === "tip" && r.direction === "credit");
+    const commission = sum(
+      (r) =>
+        r.type === "commission" && r.account_type === "business_balance" && r.direction === "debit",
+    );
+    const staffEarnings = sum(
+      (r) =>
+        r.type === "staff_earning" &&
+        r.account_type === "staff_payable" &&
+        r.direction === "credit",
+    );
+    const refunds = sum((r) => r.type === "refund" && r.direction === "debit");
+    const net = gross + tips - commission - staffEarnings - refunds;
+    return { gross, tips, commission, staffEarnings, refunds, net };
+  }, [ledgerQuery.data]);
 
   const stats = useMemo(() => {
     const all = bookingsQuery.data ?? [];
@@ -347,6 +395,30 @@ function ReportsPage() {
         <Kpi label="Clients" value={String(stats.clients)} />
         <Kpi label="Returning clients" value={String(stats.returningClients)} />
         <Kpi label="New clients" value={String(stats.newClients)} />
+      </div>
+
+      <div>
+        <h2 className="text-base font-extrabold">
+          {isStaffOnly ? "My earnings" : "Financial breakdown"}
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          {isStaffOnly
+            ? "Your own accrued earnings for this period."
+            : "Ledger-backed totals — gross service revenue, tips, Dallty commission, staff earnings and net revenue."}
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <Kpi label="Gross revenue" value={money(ledgerTotals.gross, currency)} highlight />
+          <Kpi label="Tips" value={money(ledgerTotals.tips, currency)} />
+          <Kpi label="Refunds" value={money(ledgerTotals.refunds, currency)} />
+          {!isStaffOnly && (
+            <Kpi label="Dallty commission" value={money(ledgerTotals.commission, currency)} />
+          )}
+          <Kpi
+            label={isStaffOnly ? "My accrued earnings" : "Staff earnings (accrued)"}
+            value={money(ledgerTotals.staffEarnings, currency)}
+          />
+          {!isStaffOnly && <Kpi label="Net revenue" value={money(ledgerTotals.net, currency)} />}
+        </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
