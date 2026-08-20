@@ -322,26 +322,58 @@ its first of six planned batches (see §18 and the PROJECT STATUS section).
 
 ## 7. RBAC / permissions architecture
 
-**Current state: role-only, not permission-based.** `app_role` enum (`client`/
-`business_owner`/`specialist`/`admin`/`super_admin`) plus `business_memberships`
-(Project 01, business-scoped: owner/manager/receptionist/confirmation_member/specialist/
-custom) is the real, enforced authorization model — every server function's
-role→capability mapping is implicit in its own logic, not a queryable table.
+**As of Project 11 (2026-08-20): permission-based, not just role-only.** `platform_roles`/
+`permissions`/`role_permissions` (Project 01, seeded but consulted by nothing through
+Project 10) are now real, live-consulted enforcement via two new SECURITY DEFINER
+resolvers: `has_permission(_user_id, _business_id, _permission_key, _branch_id)` — resolves
+`businesses.owner_id` first, then an active `business_memberships` row's
+`role_id → role_permissions → permissions`, honoring `scope` (`global`/`business`/`self`
+all pass regardless of branch; `branch` requires the membership's `branch_id` to be NULL
+["all branches"] or match) — and the coarser `has_branch_access(_user_id, _business_id,
+_branch_id)` for branch-scoped list views. Both are additive: `owns_business()` and every
+pre-existing RLS policy/`assertCanManageBusiness` built on it are byte-for-byte unchanged,
+so nothing that worked before Project 11 changed behavior. New Project 11 surfaces
+(`src/lib/permissions.server.ts`'s `assertHasPermission`/`hasPermission`, consulted by
+`rescheduleBooking`, `createWalkInBooking`, `markCashPayment`, `addExtraService`, and the
+new confirmation/no-show/cancellation functions) are the first real consumers.
 
-**Target architecture, schema-ready but not enforced:** `platform_roles` (8 seeded system
-roles), `permissions` (24 seeded granular keys — `business.view`, `booking.create`, etc.,
-plus 13 more added in Project 06 for `payments.*`/`finance.*`/`balance.*`), `role_permissions`
-(88 seeded default scope grants). **None of this is consulted by any RLS policy or server
-function today** — confirmed unchanged through every project since Project 01 created it.
-Existing authorization (`hasRole()` client-side for UI/routing only,
-`assertCanManageBusiness`/`assertSuperAdmin` server-side, `owns_business()`/
-`is_platform_admin()` in RLS) remains the actual, sole enforcement mechanism.
+`business_memberships` gained a `branch_id` column (nullable = all branches) — previously
+no branch-scoping concept existed for governance roles at all. A new
+`src/lib/business-membership.functions.ts` provides the invite/list/update/remove flow for
+owner/manager/receptionist/confirmation_member/specialist-as-membership roles, plus
+business-scoped custom-role creation (`createCustomRole`/`setCustomRolePermissions`,
+constrained to the Super-Admin-controlled `permissions` catalog — a business can only
+compose from keys Super Admin has already made available, never invent one). This is
+deliberately separate from `staff-access.functions.ts`'s specialist (service-delivery
+profile) invite flow — governance role vs. service-delivery profile remain two tables by
+design (see below).
 
-**What this blocks:** the multi-owner protection workflow (owner-removal email confirmation,
+**Verified live** (Project 11, real fixtures created and torn down against the production
+database, not assumed): the full role × permission matrix — owner gets every key on their
+business; receptionist gets `booking.confirm`/`payments.mark_paid` but not
+`payments.refund`/`finance.view_revenue`/`staff.permissions`; confirmation_member gets
+`booking.confirm`/`booking.no_show` but not `payments.mark_paid` — and cross-tenant
+isolation both directions (a receptionist/owner of Business A gets `false` for every
+permission check against Business B, and vice versa). Also verified: `business_memberships`
+RLS correctly restricts a non-owner to only their own membership row;
+`booking_status_history`'s INSERT policy blocks both cross-tenant writes and actor-id
+spoofing (a user cannot insert a history row claiming to be someone else), confirmed via a
+real FK-only failure (RLS itself passed) for a legitimate same-actor, same-business insert.
+
+**Still open:** the multi-owner protection workflow (owner-removal email confirmation,
 15-day protection window — schema-ready via `business_memberships.is_primary_owner`'s
-partial unique index, not built), and Owners creating custom staff roles from
-Super-Admin-approved permissions (needs the permission/scope model actually wired in first,
-not layered on top of the current role-only system).
+partial unique index, not built) remains not built — Project 11 wired the permission
+resolver, not this specific workflow. `has_permission()`'s `'self'` scope resolves to `true`
+at the resolver layer; callers combining it with a resource-level self-check (e.g. "is this
+booking's `staff_id` this specialist's own `staff` row") are responsible for that second
+check themselves, since "self" ownership means a different thing per resource type. The
+`'country'` permission scope exists in the enum but is granted to no role (unchanged from
+Project 01) — no country-scoped enforcement exists yet, correctly not built ahead of a real
+consumer. The dashboard nav (`AdminShell`) now filters to a reduced set for
+receptionist/confirmation_member (no finance/staff/settings sections), resolved against the
+caller's *first* managed business — a real owner/manager with a receptionist membership on
+a *second* business would still see the reduced nav there today, a known, narrow gap from
+resolving role against a single "active business" rather than per-business context.
 
 Ownership is not a bare column alone — `business_memberships` extends (never replaces)
 `businesses.owner_id`; `owns_business()` checks both. `staff` (service-delivery profile) and
@@ -1010,15 +1042,13 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
   `countries.default_hold_minutes`/`businesses.hold_minutes`. Also: a security-grant fix
   (`REVOKE ... FROM anon, authenticated` by name) for five availability RPCs found
   unexpectedly publicly callable — see §6.
-- **Known gaps at the time this project shipped (updated below — see Project 10):**
+- **Known gaps at the time this project shipped (updated below — see Projects 10 and 11):**
   - Customer HOLD → CONFIRM: **COMPLETED** (Project 10)
   - Branch price override: **COMPLETED** (Project 10)
-  - Confirmation UI: **PENDING** — still true, not required by Project 10, not attempted
-  - Walk-in UI: **PENDING** — still true, not required by Project 10, not attempted
-- **Deferred work:** Dashboard UI for confirmation-call queue and walk-in booking (backend
-  functions exist — `recordBookingConfirmation`, `createWalkInBooking`) remains deferred. The
-  other two items in this list (`branch_services` consumption, hold-flow migration for the
-  primary purchase flow) were completed by Project 10 — see below.
+  - Confirmation UI: **COMPLETED** (Project 11 — Confirmation Center, `/admin/confirmations`)
+  - Walk-in UI: **COMPLETED** (Project 11 — `WalkInDialog`, wired into `/admin/appointments`)
+- **Deferred work:** All four items originally listed here are now closed across Projects 10
+  and 11 — see each project's own entry below for what specifically shipped.
 - **Documentation location:** `DALLTY_BOOKING_ENGINE.md` ("Project 09 update" section,
   read first), this file (§4, §6, §8, §9).
 - **Git commit:** `f679847` through `7c85d54` (9 phase commits on
@@ -1075,6 +1105,61 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
   rendered correctly with real data on both `https://www.dallty.com` and `https://dallty.com`
   (redirects to `www`), and a live Supabase REST request returned 200 against commit
   `e74c013`.
+
+---
+
+### Project 11 — Business Booking Operations & Confirmation Center
+- **Objective:** Build the operational workflow letting a business actually manage bookings
+  after customers create them — confirmation calls, walk-ins, cash settlement, no-shows,
+  cancellation, branch-scoped staff roles — on top of Project 09/10's foundations, per an
+  explicit instruction not to rebuild either.
+- **Implementation status:** DONE (7 phases) — RBAC enforcement, booking-ops backend gaps
+  (including one live security fix), Confirmation Center UI, walk-in booking UI, payments/
+  calendar dashboard upgrades, ledger-backed financial breakdown, and a live security
+  verification pass, all built, tested, and merged to `main`.
+- **Important architectural decisions:** The permission resolver (`has_permission()`) was
+  built strictly additive — `owns_business()` and all 41+ pre-existing RLS policies stay
+  untouched; new surfaces consult the new resolver, old surfaces keep working exactly as
+  before. Governance-role invitation (`business-membership.functions.ts`) was kept as a
+  separate flow from specialist invitation (`staff-access.functions.ts`), matching the
+  Master Architecture's own staff-vs-membership table distinction. Confirmation call
+  history was added as a new table rather than widening the existing
+  `booking_confirmation_status` summary enum, keeping that pre-existing three-state-machine
+  contract (`booking_status`/`payment_status`/`confirmation_status`) unchanged per the
+  brief's own "internal enums remain stable" instruction. The customer-facing cancellation
+  path (Project 10) was deliberately left untouched — `cancelBookingStaff` is a separate,
+  staff-side-only function, not a migration of the customer flow.
+- **Important database changes:** `business_memberships.branch_id`; `has_permission()`/
+  `has_branch_access()` SECURITY DEFINER functions; a `booking.no_show` permission key and
+  financial (`payments.*`/`finance.*`/`balance.*`) role grants that existed since Project 06
+  with zero role grants until now; `booking_confirmation_calls` (call-attempt history,
+  service-role-write-only) and `booking_status_history` (immutable operational audit trail,
+  actor-spoofing-proof INSERT policy) tables.
+- **Known gaps:** No dedicated staff-payout *recording* function exists yet (accrual via the
+  ledger is real; marking a payout as actually paid out is not — a pre-existing Project 06
+  gap, not reopened or closed here). The multi-owner protection workflow remains unbuilt
+  (§7). AdminShell's reduced-nav-by-role resolves against the caller's first managed
+  business only — a receptionist membership on a second business would still see the full
+  nav there. `createWalkInBooking`'s any-specialist option and the new server-side
+  authorization on every mutation were verified via direct database-level testing (a live
+  role/permission matrix across real, disposable test fixtures, torn down afterward) and
+  static verification (`tsc`/`eslint`/build) on every phase; full interactive click-through
+  of the new dashboard UI (Confirmation Center buttons, Walk-in dialog submission, Cash
+  Payment dialog submission) was **not** performed end-to-end in a real authenticated
+  browser session — this session had no working login credentials for a fresh account on
+  the Preview deployment, and Preview sessions cannot inherit the production login (separate
+  origin, separate `localStorage`). Recorded here rather than silently assumed done —
+  a real click-through pass is recommended as the first follow-up.
+- **Deferred work:** Staff-payout recording; multi-owner protection workflow; per-business
+  (not just per-caller) nav role resolution; migrating the customer-facing cancellation flow
+  onto `cancelBookingStaff`'s shared history/audit trail.
+- **Documentation location:** This file (§7 RBAC, this entry). No dedicated
+  `DALLTY_BUSINESS_OPERATIONS_ARCHITECTURE.md` was created — the scope stayed small enough
+  to document here without a new file, per the Master Architecture's own "don't build ahead
+  of a consumer" discipline applied to documentation structure too.
+- **Git commit:** `63216ae` through `b011d6c` (7 phase commits on
+  `project-11-business-operations`), merged to `main` at `<PROJECT_11_MERGE_COMMIT>`.
+- **Production status:** **Live in production**, deployed and verified `<PROJECT_11_DEPLOY_DATE>`.
 
 ---
 
