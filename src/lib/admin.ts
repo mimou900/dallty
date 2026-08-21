@@ -87,6 +87,26 @@ export function useManagedBusinesses() {
       if (error) throw error;
       if (owned && owned.length) return owned;
 
+      // Project 11: business_memberships (manager/receptionist/confirmation_member/custom
+      // role) — checked before the legacy staff-table fallback since a governance-role
+      // membership doesn't require a service-delivery staff row at all.
+      const { data: memberRows } = await supabase
+        .from("business_memberships")
+        .select("business_id")
+        .eq("user_id", user!.id)
+        .eq("status", "active")
+        .is("deleted_at", null);
+      const memberIds = [...new Set((memberRows ?? []).map((r) => r.business_id))];
+      if (memberIds.length) {
+        const { data: managed, error: managedError } = await supabase
+          .from("businesses")
+          .select(columns)
+          .in("id", memberIds)
+          .order("name");
+        if (managedError) throw managedError;
+        if (managed && managed.length) return managed;
+      }
+
       // Staff member: fall back to the businesses they are employed at.
       const { data: staffRows } = await supabase
         .from("staff")
@@ -101,6 +121,39 @@ export function useManagedBusinesses() {
         .order("name");
       if (employedError) throw employedError;
       return employed;
+    },
+  });
+}
+
+/**
+ * The signed-in user's business_memberships role/permission context for a given business —
+ * null if they have no membership row (e.g. they're the businesses.owner_id-column owner, or
+ * unrelated to this business). Used to branch-scope views and hide actions the caller's role
+ * doesn't grant, mirroring src/lib/permissions.server.ts's server-side resolver.
+ */
+export function useMyMembership(businessId: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["my-membership", businessId, user?.id],
+    enabled: Boolean(businessId && user?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("business_memberships")
+        .select("id, role_id, branch_id, is_primary_owner, platform_roles!inner(key, name)")
+        .eq("business_id", businessId!)
+        .eq("user_id", user!.id)
+        .eq("status", "active")
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      return {
+        membershipId: data.id,
+        roleKey: (data.platform_roles as unknown as { key: string; name: string }).key,
+        roleName: (data.platform_roles as unknown as { key: string; name: string }).name,
+        branchId: data.branch_id,
+        isPrimaryOwner: data.is_primary_owner,
+      };
     },
   });
 }
@@ -244,6 +297,24 @@ export function useManagedStaff(businessIds: string[]) {
   });
 }
 
+/** Active branches across the managed business(es) — used by walk-in/branch-scoped UI. */
+export function useManagedBranches(businessIds: string[]) {
+  return useQuery({
+    queryKey: ["admin-branches", businessIds],
+    enabled: businessIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("business_branches")
+        .select("id, business_id, name, is_main")
+        .in("business_id", businessIds)
+        .eq("status", "active")
+        .order("is_main", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function useManagedServices(businessIds: string[]) {
   return useQuery({
     queryKey: ["admin-services", businessIds],
@@ -274,7 +345,7 @@ export function useManagedBookings(businessIds: string[], fromISO: string, toISO
       let query = supabase
         .from("bookings")
         .select(
-          "id, business_id, branch_id, customer_id, service_id, staff_id, starts_at, ends_at, status, total_price, payment_status, paid_at, notes, created_at",
+          "id, business_id, branch_id, customer_id, service_id, staff_id, starts_at, ends_at, status, total_price, payment_status, confirmation_status, paid_at, notes, created_at",
         )
         .in("business_id", businessIds)
         .gte("starts_at", fromISO)

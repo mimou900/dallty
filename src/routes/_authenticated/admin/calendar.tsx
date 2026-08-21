@@ -21,6 +21,7 @@ import {
   STATUS_DOT,
   STATUS_STYLES,
   useManagedBookings,
+  useManagedBranches,
   useManagedBusinesses,
   useManagedServices,
   useManagedStaff,
@@ -69,6 +70,9 @@ function CalendarPage() {
   const [anchor, setAnchor] = useState(() => new Date());
   const [staffFilter, setStaffFilter] = useState("all");
   const [serviceFilter, setServiceFilter] = useState("all");
+  const [branchFilter, setBranchFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
   const [colorBy, setColorBy] = useState<"status" | "employee">("status");
   const [term, setTerm] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
@@ -87,6 +91,8 @@ function CalendarPage() {
   );
   const staffQuery = useManagedStaff(businessIds);
   const servicesQuery = useManagedServices(businessIds);
+  const branchesQuery = useManagedBranches(businessIds);
+  const branchList = branchesQuery.data ?? [];
 
   const range = useMemo(() => {
     if (view === "month") return { from: startOfMonth(anchor), to: endOfMonth(anchor) };
@@ -156,6 +162,9 @@ function CalendarPage() {
     return rows
       .filter((b) => staffFilter === "all" || b.staff_id === staffFilter)
       .filter((b) => serviceFilter === "all" || b.service_id === serviceFilter)
+      .filter((b) => branchFilter === "all" || b.branch_id === branchFilter)
+      .filter((b) => statusFilter === "all" || b.status === statusFilter)
+      .filter((b) => paymentFilter === "all" || (b.payment_status ?? "unpaid") === paymentFilter)
       .map((b) => ({
         ...b,
         serviceName: serviceList.find((s) => s.id === b.service_id)?.name ?? "Service",
@@ -177,6 +186,9 @@ function CalendarPage() {
     bookingsQuery.data,
     staffFilter,
     serviceFilter,
+    branchFilter,
+    statusFilter,
+    paymentFilter,
     term,
     serviceList,
     staffList,
@@ -344,6 +356,7 @@ function CalendarPage() {
                 setBusinessScope(next);
                 setStaffFilter("all");
                 setServiceFilter("all");
+                setBranchFilter("all");
               }}
               searchPlaceholder="Search businesses…"
               options={[
@@ -372,6 +385,40 @@ function CalendarPage() {
               ...serviceList.map((s) => ({ value: s.id, label: s.name })),
             ]}
           />
+          {branchList.length > 1 && (
+            <SearchableSelect
+              className="min-h-9 w-auto min-w-40 bg-card/70"
+              value={branchFilter}
+              onChange={setBranchFilter}
+              searchPlaceholder="Search branches…"
+              options={[
+                { value: "all", label: "All branches" },
+                ...branchList.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+            />
+          )}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="min-h-9 rounded-xl bg-card/70 px-3 text-sm font-semibold"
+          >
+            <option value="all">All statuses</option>
+            {["pending", "confirmed", "completed", "cancelled", "no_show"].map((s) => (
+              <option key={s} value={s}>
+                {s.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+          <select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value)}
+            className="min-h-9 rounded-xl bg-card/70 px-3 text-sm font-semibold"
+          >
+            <option value="all">All payments</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="refunded">Refunded</option>
+          </select>
 
           <select
             value={colorBy}

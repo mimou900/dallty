@@ -644,6 +644,13 @@ const rescheduleInput = z.object({
  * Reschedules via the atomic `reschedule_booking()` DB function (see the booking-engine-
  * core migration) — the new slot is secured before the old one is released, in one
  * transaction, so a failed reschedule never loses the customer's original booking (§43).
+ *
+ * Project 11 fix: this function previously had NO authorization check beyond "is logged
+ * in" — any authenticated caller could reschedule any business's booking by id. Now
+ * requires the caller to be either the booking's own customer, or hold `booking.reschedule`
+ * for the booking's business/branch (owner/manager/receptionist/confirmation_member/
+ * specialist-self via has_permission(), or the legacy owns_business()/staff-row check as a
+ * transitional fallback until every business has real membership rows).
  */
 export const rescheduleBooking = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -653,11 +660,41 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
 
     const { data: old, error: oldErr } = await supabaseAdmin
       .from("bookings")
-      .select("id, service_id, staff_id, branch_id")
+      .select("id, service_id, staff_id, branch_id, business_id, customer_id")
       .eq("id", data.bookingId)
       .maybeSingle();
     if (oldErr) throw new Error(sanitizeDbError(oldErr));
     if (!old) throw new Error("BOOKING_NOT_MODIFIABLE");
+
+    if (old.customer_id !== context.userId) {
+      const { hasPermission } = await import("@/lib/permissions.server");
+      const [permitted, { data: owns }, { data: staffRow }] = await Promise.all([
+        hasPermission(context, old.business_id, "booking.reschedule", old.branch_id),
+        supabaseAdmin.rpc("owns_business", {
+          _user_id: context.userId,
+          _salon_id: old.business_id,
+        }),
+        supabaseAdmin
+          .from("staff")
+          .select("id")
+          .eq("user_id", context.userId)
+          .eq("business_id", old.business_id)
+          .maybeSingle(),
+      ]);
+      if (!permitted && !owns && !staffRow) {
+        const { logSecurityEvent } = await import("@/lib/security-event.server");
+        await logSecurityEvent(supabaseAdmin, {
+          actorId: context.userId,
+          action: "security.bola_attempt",
+          targetType: "booking",
+          targetId: data.bookingId,
+          businessId: old.business_id,
+          riskLevel: "high",
+          outcome: "denied",
+        });
+        throw new Error("BOOKING_NOT_MODIFIABLE");
+      }
+    }
 
     const { data: svc } = await supabaseAdmin
       .from("services")
@@ -765,7 +802,7 @@ const walkInInput = z
     businessId: z.string().uuid(),
     branchId: z.string().uuid().optional(), // omit -> business's Main branch
     serviceIds: z.array(z.string().uuid()).min(1).max(10),
-    staffId: z.string().uuid(),
+    staffId: z.string().uuid().nullable(), // null = "any available specialist" (brief §17)
     startsAt: z.string().datetime().optional(), // omit -> right now
     customerId: z.string().uuid().optional(), // a returning customer with no appointment
     customerName: z.string().trim().min(1).max(120).optional(),
@@ -801,8 +838,12 @@ export const createWalkInBooking = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => walkInInput.parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { resolveMainBranchId } = await import("@/lib/branch.server");
+    const branchId = data.branchId ?? (await resolveMainBranchId(supabaseAdmin, data.businessId));
 
-    const [{ data: owns }, { data: staffRow }] = await Promise.all([
+    const { hasPermission } = await import("@/lib/permissions.server");
+    const [permitted, { data: owns }, { data: staffRow }] = await Promise.all([
+      hasPermission(context, data.businessId, "booking.create", branchId),
       supabaseAdmin.rpc("owns_business", {
         _user_id: context.userId,
         _salon_id: data.businessId,
@@ -814,93 +855,120 @@ export const createWalkInBooking = createServerFn({ method: "POST" })
         .eq("business_id", data.businessId)
         .maybeSingle(),
     ]);
-    if (!owns && !staffRow) throw new Error("NOT_AUTHORIZED");
+    if (!permitted && !owns && !staffRow) throw new Error("NOT_AUTHORIZED");
 
-    const { resolveMainBranchId } = await import("@/lib/branch.server");
-    const branchId = data.branchId ?? (await resolveMainBranchId(supabaseAdmin, data.businessId));
+    // Resolve candidate specialist(s): the one explicit choice, or every eligible "any
+    // specialist" candidate (brief §17) — same eligibility + retry-until-one-succeeds
+    // pattern holdCore() uses, since a walk-in's direct-confirmed insert is protected by the
+    // identical bookings_no_overlap exclusion constraint.
+    let candidates: string[];
+    if (data.staffId) {
+      const { data: staffBranch } = await supabaseAdmin
+        .from("staff_branches")
+        .select("staff_id")
+        .eq("staff_id", data.staffId)
+        .eq("branch_id", branchId)
+        .maybeSingle();
+      if (!staffBranch) throw new Error("SPECIALIST_UNAVAILABLE");
+      candidates = [data.staffId];
+    } else {
+      candidates = await eligibleStaffIds(supabaseAdmin, branchId, data.serviceIds);
+      if (!candidates.length) throw new Error("NO_ELIGIBLE_SPECIALIST");
+    }
 
-    const { data: staffBranch } = await supabaseAdmin
-      .from("staff_branches")
-      .select("staff_id")
-      .eq("staff_id", data.staffId)
-      .eq("branch_id", branchId)
-      .maybeSingle();
-    if (!staffBranch) throw new Error("SPECIALIST_UNAVAILABLE");
-
-    const lines = await resolveServiceLines(
-      supabaseAdmin,
-      data.businessId,
-      branchId,
-      data.serviceIds,
-      data.staffId,
-    );
-    const totalDuration = lines.reduce((sum, l) => sum + l.durationMinutes, 0);
-    const { data: bufferMinutes } = await supabaseAdmin.rpc("resolve_buffer_minutes", {
-      _business_id: data.businessId,
-      _branch_id: branchId,
-      _service_id: lines[0].serviceId,
-    });
     const startsAt = data.startsAt ? new Date(data.startsAt) : new Date();
-    const endsAt = new Date(startsAt.getTime() + (totalDuration + (bufferMinutes ?? 0)) * 60_000);
-    const totalPrice = lines.reduce((sum, l) => sum + l.price, 0);
-
     const { data: business } = await supabaseAdmin
       .from("businesses")
       .select("currency")
       .eq("id", data.businessId)
       .single();
 
-    const { data: inserted, error } = await supabaseAdmin
-      .from("bookings")
-      .insert({
-        customer_id: data.customerId ?? null,
-        customer_name: data.customerId ? null : (data.customerName ?? null),
-        customer_phone: data.customerId ? null : (data.customerPhone ?? null),
-        business_id: data.businessId,
-        branch_id: branchId,
-        service_id: lines[0].serviceId,
-        staff_id: data.staffId,
-        starts_at: startsAt.toISOString(),
-        ends_at: endsAt.toISOString(),
-        status: "confirmed",
-        total_price: totalPrice,
-        notes: data.notes ?? null,
-      } as never)
-      .select("id, reference")
-      .single();
-    if (error) {
+    let lastError: unknown = null;
+    for (const staffId of candidates) {
+      const lines = await resolveServiceLines(
+        supabaseAdmin,
+        data.businessId,
+        branchId,
+        data.serviceIds,
+        staffId,
+      );
+      const totalDuration = lines.reduce((sum, l) => sum + l.durationMinutes, 0);
+      const { data: bufferMinutes } = await supabaseAdmin.rpc("resolve_buffer_minutes", {
+        _business_id: data.businessId,
+        _branch_id: branchId,
+        _service_id: lines[0].serviceId,
+      });
+      const endsAt = new Date(startsAt.getTime() + (totalDuration + (bufferMinutes ?? 0)) * 60_000);
+      const totalPrice = lines.reduce((sum, l) => sum + l.price, 0);
+
+      const { data: inserted, error } = await supabaseAdmin
+        .from("bookings")
+        .insert({
+          customer_id: data.customerId ?? null,
+          customer_name: data.customerId ? null : (data.customerName ?? null),
+          customer_phone: data.customerId ? null : (data.customerPhone ?? null),
+          business_id: data.businessId,
+          branch_id: branchId,
+          service_id: lines[0].serviceId,
+          staff_id: staffId,
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt.toISOString(),
+          status: "confirmed",
+          total_price: totalPrice,
+          notes: data.notes ?? null,
+        } as never)
+        .select("id, reference")
+        .single();
+
+      if (!error) {
+        await supabaseAdmin.from("booking_items").insert(
+          lines.map((l, i) => ({
+            booking_id: inserted.id,
+            service_id: l.serviceId,
+            service_name: l.name,
+            service_name_ar: l.nameAr,
+            duration_minutes: l.durationMinutes,
+            price: l.price,
+            currency: business?.currency ?? "USD",
+            staff_id: staffId,
+            business_id: data.businessId,
+            sort_order: i,
+          })) as never,
+        );
+
+        await Promise.all([
+          supabaseAdmin.from("admin_audit_log").insert({
+            actor_id: context.userId,
+            action: "booking.walk_in_created",
+            target_type: "booking",
+            target_id: inserted.id,
+            business_id: data.businessId,
+            details: {
+              staffId,
+              serviceIds: data.serviceIds,
+              isGuest: !data.customerId,
+              anySpecialist: !data.staffId,
+            } as never,
+          } as never),
+          supabaseAdmin.from("booking_status_history").insert({
+            booking_id: inserted.id,
+            business_id: data.businessId,
+            from_status: null,
+            to_status: "confirmed",
+            actor_id: context.userId,
+            actor_role: "staff",
+            reason: "walk_in",
+          } as never),
+        ]);
+
+        return { id: inserted.id as string, reference: inserted.reference as string, staffId };
+      }
+
+      lastError = error;
       const code = (error as { code?: string }).code;
-      if (code === "23505" || code === "23P01") throw new Error("SLOT_UNAVAILABLE");
-      throw new Error(sanitizeDbError(error));
+      if (code !== "23505" && code !== "23P01") throw new Error(sanitizeDbError(error));
     }
 
-    await supabaseAdmin.from("booking_items").insert(
-      lines.map((l, i) => ({
-        booking_id: inserted.id,
-        service_id: l.serviceId,
-        service_name: l.name,
-        service_name_ar: l.nameAr,
-        duration_minutes: l.durationMinutes,
-        price: l.price,
-        currency: business?.currency ?? "USD",
-        staff_id: data.staffId,
-        business_id: data.businessId,
-        sort_order: i,
-      })) as never,
-    );
-
-    await supabaseAdmin.from("admin_audit_log").insert({
-      actor_id: context.userId,
-      action: "booking.walk_in_created",
-      target_type: "booking",
-      target_id: inserted.id,
-      business_id: data.businessId,
-      details: {
-        staffId: data.staffId,
-        serviceIds: data.serviceIds,
-        isGuest: !data.customerId,
-      } as never,
-    } as never);
-
-    return { id: inserted.id as string, reference: inserted.reference as string };
+    void lastError;
+    throw new Error("SLOT_UNAVAILABLE");
   });

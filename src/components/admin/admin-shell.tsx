@@ -19,6 +19,7 @@ import {
   Mail,
   Menu,
   Moon,
+  Phone,
   Plus,
   Scissors,
   Search,
@@ -35,7 +36,7 @@ import {
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useMyStaffRecord } from "@/lib/admin";
+import { useActiveBusiness, useMyMembership, useMyStaffRecord } from "@/lib/admin";
 import { NotificationCenter } from "@/components/dallty/notification-center";
 import {
   CommandDialog,
@@ -97,6 +98,12 @@ export const ADMIN_SECTIONS: NavSection[] = [
         namespace: "booking",
         labelKey: "nav_appointments",
         icon: ClipboardList,
+      },
+      {
+        to: "/admin/confirmations",
+        namespace: "booking",
+        labelKey: "nav_confirmations",
+        icon: Phone,
       },
     ],
   },
@@ -392,6 +399,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { user, primaryRole, hasRole } = useAuth();
   const isPlatformAdmin = hasRole("super_admin") || hasRole("admin");
   const { isStaffOnly } = useMyStaffRecord();
+  // Project 11 §58-59: a receptionist/confirmation_member business_memberships role sees a
+  // reduced nav (no financial/staff-management/settings sections) — resolved against the
+  // first business they're a member of, same "active business" convention useActiveBusiness()
+  // already uses elsewhere in the dashboard. Owners/managers/custom roles and anyone with no
+  // membership row (the legacy owner_id-only path) keep the full ADMIN_SECTIONS unchanged.
 
   const { t: tCommon } = useTranslation("common");
   const { t: tBooking } = useTranslation("booking");
@@ -449,6 +461,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
       return data;
     },
   });
+
+  const { businessId: activeBusinessId } = useActiveBusiness();
+  const myMembership = useMyMembership(activeBusinessId);
+  const reducedRoleKey = myMembership.data?.isPrimaryOwner
+    ? null
+    : myMembership.data?.roleKey === "receptionist" ||
+        myMembership.data?.roleKey === "confirmation_member"
+      ? myMembership.data.roleKey
+      : null;
 
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -537,22 +558,51 @@ export function AdminShell({ children }: { children: ReactNode }) {
     </span>
   );
 
+  // Project 11 §58-59: receptionist sees Today/Business sections minus staff management;
+  // confirmation_member sees only the confirmation-adjacent items — neither gets Finance,
+  // Settings, or Marketplace nav at all. Deliberately conservative (nav-level only, not yet
+  // a full page-by-page permission audit) but real: closes the specific "receptionist sees
+  // revenue cards they have no permission for" gap the brief calls out.
+  const reducedSections: NavSection[] =
+    reducedRoleKey === "confirmation_member"
+      ? [
+          {
+            labelKey: "section_today",
+            items: ADMIN_SECTIONS[0].items.filter((i) => i.to !== "/admin"),
+          },
+          {
+            labelKey: "section_business",
+            items: ADMIN_SECTIONS[1].items.filter((i) => i.to === "/admin/customers"),
+          },
+        ]
+      : reducedRoleKey === "receptionist"
+        ? [
+            ADMIN_SECTIONS[0],
+            {
+              labelKey: "section_business",
+              items: ADMIN_SECTIONS[1].items.filter((i) => i.to !== "/admin/staff"),
+            },
+          ]
+        : [];
+
   // Platform admins own no business: they get the platform console first, then the
   // business modules scoped to whichever business they pick.
   const businessSections = isStaffOnly
     ? STAFF_SECTIONS
-    : isPlatformAdmin
-      ? ADMIN_SECTIONS.map((section) =>
-          section.labelKey === "section_today"
-            ? { ...section, items: section.items.filter((i) => i.to !== "/admin") }
-            : section.labelKey === "section_account"
-              ? {
-                  ...section,
-                  items: section.items.filter((i) => i.to !== "/admin/marketplace"),
-                }
-              : section,
-        ).filter((section) => section.items.length > 0)
-      : ADMIN_SECTIONS;
+    : reducedRoleKey
+      ? reducedSections
+      : isPlatformAdmin
+        ? ADMIN_SECTIONS.map((section) =>
+            section.labelKey === "section_today"
+              ? { ...section, items: section.items.filter((i) => i.to !== "/admin") }
+              : section.labelKey === "section_account"
+                ? {
+                    ...section,
+                    items: section.items.filter((i) => i.to !== "/admin/marketplace"),
+                  }
+                : section,
+          ).filter((section) => section.items.length > 0)
+        : ADMIN_SECTIONS;
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
