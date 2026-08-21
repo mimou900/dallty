@@ -11,5 +11,6 @@
   "nav_email_domains": "Domaines email",
   "nav_countries": "Pays",
   "nav_auth_policies": "Politiques d'authentification",
-  "nav_reconciliation": "Réconciliation"
+  "nav_reconciliation": "Réconciliation",
+  "nav_subscription_plans": "Forfaits d'abonnement"
 }

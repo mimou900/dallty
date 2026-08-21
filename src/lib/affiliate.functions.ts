@@ -188,11 +188,110 @@ const activateReferralInput = z.object({
 });
 
 /**
- * Converts a pending referral into an earned, ledger-posted commission. NOT wired to any
- * real subscription-payment event — Project 13 doesn't exist yet — so this is Super-Admin-
- * callable manually today. Once a real subscription system exists, its payment-success
- * handler should call this same function instead of duplicating the logic here.
+ * Converts a pending referral into an earned, ledger-posted commission. Shared core so both
+ * the Super-Admin-facing manual server function below AND Project 13's real subscription-
+ * payment-success handler (a business's first successful payment — see
+ * subscription.functions.ts's recordSubscriptionPayment) call the exact same logic instead
+ * of duplicating it — this is the hook this file's own prior doc comment said a real handler
+ * should call once one existed.
  */
+export async function activateAffiliateReferralCore(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role client, shared across callers with slightly different generic bindings
+  supabaseAdmin: any,
+  params: { referralId: string; subscriptionAmount: number; currency: string; actorId: string | null },
+): Promise<{ ok: true; commissionAmount: number }> {
+  const { postLedgerGroup } = await import("@/lib/ledger.server");
+
+  const { data: referral, error: refErr } = await supabaseAdmin
+    .from("affiliate_referrals")
+    .select("id, affiliate_id, status, referred_business_id")
+    .eq("id", params.referralId)
+    .maybeSingle();
+  if (refErr) throw new Error(sanitizeDbError(refErr));
+  if (!referral) throw new Error("REFERRAL_NOT_FOUND");
+  if (referral.status !== "pending") throw new Error("REFERRAL_NOT_PENDING");
+  if (!referral.referred_business_id) throw new Error("REFERRED_BUSINESS_NO_LONGER_EXISTS");
+
+  const { data: businessRow } = await supabaseAdmin
+    .from("businesses")
+    .select("country_code")
+    .eq("id", referral.referred_business_id)
+    .maybeSingle();
+  const { data: countryRow } = businessRow?.country_code
+    ? await supabaseAdmin
+        .from("countries")
+        .select("id")
+        .eq("iso_code", businessRow.country_code)
+        .maybeSingle()
+    : { data: null };
+
+  // Precedence: affiliate-specific -> country-specific -> global default (mirrors
+  // commission_rules' own hierarchy, brief §34).
+  const { data: rules } = await supabaseAdmin
+    .from("affiliate_commission_rules")
+    .select("rate_type, rate_value, duration_months, affiliate_id, country_id")
+    .eq("active", true)
+    .or(`affiliate_id.eq.${referral.affiliate_id},affiliate_id.is.null`)
+    .lte("effective_from", new Date().toISOString());
+  const candidates = rules ?? [];
+  const rule =
+    candidates.find((r: { affiliate_id: string | null }) => r.affiliate_id === referral.affiliate_id) ??
+    candidates.find(
+      (r: { country_id: string | null }) => r.country_id && r.country_id === countryRow?.id,
+    ) ??
+    candidates.find((r: { affiliate_id: string | null; country_id: string | null }) => !r.affiliate_id && !r.country_id);
+  if (!rule) throw new Error("NO_COMMISSION_RULE_CONFIGURED");
+
+  const commissionAmount =
+    rule.rate_type === "fixed"
+      ? Number(rule.rate_value)
+      : Math.round(params.subscriptionAmount * (Number(rule.rate_value) / 100) * 100) / 100;
+
+  await postLedgerGroup(supabaseAdmin, {
+    postings: [
+      {
+        accountType: "dallty_revenue",
+        accountRef: referral.referred_business_id,
+        direction: "debit",
+        amount: commissionAmount,
+        type: "affiliate_commission",
+      },
+      {
+        accountType: "affiliate_payable",
+        accountRef: referral.affiliate_id,
+        direction: "credit",
+        amount: commissionAmount,
+        type: "affiliate_commission",
+      },
+    ],
+    currency: params.currency,
+    actorId: params.actorId,
+    reason: `affiliate_referral:${referral.id}`,
+    metadata: {
+      durationMonths: rule.duration_months,
+      subscriptionAmount: params.subscriptionAmount,
+    },
+  });
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("affiliate_referrals")
+    .update({ status: "converted", converted_at: new Date().toISOString() } as never)
+    .eq("id", referral.id)
+    .eq("status", "pending");
+  if (updateErr) throw new Error(sanitizeDbError(updateErr));
+
+  await supabaseAdmin.from("admin_audit_log").insert({
+    actor_id: params.actorId,
+    action: "affiliate.referral_converted",
+    target_type: "affiliate_referral",
+    target_id: referral.id,
+    details: { commissionAmount } as never,
+  } as never);
+
+  return { ok: true, commissionAmount };
+}
+
+/** Super-Admin-facing manual trigger — wraps the shared core above with the auth gate. */
 export const activateAffiliateReferral = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => activateReferralInput.parse(input))
@@ -200,91 +299,5 @@ export const activateAffiliateReferral = createServerFn({ method: "POST" })
     const { assertSuperAdmin } = await import("@/lib/platform.server");
     await assertSuperAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { postLedgerGroup } = await import("@/lib/ledger.server");
-
-    const { data: referral, error: refErr } = await supabaseAdmin
-      .from("affiliate_referrals")
-      .select("id, affiliate_id, status, referred_business_id")
-      .eq("id", data.referralId)
-      .maybeSingle();
-    if (refErr) throw new Error(sanitizeDbError(refErr));
-    if (!referral) throw new Error("REFERRAL_NOT_FOUND");
-    if (referral.status !== "pending") throw new Error("REFERRAL_NOT_PENDING");
-    if (!referral.referred_business_id) throw new Error("REFERRED_BUSINESS_NO_LONGER_EXISTS");
-
-    const { data: businessRow } = await supabaseAdmin
-      .from("businesses")
-      .select("country_code")
-      .eq("id", referral.referred_business_id)
-      .maybeSingle();
-    const { data: countryRow } = businessRow?.country_code
-      ? await supabaseAdmin
-          .from("countries")
-          .select("id")
-          .eq("iso_code", businessRow.country_code)
-          .maybeSingle()
-      : { data: null };
-
-    // Precedence: affiliate-specific -> country-specific -> global default (mirrors
-    // commission_rules' own hierarchy, brief §34).
-    const { data: rules } = await supabaseAdmin
-      .from("affiliate_commission_rules")
-      .select("rate_type, rate_value, duration_months, affiliate_id, country_id")
-      .eq("active", true)
-      .or(`affiliate_id.eq.${referral.affiliate_id},affiliate_id.is.null`)
-      .lte("effective_from", new Date().toISOString());
-    const candidates = rules ?? [];
-    const rule =
-      candidates.find((r) => r.affiliate_id === referral.affiliate_id) ??
-      candidates.find((r) => r.country_id && r.country_id === countryRow?.id) ??
-      candidates.find((r) => !r.affiliate_id && !r.country_id);
-    if (!rule) throw new Error("NO_COMMISSION_RULE_CONFIGURED");
-
-    const commissionAmount =
-      rule.rate_type === "fixed"
-        ? Number(rule.rate_value)
-        : Math.round(data.subscriptionAmount * (Number(rule.rate_value) / 100) * 100) / 100;
-
-    await postLedgerGroup(supabaseAdmin, {
-      postings: [
-        {
-          accountType: "dallty_revenue",
-          accountRef: referral.referred_business_id,
-          direction: "debit",
-          amount: commissionAmount,
-          type: "affiliate_commission",
-        },
-        {
-          accountType: "affiliate_payable",
-          accountRef: referral.affiliate_id,
-          direction: "credit",
-          amount: commissionAmount,
-          type: "affiliate_commission",
-        },
-      ],
-      currency: data.currency,
-      actorId: context.userId,
-      reason: `affiliate_referral:${referral.id}`,
-      metadata: {
-        durationMonths: rule.duration_months,
-        subscriptionAmount: data.subscriptionAmount,
-      },
-    });
-
-    const { error: updateErr } = await supabaseAdmin
-      .from("affiliate_referrals")
-      .update({ status: "converted", converted_at: new Date().toISOString() } as never)
-      .eq("id", referral.id)
-      .eq("status", "pending");
-    if (updateErr) throw new Error(sanitizeDbError(updateErr));
-
-    await supabaseAdmin.from("admin_audit_log").insert({
-      actor_id: context.userId,
-      action: "affiliate.referral_converted",
-      target_type: "affiliate_referral",
-      target_id: referral.id,
-      details: { commissionAmount } as never,
-    } as never);
-
-    return { ok: true, commissionAmount };
+    return activateAffiliateReferralCore(supabaseAdmin, { ...data, actorId: context.userId });
   });

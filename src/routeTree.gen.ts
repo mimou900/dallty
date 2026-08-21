@@ -34,6 +34,7 @@ import { Route as StaffSignupRouteImport } from './routes/staff/signup'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminAppointmentsRouteImport } from './routes/_authenticated/admin/appointments'
 import { Route as AuthenticatedAdminAvailabilityRouteImport } from './routes/_authenticated/admin/availability'
+import { Route as AuthenticatedAdminBillingRouteImport } from './routes/_authenticated/admin/billing'
 import { Route as AuthenticatedAdminCalendarRouteImport } from './routes/_authenticated/admin/calendar'
 import { Route as AuthenticatedAdminConfirmationsRouteImport } from './routes/_authenticated/admin/confirmations'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
@@ -57,6 +58,7 @@ import { Route as AuthenticatedAdminPlatformMarketplaceRouteImport } from './rou
 import { Route as AuthenticatedAdminPlatformOverviewRouteImport } from './routes/_authenticated/admin/platform/overview'
 import { Route as AuthenticatedAdminPlatformReconciliationRouteImport } from './routes/_authenticated/admin/platform/reconciliation'
 import { Route as AuthenticatedAdminPlatformReservedSlugsRouteImport } from './routes/_authenticated/admin/platform/reserved-slugs'
+import { Route as AuthenticatedAdminPlatformSubscriptionPlansRouteImport } from './routes/_authenticated/admin/platform/subscription-plans'
 import { Route as AuthenticatedAdminPlatformUsersRouteImport } from './routes/_authenticated/admin/platform/users'
 
 const IndexRoute = IndexRouteImport.update({
@@ -184,6 +186,12 @@ const AuthenticatedAdminAvailabilityRoute =
   AuthenticatedAdminAvailabilityRouteImport.update({
     id: '/availability',
     path: '/availability',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminBillingRoute =
+  AuthenticatedAdminBillingRouteImport.update({
+    id: '/billing',
+    path: '/billing',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminCalendarRoute =
@@ -323,6 +331,12 @@ const AuthenticatedAdminPlatformReservedSlugsRoute =
     path: '/platform/reserved-slugs',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminPlatformSubscriptionPlansRoute =
+  AuthenticatedAdminPlatformSubscriptionPlansRouteImport.update({
+    id: '/platform/subscription-plans',
+    path: '/platform/subscription-plans',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminPlatformUsersRoute =
   AuthenticatedAdminPlatformUsersRouteImport.update({
     id: '/platform/users',
@@ -354,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/staff/signup': typeof StaffSignupRoute
   '/admin/appointments': typeof AuthenticatedAdminAppointmentsRoute
   '/admin/availability': typeof AuthenticatedAdminAvailabilityRoute
+  '/admin/billing': typeof AuthenticatedAdminBillingRoute
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/admin/confirmations': typeof AuthenticatedAdminConfirmationsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -378,6 +393,7 @@ export interface FileRoutesByFullPath {
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
   '/admin/platform/reconciliation': typeof AuthenticatedAdminPlatformReconciliationRoute
   '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
+  '/admin/platform/subscription-plans': typeof AuthenticatedAdminPlatformSubscriptionPlansRoute
   '/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
 }
 export interface FileRoutesByTo {
@@ -403,6 +419,7 @@ export interface FileRoutesByTo {
   '/staff/signup': typeof StaffSignupRoute
   '/admin/appointments': typeof AuthenticatedAdminAppointmentsRoute
   '/admin/availability': typeof AuthenticatedAdminAvailabilityRoute
+  '/admin/billing': typeof AuthenticatedAdminBillingRoute
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/admin/confirmations': typeof AuthenticatedAdminConfirmationsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -427,6 +444,7 @@ export interface FileRoutesByTo {
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
   '/admin/platform/reconciliation': typeof AuthenticatedAdminPlatformReconciliationRoute
   '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
+  '/admin/platform/subscription-plans': typeof AuthenticatedAdminPlatformSubscriptionPlansRoute
   '/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
 }
 export interface FileRoutesById {
@@ -455,6 +473,7 @@ export interface FileRoutesById {
   '/staff/signup': typeof StaffSignupRoute
   '/_authenticated/admin/appointments': typeof AuthenticatedAdminAppointmentsRoute
   '/_authenticated/admin/availability': typeof AuthenticatedAdminAvailabilityRoute
+  '/_authenticated/admin/billing': typeof AuthenticatedAdminBillingRoute
   '/_authenticated/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/_authenticated/admin/confirmations': typeof AuthenticatedAdminConfirmationsRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
@@ -479,6 +498,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
   '/_authenticated/admin/platform/reconciliation': typeof AuthenticatedAdminPlatformReconciliationRoute
   '/_authenticated/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
+  '/_authenticated/admin/platform/subscription-plans': typeof AuthenticatedAdminPlatformSubscriptionPlansRoute
   '/_authenticated/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
 }
 export interface FileRouteTypes {
@@ -507,6 +527,7 @@ export interface FileRouteTypes {
     | '/staff/signup'
     | '/admin/appointments'
     | '/admin/availability'
+    | '/admin/billing'
     | '/admin/calendar'
     | '/admin/confirmations'
     | '/admin/customers'
@@ -531,6 +552,7 @@ export interface FileRouteTypes {
     | '/admin/platform/overview'
     | '/admin/platform/reconciliation'
     | '/admin/platform/reserved-slugs'
+    | '/admin/platform/subscription-plans'
     | '/admin/platform/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -556,6 +578,7 @@ export interface FileRouteTypes {
     | '/staff/signup'
     | '/admin/appointments'
     | '/admin/availability'
+    | '/admin/billing'
     | '/admin/calendar'
     | '/admin/confirmations'
     | '/admin/customers'
@@ -580,6 +603,7 @@ export interface FileRouteTypes {
     | '/admin/platform/overview'
     | '/admin/platform/reconciliation'
     | '/admin/platform/reserved-slugs'
+    | '/admin/platform/subscription-plans'
     | '/admin/platform/users'
   id:
     | '__root__'
@@ -607,6 +631,7 @@ export interface FileRouteTypes {
     | '/staff/signup'
     | '/_authenticated/admin/appointments'
     | '/_authenticated/admin/availability'
+    | '/_authenticated/admin/billing'
     | '/_authenticated/admin/calendar'
     | '/_authenticated/admin/confirmations'
     | '/_authenticated/admin/customers'
@@ -631,6 +656,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/platform/overview'
     | '/_authenticated/admin/platform/reconciliation'
     | '/_authenticated/admin/platform/reserved-slugs'
+    | '/_authenticated/admin/platform/subscription-plans'
     | '/_authenticated/admin/platform/users'
   fileRoutesById: FileRoutesById
 }
@@ -828,6 +854,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAvailabilityRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/billing': {
+      id: '/_authenticated/admin/billing'
+      path: '/billing'
+      fullPath: '/admin/billing'
+      preLoaderRoute: typeof AuthenticatedAdminBillingRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/calendar': {
       id: '/_authenticated/admin/calendar'
       path: '/calendar'
@@ -989,6 +1022,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPlatformReservedSlugsRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/platform/subscription-plans': {
+      id: '/_authenticated/admin/platform/subscription-plans'
+      path: '/platform/subscription-plans'
+      fullPath: '/admin/platform/subscription-plans'
+      preLoaderRoute: typeof AuthenticatedAdminPlatformSubscriptionPlansRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/platform/users': {
       id: '/_authenticated/admin/platform/users'
       path: '/platform/users'
@@ -1002,6 +1042,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminAppointmentsRoute: typeof AuthenticatedAdminAppointmentsRoute
   AuthenticatedAdminAvailabilityRoute: typeof AuthenticatedAdminAvailabilityRoute
+  AuthenticatedAdminBillingRoute: typeof AuthenticatedAdminBillingRoute
   AuthenticatedAdminCalendarRoute: typeof AuthenticatedAdminCalendarRoute
   AuthenticatedAdminConfirmationsRoute: typeof AuthenticatedAdminConfirmationsRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
@@ -1025,6 +1066,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminPlatformOverviewRoute: typeof AuthenticatedAdminPlatformOverviewRoute
   AuthenticatedAdminPlatformReconciliationRoute: typeof AuthenticatedAdminPlatformReconciliationRoute
   AuthenticatedAdminPlatformReservedSlugsRoute: typeof AuthenticatedAdminPlatformReservedSlugsRoute
+  AuthenticatedAdminPlatformSubscriptionPlansRoute: typeof AuthenticatedAdminPlatformSubscriptionPlansRoute
   AuthenticatedAdminPlatformUsersRoute: typeof AuthenticatedAdminPlatformUsersRoute
 }
 
@@ -1032,6 +1074,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
   {
     AuthenticatedAdminAppointmentsRoute: AuthenticatedAdminAppointmentsRoute,
     AuthenticatedAdminAvailabilityRoute: AuthenticatedAdminAvailabilityRoute,
+    AuthenticatedAdminBillingRoute: AuthenticatedAdminBillingRoute,
     AuthenticatedAdminCalendarRoute: AuthenticatedAdminCalendarRoute,
     AuthenticatedAdminConfirmationsRoute: AuthenticatedAdminConfirmationsRoute,
     AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
@@ -1066,6 +1109,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
       AuthenticatedAdminPlatformReconciliationRoute,
     AuthenticatedAdminPlatformReservedSlugsRoute:
       AuthenticatedAdminPlatformReservedSlugsRoute,
+    AuthenticatedAdminPlatformSubscriptionPlansRoute:
+      AuthenticatedAdminPlatformSubscriptionPlansRoute,
     AuthenticatedAdminPlatformUsersRoute: AuthenticatedAdminPlatformUsersRoute,
   }
 

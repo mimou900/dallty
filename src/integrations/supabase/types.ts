@@ -39,6 +39,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      _dallty_test_ids: {
+        Row: {
+          k: string
+          v: string | null
+        }
+        Insert: {
+          k: string
+          v?: string | null
+        }
+        Update: {
+          k?: string
+          v?: string | null
+        }
+        Relationships: []
+      }
       _sectest_ids: {
         Row: {
           aff_a: string | null
@@ -1250,6 +1265,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "businesses"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_subscriptions: {
+        Row: {
+          billing_interval: string
+          business_id: string
+          cancel_at_period_end: boolean
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string
+          grace_period_ends_at: string | null
+          id: string
+          plan_key: string
+          status: string
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_interval?: string
+          business_id: string
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          grace_period_ends_at?: string | null
+          id?: string
+          plan_key: string
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_interval?: string
+          business_id?: string
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          grace_period_ends_at?: string | null
+          id?: string
+          plan_key?: string
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_subscriptions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_subscriptions_plan_key_fkey"
+            columns: ["plan_key"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["plan_key"]
           },
         ]
       }
@@ -3862,6 +3940,255 @@ export type Database = {
           },
         ]
       }
+      subscription_events: {
+        Row: {
+          actor_id: string | null
+          business_id: string
+          created_at: string
+          details: Json
+          event_type: string
+          from_plan_key: string | null
+          id: string
+          subscription_id: string
+          to_plan_key: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          business_id: string
+          created_at?: string
+          details?: Json
+          event_type: string
+          from_plan_key?: string | null
+          id?: string
+          subscription_id: string
+          to_plan_key?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          business_id?: string
+          created_at?: string
+          details?: Json
+          event_type?: string
+          from_plan_key?: string | null
+          id?: string
+          subscription_id?: string
+          to_plan_key?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_from_plan_key_fkey"
+            columns: ["from_plan_key"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["plan_key"]
+          },
+          {
+            foreignKeyName: "subscription_events_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "business_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_to_plan_key_fkey"
+            columns: ["to_plan_key"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["plan_key"]
+          },
+        ]
+      }
+      subscription_payments: {
+        Row: {
+          amount: number
+          billing_interval: string
+          business_id: string
+          created_at: string
+          currency: string
+          id: string
+          ledger_group_id: string | null
+          notes: string | null
+          payment_method: string
+          period_end: string
+          period_start: string
+          plan_key: string
+          provider_reference: string | null
+          recorded_by: string
+          subscription_id: string
+        }
+        Insert: {
+          amount: number
+          billing_interval: string
+          business_id: string
+          created_at?: string
+          currency: string
+          id?: string
+          ledger_group_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          period_end: string
+          period_start: string
+          plan_key: string
+          provider_reference?: string | null
+          recorded_by: string
+          subscription_id: string
+        }
+        Update: {
+          amount?: number
+          billing_interval?: string
+          business_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          ledger_group_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          period_end?: string
+          period_start?: string
+          plan_key?: string
+          provider_reference?: string | null
+          recorded_by?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_payments_currency_fkey"
+            columns: ["currency"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "subscription_payments_plan_key_fkey"
+            columns: ["plan_key"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["plan_key"]
+          },
+          {
+            foreignKeyName: "subscription_payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "business_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          advertising_eligible: boolean
+          branch_limit: number | null
+          created_at: string
+          currency: string
+          customer_limit: number | null
+          description: string | null
+          description_ar: string | null
+          feature_entitlements: Json
+          grace_period_days: number
+          is_active: boolean
+          is_provisional: boolean
+          monthly_booking_limit: number | null
+          monthly_price: number
+          name: string
+          name_ar: string | null
+          plan_key: string
+          sort_order: number
+          staff_limit: number | null
+          trial_duration_days: number
+          updated_at: string
+          yearly_price: number
+        }
+        Insert: {
+          advertising_eligible?: boolean
+          branch_limit?: number | null
+          created_at?: string
+          currency?: string
+          customer_limit?: number | null
+          description?: string | null
+          description_ar?: string | null
+          feature_entitlements?: Json
+          grace_period_days?: number
+          is_active?: boolean
+          is_provisional?: boolean
+          monthly_booking_limit?: number | null
+          monthly_price?: number
+          name: string
+          name_ar?: string | null
+          plan_key: string
+          sort_order?: number
+          staff_limit?: number | null
+          trial_duration_days?: number
+          updated_at?: string
+          yearly_price?: number
+        }
+        Update: {
+          advertising_eligible?: boolean
+          branch_limit?: number | null
+          created_at?: string
+          currency?: string
+          customer_limit?: number | null
+          description?: string | null
+          description_ar?: string | null
+          feature_entitlements?: Json
+          grace_period_days?: number
+          is_active?: boolean
+          is_provisional?: boolean
+          monthly_booking_limit?: number | null
+          monthly_price?: number
+          name?: string
+          name_ar?: string | null
+          plan_key?: string
+          sort_order?: number
+          staff_limit?: number | null
+          trial_duration_days?: number
+          updated_at?: string
+          yearly_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_plans_currency_fkey"
+            columns: ["currency"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      subscription_settings: {
+        Row: {
+          business_referral_reward_percent: number
+          id: boolean
+          is_provisional: boolean
+          updated_at: string
+        }
+        Insert: {
+          business_referral_reward_percent?: number
+          id?: boolean
+          is_provisional?: boolean
+          updated_at?: string
+        }
+        Update: {
+          business_referral_reward_percent?: number
+          id?: boolean
+          is_provisional?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       temporary_blocks: {
         Row: {
           branch_id: string
@@ -4184,6 +4511,7 @@ export type Database = {
           _branch_id?: string
           _business_id: string
           _permission_key: string
+          _target_user_id?: string
           _user_id: string
         }
         Returns: boolean
@@ -4274,6 +4602,7 @@ export type Database = {
         Args: { _error?: string; _id: string; _outcome: string }
         Returns: undefined
       }
+      run_subscription_lifecycle_sweep: { Args: never; Returns: undefined }
       search_businesses_page: {
         Args: {
           _category?: string

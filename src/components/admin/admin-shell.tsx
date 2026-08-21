@@ -126,7 +126,6 @@ export const ADMIN_SECTIONS: NavSection[] = [
         namespace: "payments",
         labelKey: "nav_billing",
         icon: CreditCard,
-        soon: true,
       },
     ],
   },
@@ -251,6 +250,12 @@ export const PLATFORM_NAV: NavItem[] = [
     namespace: "platform",
     labelKey: "nav_reconciliation",
     icon: Wallet,
+  },
+  {
+    to: "/admin/platform/subscription-plans",
+    namespace: "platform",
+    labelKey: "nav_subscription_plans",
+    icon: CreditCard,
   },
 ];
 

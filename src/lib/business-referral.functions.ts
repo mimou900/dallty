@@ -100,9 +100,76 @@ const activateInput = z.object({
 /**
  * Credits the referring business's Dallty balance (promotional_credit — explicitly NOT the
  * same account as business_balance's real cash revenue, brief §47) once the referred
- * business is confirmed a paying subscriber. Super-Admin-callable manually until a real
- * subscription system exists to call it automatically.
+ * business is confirmed a paying subscriber. Shared core so both the Super-Admin manual
+ * server function below AND Project 13's real subscription-payment-success handler
+ * (recordSubscriptionPayment) call the exact same logic — the hook this file's own prior doc
+ * comment said a real handler should call once one existed.
  */
+export async function activateBusinessReferralCore(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role client, shared across callers with slightly different generic bindings
+  supabaseAdmin: any,
+  params: { referralId: string; rewardAmount: number; currency: string; actorId: string | null },
+): Promise<{ ok: true }> {
+  const { postLedgerGroup } = await import("@/lib/ledger.server");
+
+  const { data: referral, error: refErr } = await supabaseAdmin
+    .from("business_referrals")
+    .select("id, referring_business_id, referred_business_id, status")
+    .eq("id", params.referralId)
+    .maybeSingle();
+  if (refErr) throw new Error(sanitizeDbError(refErr));
+  if (!referral) throw new Error("REFERRAL_NOT_FOUND");
+  if (referral.status !== "pending") throw new Error("REFERRAL_NOT_PENDING");
+  if (!referral.referred_business_id) throw new Error("NOT_YET_CLAIMED_BY_A_BUSINESS");
+
+  await postLedgerGroup(supabaseAdmin, {
+    postings: [
+      {
+        accountType: "dallty_payable",
+        accountRef: referral.referring_business_id,
+        direction: "debit",
+        amount: params.rewardAmount,
+        type: "referral_reward",
+      },
+      {
+        accountType: "promotional_credit",
+        accountRef: referral.referring_business_id,
+        direction: "credit",
+        amount: params.rewardAmount,
+        type: "referral_reward",
+      },
+    ],
+    currency: params.currency,
+    businessId: referral.referring_business_id,
+    actorId: params.actorId,
+    reason: `business_referral:${referral.id}`,
+  });
+
+  const { error } = await supabaseAdmin
+    .from("business_referrals")
+    .update({
+      status: "activated",
+      activated_at: new Date().toISOString(),
+      reward_amount: params.rewardAmount,
+      reward_currency: params.currency,
+    } as never)
+    .eq("id", referral.id)
+    .eq("status", "pending");
+  if (error) throw new Error(sanitizeDbError(error));
+
+  await supabaseAdmin.from("admin_audit_log").insert({
+    actor_id: params.actorId,
+    action: "business_referral.activated",
+    target_type: "business_referral",
+    target_id: referral.id,
+    business_id: referral.referring_business_id,
+    details: { rewardAmount: params.rewardAmount } as never,
+  } as never);
+
+  return { ok: true };
+}
+
+/** Super-Admin-facing manual trigger — wraps the shared core above with the auth gate. */
 export const activateBusinessReferral = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => activateInput.parse(input))
@@ -110,61 +177,5 @@ export const activateBusinessReferral = createServerFn({ method: "POST" })
     const { assertSuperAdmin } = await import("@/lib/platform.server");
     await assertSuperAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { postLedgerGroup } = await import("@/lib/ledger.server");
-
-    const { data: referral, error: refErr } = await supabaseAdmin
-      .from("business_referrals")
-      .select("id, referring_business_id, referred_business_id, status")
-      .eq("id", data.referralId)
-      .maybeSingle();
-    if (refErr) throw new Error(sanitizeDbError(refErr));
-    if (!referral) throw new Error("REFERRAL_NOT_FOUND");
-    if (referral.status !== "pending") throw new Error("REFERRAL_NOT_PENDING");
-    if (!referral.referred_business_id) throw new Error("NOT_YET_CLAIMED_BY_A_BUSINESS");
-
-    await postLedgerGroup(supabaseAdmin, {
-      postings: [
-        {
-          accountType: "dallty_payable",
-          accountRef: referral.referring_business_id,
-          direction: "debit",
-          amount: data.rewardAmount,
-          type: "referral_reward",
-        },
-        {
-          accountType: "promotional_credit",
-          accountRef: referral.referring_business_id,
-          direction: "credit",
-          amount: data.rewardAmount,
-          type: "referral_reward",
-        },
-      ],
-      currency: data.currency,
-      businessId: referral.referring_business_id,
-      actorId: context.userId,
-      reason: `business_referral:${referral.id}`,
-    });
-
-    const { error } = await supabaseAdmin
-      .from("business_referrals")
-      .update({
-        status: "activated",
-        activated_at: new Date().toISOString(),
-        reward_amount: data.rewardAmount,
-        reward_currency: data.currency,
-      } as never)
-      .eq("id", referral.id)
-      .eq("status", "pending");
-    if (error) throw new Error(sanitizeDbError(error));
-
-    await supabaseAdmin.from("admin_audit_log").insert({
-      actor_id: context.userId,
-      action: "business_referral.activated",
-      target_type: "business_referral",
-      target_id: referral.id,
-      business_id: referral.referring_business_id,
-      details: { rewardAmount: data.rewardAmount } as never,
-    } as never);
-
-    return { ok: true };
+    return activateBusinessReferralCore(supabaseAdmin, { ...data, actorId: context.userId });
   });

@@ -36,8 +36,12 @@ export const registerBusiness = createServerFn({ method: "POST" })
       .maybeSingle();
     if (existing) throw new Error("This account already has a business.");
 
-    const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    // Project 13: trial length now comes from the chosen plan's own configured
+    // trial_duration_days (Super-Admin-editable), not a hardcoded 14 days.
+    const { resolvePlanTrialEndsAt } = await import("@/lib/subscription.functions");
     const b = data.business;
+    const resolvedTrial = await resolvePlanTrialEndsAt(supabaseAdmin, b.plan);
+    const trialEnds = resolvedTrial.trialEndsAt;
 
     const { data: countryRow } = await supabaseAdmin
       .from("countries")
@@ -111,6 +115,14 @@ export const registerBusiness = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(sanitizeDbError(error));
+
+    const { createSubscriptionForNewBusiness } = await import("@/lib/subscription.functions");
+    await createSubscriptionForNewBusiness(supabaseAdmin, {
+      businessId: business.id,
+      planKey: resolvedTrial.planKey,
+      trialDurationDays: resolvedTrial.trialDurationDays,
+      trialEndsAt: resolvedTrial.trialEndsAt,
+    });
 
     if (b.services.length) {
       await supabaseAdmin.from("services").insert(
