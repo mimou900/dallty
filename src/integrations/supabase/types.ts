@@ -124,6 +124,144 @@ export type Database = {
           },
         ]
       }
+      affiliate_commission_rules: {
+        Row: {
+          active: boolean
+          affiliate_id: string | null
+          campaign_key: string | null
+          country_id: string | null
+          created_at: string
+          created_by: string | null
+          duration_months: number
+          effective_from: string
+          id: string
+          plan_key: string | null
+          rate_type: string
+          rate_value: number
+        }
+        Insert: {
+          active?: boolean
+          affiliate_id?: string | null
+          campaign_key?: string | null
+          country_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_months?: number
+          effective_from?: string
+          id?: string
+          plan_key?: string | null
+          rate_type: string
+          rate_value: number
+        }
+        Update: {
+          active?: boolean
+          affiliate_id?: string | null
+          campaign_key?: string | null
+          country_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_months?: number
+          effective_from?: string
+          id?: string
+          plan_key?: string | null
+          rate_type?: string
+          rate_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commission_rules_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commission_rules_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_referrals: {
+        Row: {
+          affiliate_id: string
+          attributed_at: string
+          attribution_window_days: number
+          converted_at: string | null
+          created_at: string
+          id: string
+          referral_code: string
+          referred_business_id: string | null
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          attributed_at?: string
+          attribution_window_days?: number
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code: string
+          referred_business_id?: string | null
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          attributed_at?: string
+          attribution_window_days?: number
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referred_business_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_referrals_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_referrals_referred_business_id_fkey"
+            columns: ["referred_business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliates: {
+        Row: {
+          created_at: string
+          id: string
+          referral_code: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referral_code: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referral_code?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       auth_login_attempts: {
         Row: {
           attempted_at: string
@@ -968,6 +1106,64 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "platform_roles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_referrals: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          id: string
+          referral_code: string
+          referred_business_id: string | null
+          referring_business_id: string
+          reward_amount: number | null
+          reward_currency: string | null
+          status: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code: string
+          referred_business_id?: string | null
+          referring_business_id: string
+          reward_amount?: number | null
+          reward_currency?: string | null
+          status?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referred_business_id?: string | null
+          referring_business_id?: string
+          reward_amount?: number | null
+          reward_currency?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_referrals_referred_business_id_fkey"
+            columns: ["referred_business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_referrals_referring_business_id_fkey"
+            columns: ["referring_business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_referrals_reward_currency_fkey"
+            columns: ["reward_currency"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -4088,6 +4284,7 @@ export type Database = {
         | "refund_liability"
         | "promotional_credit"
         | "external_cash"
+        | "affiliate_payable"
       ledger_direction: "debit" | "credit"
       marketplace_status:
         | "draft"
@@ -4292,6 +4489,7 @@ export const Constants = {
         "refund_liability",
         "promotional_credit",
         "external_cash",
+        "affiliate_payable",
       ],
       ledger_direction: ["debit", "credit"],
       marketplace_status: [
