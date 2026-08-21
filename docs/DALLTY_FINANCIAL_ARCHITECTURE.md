@@ -1,8 +1,13 @@
 # Dallty — Financial Architecture
 
 **Status:** Living document. Produced by Project 06 (Payments, Deposits, Cash Settlement &
-Financial Ledger).
-**Last updated:** 2026-08-17.
+Financial Ledger); extended by Project 12 (Central Financial Ledger + Revenue + Commissions
++ Payouts — staff payout recording, deposit collection, no-show policy, reconciliation,
+affiliate and business-referral foundations, country payout config). **Project 12 is
+code-complete on branch `project-12-financial-ledger`, not yet merged to `main` or
+deployed** — everything in the Project 12 update section below is real, working code,
+verified only on that branch.
+**Last updated:** 2026-08-21.
 
 **Read this first:** no payment provider credentials (CIB, Edahabia, Stripe, or any other)
 exist anywhere in this project's environment — confirmed repeatedly across every project in
@@ -12,6 +17,149 @@ provider that was never actually confirmed. What *is* real, working, and live-te
 three-layer model, the immutable double-entry ledger, and cash payment settlement —
 including the overage/underage reconciliation flow, which is the most detailed part of the
 brief and the part actually usable by a real business today.
+
+## Project 12 update (2026-08-21) — payout recording, deposits, reconciliation, affiliates
+
+Project 06 (below) built the ledger foundation and explicitly carried forward two gaps in
+its own "PLANNED, explicitly not built" section: `staff_payouts` row creation had no server
+function, and online/recorded deposit collection wasn't wired up. Project 12 closes both,
+adds a no-show financial policy, a real payments-vs-ledger reconciliation tool, and the
+affiliate/business-referral foundations (confirmed genuinely zero anywhere in the codebase
+before this project — not even a stray table or enum value). **Not yet merged to `main` —
+code-complete and phase-tested on `project-12-financial-ledger` only.**
+
+### Staff payout recording (closes Project 06's own documented gap)
+
+New `staff_payout_items` (`src/lib/payout.functions.ts`) links a payout to the exact
+`staff_earning` ledger rows it covers, via a `UNIQUE` constraint on
+`ledger_transaction_id` — enforced at the database level, not just application logic, so the
+same earning can never be double-paid across concurrent or retried payout runs.
+`staff_payouts.status`'s CHECK constraint was realigned to the brief's exact 6-state machine
+(`pending`/`available`/`processing`/`paid`/`failed`/`cancelled`; no rows existed yet, so this
+was a clean swap, not a data migration).
+
+The flow is a deliberate two step **create → settle**:
+- `createStaffPayout` computes what a specialist is still owed — every `staff_earning`
+  credit to their `staff_payable` account, ever, minus whatever's already locked into a
+  non-cancelled/non-failed payout — and inserts a `staff_payouts` row plus the covering
+  `staff_payout_items` rows. **This step never touches the ledger.**
+- `settleStaffPayout`'s transition to `'paid'` is the *only* step that posts to the ledger: a
+  debit against `staff_payable` (what's owed shrinks) balanced by a credit to
+  `external_cash` (money actually left the business), type `staff_payout`. Moving to
+  `'failed'`/`'cancelled'` instead deletes the payout's `staff_payout_items`, releasing the
+  earnings back into the pool for a future run, since no ledger effect ever happened for
+  them.
+
+Idempotent via `withIdempotency` (keyed on the payout id for the `'paid'` transition) *and* a
+`.eq("status", "pending")` guard on the update — a retried or double-clicked confirmation can
+never post the ledger entry twice.
+
+### Deposit collection (brief §13-15 — closes Project 06's other documented gap)
+
+`calculateDeposit` (Project 06) only ever computed what *should* be collected; nothing
+recorded one actually being received. `collectDepositPayment`
+(`src/lib/financial.functions.ts`) closes that: posts `cash_received`/`service_revenue` for
+the deposit amount only, deliberately with **zero commission/staff-earning split** — that
+split is computed once, on the booking's full final service revenue, when the remainder (or
+the deposit itself, for a 100%-deposit business) is later settled. Sets
+`bookings.payment_status = 'deposit_paid'` (an existing enum value that had no prior writer).
+
+`markCashPayment` was made deposit-aware: `expected` is now `total_price − alreadyPaid`
+(previously always `total_price`), and commission/staff-earning are computed on
+`alreadyPaid + finalServiceRevenue` — the booking's full final service revenue, not just this
+payment's portion — so a deposit-then-remainder booking nets identically to one paid in a
+single shot. Guarded by `ALREADY_FULLY_PAID` if called again once nothing remains owed.
+Backward compatible by construction: with no prior payment, `alreadyPaid = 0` and behavior is
+byte-for-byte unchanged from pre-Project-12.
+
+### No-show financial policy (brief §87-88)
+
+`businesses.no_show_charge_policy` (`no_charge`/`retain_deposit`/`full_charge`, business/
+country-level, never hardcoded) is new — no such configuration existed anywhere before this
+project. `markNoShow` (`src/lib/booking-ops.functions.ts`, toggle in
+`src/routes/_authenticated/admin/settings.tsx`) reads the policy and records which one
+applied as an audit trail entry (`booking_status_history` + `admin_audit_log`) — **it does
+not execute a charge.** `retain_deposit` needs no ledger action (a deposit already collected
+simply isn't refunded, already this codebase's default). `full_charge` is recorded as intent
+only: **no payment gateway exists anywhere in this environment**, so there is no mechanism to
+actually collect money from a no-show customer — this stays an honest flag for staff to
+follow up manually, not a fabricated auto-charge.
+
+### Reconciliation (brief §61-62, §98)
+
+`runReconciliation` (`src/lib/reconciliation.functions.ts`, Super Admin only, UI at
+`src/routes/_authenticated/admin/platform/reconciliation.tsx`) is genuinely new tooling — no
+reconciliation of any kind existed before this project. Since `account_balances` is always
+computed live from `ledger_transactions` (never a cached column that can drift), this isn't
+cache-vs-source reconciliation; it's a real integrity check between two
+**independently-written** record sets that should always agree: `payments.received_amount`
+sums vs. `ledger_transactions`' `external_cash`-debit sums, grouped by business. Since
+`markCashPayment`/`collectDepositPayment` always write both in the same transaction, a
+mismatch here means a genuine bug, not expected drift. First real run against production data
+found one benign discrepancy (a leftover immutable ledger row from Project 06's own original
+test data, whose matching `payments` row had since been cleaned up) — left visible rather
+than silently corrected, which is the tool's entire purpose.
+
+### Affiliate foundation (brief §42-45)
+
+Confirmed genuinely zero before this project (`src/lib/affiliate.functions.ts`). New tables:
+`affiliates` (auto-approved on apply per brief §42, `user_id` `UNIQUE`, `referral_code`
+`UNIQUE`, `status` `active`/`suspended`/`banned`, Super Admin controls suspend/ban);
+`affiliate_commission_rules` (affiliate/country/plan/campaign-scoped — precedence
+affiliate-specific → country-specific → global default, deliberately mirroring the existing
+`commission_rules` hierarchy rather than inventing a new shape); `affiliate_referrals`
+(`pending` → `converted` attribution tracking, 30-day default attribution window). New
+`ledger_account_type` enum value `affiliate_payable`. `activateAffiliateReferral` posts a
+balanced group: debit `dallty_revenue` / credit `affiliate_payable`.
+
+**Important boundary, stated plainly:** the actual "becomes a paying subscriber" trigger does
+**not** exist — there is no subscription system (Project 13 territory). Today,
+`activateAffiliateReferral` is Super-Admin-callable manually as a documented stand-in; a
+future Project 13 subscription-payment-success handler should call this same function
+instead of duplicating the commission logic.
+
+### Business referrals (brief §46-47)
+
+`business_referrals` (`src/lib/business-referral.functions.ts`) is distinct from the
+affiliate model above: one business refers another business a single time, for a one-off
+reward — not an ongoing per-person commission relationship. The reward is credited to the
+*referring* business's `promotional_credit` ledger account — **explicitly not the same
+account as `business_balance`'s real cash revenue.** Same Project-13-dependent boundary as
+affiliates: `activateBusinessReferral` is Super-Admin-callable manually today, documented as
+the hook a real subscription-payment-success handler should call once one exists.
+
+### Country-specific payout config (brief §45, §65)
+
+`country_payout_requirements` (country_id, field_key, field_label, required, sort_order) is a
+new reference table, shared by both staff and affiliate payouts rather than a near-duplicate
+per feature. Seeded for Algeria (`ccp_account`, `ccp_key`, `rib`, `account_holder_name`) as
+the brief's own worked example, proving out the general shape. Deliberately schema/
+reference-data only in this project — no UI or server function collects an actual filled-in
+payout profile yet, since neither staff nor affiliate payouts currently record structured
+per-country account details; matches the codebase's recurring "don't build ahead of a
+consumer" discipline.
+
+### Security note
+
+A live RLS test matrix (9/9 checks) verified cross-tenant SELECT denial and non-super-admin
+write denial on every new Project 12 table: `affiliates`, `affiliate_commission_rules`,
+`business_referrals`, `staff_payout_items`, `country_payout_requirements`.
+
+One real bug was found and fixed in the process: `has_permission()`'s SQL implementation
+does not distinguish `scope='self'` from `'business'`/`'global'` — all three pass identically.
+This was dead code until Project 12's `getStaffOwedAmount`/`listStaffOwedAmounts` became its
+first consumer of a `'self'`-scoped permission, which would have let a specialist view every
+other specialist's owed payout amount business-wide (violating brief §37 — "own earnings/
+payout only, never total business revenue"). Fixed in application code
+(`src/lib/payout.functions.ts`, using the pre-existing but previously-unused
+`myBusinessRole()` helper from `src/lib/permissions.server.ts`) rather than the shared SQL
+function, since these are the only two `'self'`-scope consumers today.
+
+**ARCHITECTURAL NOTE for future maintainers:** any future consumer of a `'self'`-scoped
+permission must replicate this same application-layer scope check (or `has_permission()`
+itself should eventually be hardened to accept a target-user parameter) — it is **not**
+automatically safe to trust `hasPermission()`'s boolean return alone when a role might hold a
+`'self'`-scoped grant.
 
 ## The three-layer model (brief §2-3)
 

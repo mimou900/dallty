@@ -1170,6 +1170,96 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
 
 ---
 
+### Project 12 — Central Financial Ledger: Payouts, Deposits, Reconciliation, Affiliates
+- **Objective:** Close the real gaps Project 06 and Project 11 both explicitly carried
+  forward as "not yet built" — staff-payout *recording* (accrual into `staff_payable` was
+  real, actually marking a payout paid was not), deposit-collection recording, and a
+  no-show financial policy — plus build the payments-vs-ledger reconciliation tool and the
+  affiliate/business-referral foundations that were confirmed genuinely zero anywhere in the
+  codebase, and country-specific payout field requirements. Per branch name and commit
+  history, run as 8 phases on `project-12-financial-ledger`.
+- **Implementation status:** DONE (8 phases: staff payout recording; deposit collection +
+  no-show charge policy; payments-vs-ledger reconciliation; affiliate foundation; business
+  referrals; country-specific payout field requirements; financial-dashboard date-preset and
+  branch/specialist/service/payment-status filters; a live security fix plus an RLS test
+  matrix pass), all built and phase-tested on this branch. **Not yet merged to `main` as of
+  this writing — code-complete on `project-12-financial-ledger` only, not deployed.**
+- **Important architectural decisions:** `staff_payout_items` links a payout to the exact
+  `staff_earning` ledger rows it covers via a `UNIQUE` constraint on
+  `ledger_transaction_id` — enforced at the database level, not just in application logic,
+  so the same earning can never be double-paid across concurrent/retried payout runs.
+  `createStaffPayout`/`settleStaffPayout` is a deliberate two-step create→settle flow: create
+  locks the covered earnings without touching the ledger at all; only the transition to
+  `'paid'` posts (debit `staff_payable`/credit `external_cash`), so a cancelled or failed
+  payout never leaves a phantom ledger entry to reverse. Deposit collection
+  (`collectDepositPayment`) posts only `cash_received`/`service_revenue` for the deposit
+  amount with no commission/staff-earning split; `markCashPayment` was made deposit-aware
+  (`expected = total_price − alreadyPaid`, commission/staff-earning computed once on the
+  booking's full final service revenue) so a deposit-then-remainder booking nets identically
+  to one paid in a single shot — verified backward compatible (no prior payment ⇒
+  byte-for-byte unchanged behavior). No-show charging (`markNoShow`) records policy intent
+  only — `'full_charge'` is never an actual charge, since no payment gateway exists in this
+  environment to collect one, matching every prior project's same honest framing.
+  Reconciliation (`runReconciliation`, Super Admin only) checks `payments.received_amount`
+  sums against `ledger_transactions` `external_cash`-debit sums per business — a genuine
+  integrity check between two independently-written record sets, not cache-vs-source (the
+  ledger has no cached balance to drift). Affiliate commission rules mirror the existing
+  `commission_rules` precedence shape (affiliate-specific → country-specific → global
+  default) rather than inventing a new hierarchy. Both affiliate and business-referral
+  "activation" are explicitly Project-13-dependent — "becomes a paying subscriber" has no
+  real trigger since no subscription system exists — so `activateAffiliateReferral`/
+  `activateBusinessReferral` are Super-Admin-callable manual stand-ins today, each documented
+  as the hook a future subscription-payment-success handler should call instead of
+  duplicating the logic. A live security pass (Phase 8) found that `has_permission()`'s SQL
+  implementation does not distinguish `scope='self'` from `'business'`/`'global'` — dead code
+  until `getStaffOwedAmount`/`listStaffOwedAmounts` became its first consumer of a
+  `'self'`-scoped grant, which would have let a specialist view every other specialist's
+  owed payout amount business-wide. Fixed in application code
+  (`src/lib/payout.functions.ts`, using the pre-existing but previously-unused
+  `myBusinessRole()` helper) rather than the shared SQL function, since these are the only
+  two `'self'`-scope consumers today — flagged as an open architectural note for any future
+  `'self'`-scope consumer.
+- **Important database changes:** `staff_payouts.status` CHECK constraint realigned to the
+  brief's 6-state machine (`pending`/`available`/`processing`/`paid`/`failed`/`cancelled`);
+  new `staff_payout_items` (`UNIQUE (ledger_transaction_id)`). `businesses.no_show_charge_policy`
+  (`no_charge`/`retain_deposit`/`full_charge`). New `affiliates` (`user_id` `UNIQUE`,
+  `referral_code` `UNIQUE`, auto-approved on apply), `affiliate_commission_rules`,
+  `affiliate_referrals` (`pending`→`converted` attribution tracking); new
+  `ledger_account_type` enum value `affiliate_payable`; `ledger_transactions`' SELECT RLS
+  policy extended additively (every existing clause preserved, one new OR'd clause) so an
+  affiliate can see their own accrual. New `business_referrals` (one-off reward, distinct
+  from the ongoing affiliate commission model, credited to `promotional_credit` — explicitly
+  not the same account as `business_balance`'s real cash revenue). New
+  `country_payout_requirements` reference table, seeded for Algeria
+  (`ccp_account`/`ccp_key`/`rib`/`account_holder_name`) as the proof-of-shape example —
+  deliberately schema/reference-data only, no collection UI built ahead of a consumer.
+- **Known gaps:** Same Project-13 boundary noted above for affiliate/business-referral
+  activation — no real "became a paying subscriber" trigger exists. `country_payout_requirements`
+  has no UI/server function collecting an actual filled-in payout profile yet (reference data
+  only). `has_permission()`'s own SQL implementation still doesn't distinguish `'self'` scope
+  from `'business'`/`'global'` — only worked around in the two current application-code
+  consumers, not fixed at the source; any future `'self'`-scoped permission consumer must
+  replicate the same `myBusinessRole()`-based check or risk the identical exposure.
+- **Deferred work:** A real charge mechanism for `no_show_charge_policy: 'full_charge'`
+  (blocked on a payment gateway that doesn't exist); a payout-profile collection UI/flow for
+  `country_payout_requirements`; hardening `has_permission()` itself to accept a
+  target-user parameter so `'self'` scope is safe by default rather than by convention;
+  Project 13's subscription-payment-success handler wiring into
+  `activateAffiliateReferral`/`activateBusinessReferral`.
+- **Documentation location:** `DALLTY_FINANCIAL_ARCHITECTURE.md` (Project 12 update
+  section, read first), `DALLTY_DATABASE_CHANGELOG.md`, this entry.
+- **Git commit:** `b8a2252` (Phase 1, staff payout recording), `669f8de` (Phase 2, deposits/
+  no-show policy), `a1ab6b9` (Phase 3, reconciliation), `42f3543` (Phase 4-5, affiliate
+  foundation + business referrals, one combined commit), `bef1cb2` (Phase 6, country payout
+  config), `b0450c7` (Phase 7, dashboard filters), `ac16f1e` (Phase 8, security fix + live
+  RLS test matrix, 9/9 pass) — 7 commits covering 8 phases, on `project-12-financial-ledger`.
+- **Production status:** **Not deployed.** `main` remains at `96cd71b` (Project 11's docs
+  commit) as of this writing — `project-12-financial-ledger` has not been merged. Everything
+  above is code-complete and phase-tested on the branch only; no production verification has
+  been performed for this project.
+
+---
+
 ## NEXT PROJECT
 
 **Recommendation: complete the Security Anti-Fraud Hardening initiative (Batches 2–6).**
