@@ -26,6 +26,27 @@ async function adminClient() {
 }
 
 /**
+ * Deliberately NOT owns_business() here: that RPC treats 'manager' as owner-equivalent
+ * (checked live against the real schema — its own definition ORs in
+ * `role.key IN ('owner','manager')`), which is correct for the "almost all daily operations"
+ * surfaces it gates elsewhere but wrong for subscription actions specifically — the brief is
+ * explicit that manager must be denied billing/subscription/ownership unless separately
+ * granted, and subscription.manage/subscription.view are in fact only ever seeded to 'owner'
+ * (business scope) and 'super_admin' (global scope), never 'manager'. Using owns_business()
+ * here would have silently defeated that restriction regardless of what has_permission()
+ * itself resolves to.
+ */
+async function isLiteralOwner(supabaseAdmin: AnySupabase, userId: string, businessId: string) {
+  const { data } = await supabaseAdmin
+    .from("businesses")
+    .select("id")
+    .eq("id", businessId)
+    .eq("owner_id", userId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+/**
  * Creates the initial 'trialing' subscription for a brand-new business, reading trial length
  * from the chosen plan's own configured `trial_duration_days` instead of a hardcoded number.
  * Called from business.functions.ts's registerBusiness — kept here (not duplicated there) so
@@ -127,7 +148,7 @@ export async function getBusinessEntitlements(supabaseAdmin: AnySupabase, busine
   };
 }
 
-/** Owner/manager-facing entitlements + current usage (for a settings/billing page banner). */
+/** Owner-facing entitlements + current usage (for a settings/billing page banner). */
 export const getMySubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
@@ -135,8 +156,8 @@ export const getMySubscription = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
     const { hasPermission } = await import("@/lib/permissions.server");
 
-    const [{ data: owns }, permitted] = await Promise.all([
-      supabaseAdmin.rpc("owns_business", { _user_id: context.userId, _salon_id: data.businessId }),
+    const [owns, permitted] = await Promise.all([
+      isLiteralOwner(supabaseAdmin, context.userId, data.businessId),
       hasPermission(context, data.businessId, "subscription.view"),
     ]);
     if (!owns && !permitted) throw new Error("NOT_AUTHORIZED");
@@ -191,8 +212,8 @@ export const changeSubscriptionPlan = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
     const { hasPermission } = await import("@/lib/permissions.server");
 
-    const [{ data: owns }, permitted] = await Promise.all([
-      supabaseAdmin.rpc("owns_business", { _user_id: context.userId, _salon_id: data.businessId }),
+    const [owns, permitted] = await Promise.all([
+      isLiteralOwner(supabaseAdmin, context.userId, data.businessId),
       hasPermission(context, data.businessId, "subscription.manage"),
     ]);
     if (!owns && !permitted) throw new Error("NOT_AUTHORIZED");
@@ -270,8 +291,8 @@ export const cancelSubscription = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
     const { hasPermission } = await import("@/lib/permissions.server");
 
-    const [{ data: owns }, permitted] = await Promise.all([
-      supabaseAdmin.rpc("owns_business", { _user_id: context.userId, _salon_id: data.businessId }),
+    const [owns, permitted] = await Promise.all([
+      isLiteralOwner(supabaseAdmin, context.userId, data.businessId),
       hasPermission(context, data.businessId, "subscription.manage"),
     ]);
     if (!owns && !permitted) throw new Error("NOT_AUTHORIZED");
@@ -318,8 +339,8 @@ export const reactivateSubscription = createServerFn({ method: "POST" })
     const supabaseAdmin = await adminClient();
     const { hasPermission } = await import("@/lib/permissions.server");
 
-    const [{ data: owns }, permitted] = await Promise.all([
-      supabaseAdmin.rpc("owns_business", { _user_id: context.userId, _salon_id: data.businessId }),
+    const [owns, permitted] = await Promise.all([
+      isLiteralOwner(supabaseAdmin, context.userId, data.businessId),
       hasPermission(context, data.businessId, "subscription.manage"),
     ]);
     if (!owns && !permitted) throw new Error("NOT_AUTHORIZED");
