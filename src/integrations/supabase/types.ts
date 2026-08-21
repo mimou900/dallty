@@ -3268,6 +3268,45 @@ export type Database = {
           },
         ]
       }
+      staff_payout_items: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          ledger_transaction_id: string
+          payout_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          ledger_transaction_id: string
+          payout_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          ledger_transaction_id?: string
+          payout_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_payout_items_ledger_transaction_id_fkey"
+            columns: ["ledger_transaction_id"]
+            isOneToOne: true
+            referencedRelation: "ledger_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_payout_items_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "staff_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_payout_rules: {
         Row: {
           active: boolean

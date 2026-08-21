@@ -11,7 +11,7 @@ import {
   startOfWeek,
   startOfYear,
 } from "date-fns";
-import { FileDown, FileSpreadsheet, FileText } from "lucide-react";
+import { FileDown, FileSpreadsheet, FileText, Loader2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
   Bar,
@@ -25,7 +25,8 @@ import {
   YAxis,
 } from "recharts";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -43,6 +44,7 @@ import {
   exportReportPdf,
   type ReportDocument,
 } from "@/lib/report-export";
+import { listStaffOwedAmounts, createStaffPayout, settleStaffPayout } from "@/lib/payout.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/reports")({
   head: () => ({
@@ -421,6 +423,8 @@ function ReportsPage() {
         </div>
       </div>
 
+      {!isStaffOnly && businessIds[0] && <StaffPayoutsSection businessId={businessIds[0]} />}
+
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="rounded-3xl glass p-5">
           <h2 className="text-base font-extrabold">Revenue by month</h2>
@@ -539,6 +543,91 @@ function Kpi({ label, value, highlight }: { label: string; value: string; highli
         {label}
       </p>
       <p className="mt-1 text-2xl font-extrabold">{value}</p>
+    </div>
+  );
+}
+
+/**
+ * Project 12 Phase 1: what each staff member is currently owed (computed from ledger events,
+ * never a mutable running total — brief §40), with a one-click "Mark paid" that creates and
+ * immediately settles a payout (the common case for a cash-based business paying a specialist
+ * in person). The multi-step pending/processing state machine still exists underneath
+ * (payout.functions.ts) for a future real payout-provider integration.
+ */
+function StaffPayoutsSection({ businessId }: { businessId: string }) {
+  const currency = useActiveCurrency();
+  const queryClient = useQueryClient();
+  const fetchOwed = useServerFn(listStaffOwedAmounts);
+  const createPayout = useServerFn(createStaffPayout);
+  const settlePayout = useServerFn(settleStaffPayout);
+  const [payingId, setPayingId] = useState<string | null>(null);
+
+  const owedQuery = useQuery({
+    queryKey: ["staff-owed", businessId],
+    queryFn: () => fetchOwed({ data: { businessId } }),
+  });
+
+  const payMutation = useMutation({
+    mutationFn: async (staffId: string) => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const created = await createPayout({
+        data: {
+          businessId,
+          staffId,
+          periodStart: "2015-01-01",
+          periodEnd: today,
+        },
+      });
+      await settlePayout({ data: { payoutId: created.payoutId, status: "paid" } });
+      return created;
+    },
+    onMutate: (staffId) => setPayingId(staffId),
+    onSuccess: (result) => {
+      toast.success(`Paid out ${money(result.amount, currency)}`);
+      queryClient.invalidateQueries({ queryKey: ["staff-owed", businessId] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not pay out"),
+    onSettled: () => setPayingId(null),
+  });
+
+  const rows = owedQuery.data ?? [];
+  if (!owedQuery.isLoading && rows.length === 0) return null;
+
+  return (
+    <div>
+      <h2 className="text-base font-extrabold">Staff payouts</h2>
+      <p className="text-xs text-muted-foreground">
+        What each specialist is currently owed, calculated from accrued earnings.
+      </p>
+      <div className="mt-3 space-y-2">
+        {owedQuery.isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          rows.map((r) => (
+            <div
+              key={r.staffId}
+              className="flex items-center justify-between gap-3 rounded-2xl bg-secondary/50 p-3"
+            >
+              <div className="flex items-center gap-2">
+                <Wallet className="size-4 text-muted-foreground" />
+                <span className="text-sm font-bold">{r.fullName}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold">{money(r.owed, currency)}</span>
+                <button
+                  type="button"
+                  disabled={payingId === r.staffId}
+                  onClick={() => payMutation.mutate(r.staffId)}
+                  className="press flex min-h-9 items-center gap-1.5 rounded-2xl bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  {payingId === r.staffId && <Loader2 className="size-3.5 animate-spin" />}
+                  Mark paid
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
