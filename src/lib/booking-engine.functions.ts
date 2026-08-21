@@ -668,20 +668,31 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
 
     if (old.customer_id !== context.userId) {
       const { hasPermission } = await import("@/lib/permissions.server");
-      const [permitted, { data: owns }, { data: staffRow }] = await Promise.all([
-        hasPermission(context, old.business_id, "booking.reschedule", old.branch_id),
+      // Project 13 fix: the old "any staff row at this business" fallback let ANY specialist
+      // reschedule any OTHER specialist's booking, contradicting this function's own doc
+      // comment ("specialist-self via has_permission()"). Resolving the booking's *own*
+      // assigned staff row (not "does the caller have a staff row at all") and passing its
+      // user_id as has_permission()'s self-scope target closes that gap — see
+      // booking-ops.functions.ts's assertBookingAction for the identical fix applied there.
+      const [{ data: assignedStaff }] = await Promise.all([
+        supabaseAdmin.from("staff").select("user_id").eq("id", old.staff_id).maybeSingle(),
+      ]);
+      const assignedStaffUserId = assignedStaff?.user_id ?? null;
+      const [permitted, { data: owns }] = await Promise.all([
+        hasPermission(
+          context,
+          old.business_id,
+          "booking.reschedule",
+          old.branch_id,
+          assignedStaffUserId,
+        ),
         supabaseAdmin.rpc("owns_business", {
           _user_id: context.userId,
           _salon_id: old.business_id,
         }),
-        supabaseAdmin
-          .from("staff")
-          .select("id")
-          .eq("user_id", context.userId)
-          .eq("business_id", old.business_id)
-          .maybeSingle(),
       ]);
-      if (!permitted && !owns && !staffRow) {
+      const isAssignedStaff = assignedStaffUserId === context.userId;
+      if (!permitted && !owns && !isAssignedStaff) {
         const { logSecurityEvent } = await import("@/lib/security-event.server");
         await logSecurityEvent(supabaseAdmin, {
           actorId: context.userId,

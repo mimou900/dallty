@@ -18,18 +18,27 @@ type AuthedContext = { supabase: AnySupabase; userId: string; claims: { session_
  * awareness, not just "owner or manager, or not".
  */
 
-/** True if the caller holds `permissionKey` for this business (optionally scoped to a branch). */
+/**
+ * True if the caller holds `permissionKey` for this business (optionally scoped to a branch).
+ * `targetUserId` is required for a 'self'-scoped grant to pass (Project 13 fix — has_permission()
+ * no longer treats 'self' the same as 'business'/'global'): pass the user_id of whoever the
+ * action's target actually is (e.g. a booking's assigned staff member's own user_id) when
+ * checking a permission a role might hold only at 'self' scope. Omitting it correctly denies
+ * self-scoped grants rather than silently passing them.
+ */
 export async function hasPermission(
   context: AuthedContext,
   businessId: string,
   permissionKey: string,
   branchId?: string | null,
+  targetUserId?: string | null,
 ): Promise<boolean> {
   const { data, error } = await context.supabase.rpc("has_permission", {
     _user_id: context.userId,
     _business_id: businessId,
     _permission_key: permissionKey,
     _branch_id: branchId ?? undefined,
+    _target_user_id: targetUserId ?? undefined,
   });
   if (error) return false;
   return Boolean(data);
@@ -61,8 +70,9 @@ export async function assertHasPermission(
   businessId: string,
   permissionKey: string,
   branchId?: string | null,
+  targetUserId?: string | null,
 ) {
-  const ok = await hasPermission(context, businessId, permissionKey, branchId);
+  const ok = await hasPermission(context, businessId, permissionKey, branchId, targetUserId);
   if (!ok) {
     const { logSecurityEvent } = await import("@/lib/security-event.server");
     const { adminClient } = await import("@/lib/platform.server");

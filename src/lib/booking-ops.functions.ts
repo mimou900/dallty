@@ -22,25 +22,55 @@ type AnySupabase = SupabaseClient<Database>;
  * business has real membership rows, unchanged access for businesses that don't yet.
  */
 
+/**
+ * Project 13 security fix: this used to fall back to "does the caller have ANY staff row at
+ * this business" whenever has_permission()/owns_business() said no -- meant as legacy
+ * compatibility for businesses without real business_memberships rows configured yet, but
+ * since it checked staff existence, not identity, it actually let ANY specialist confirm/
+ * no-show/cancel/view-history on ANY OTHER specialist's booking too, contradicting this
+ * function's own original doc comment ("specialist-self via has_permission()"). Compounded by
+ * self-scope itself being a no-op (fixed separately in has_permission()).
+ *
+ * `assignedStaffId` (the specific booking's staff_id, when known) narrows the fallback to
+ * "is the caller precisely the assigned staff for THIS booking" and is also passed to
+ * has_permission() as the self-scope target, so a specialist's real self-scoped grant
+ * (booking.confirm/view) now correctly resolves without needing the fallback at all in a
+ * fully-configured business. `allowAssignedStaffFallback` must be explicitly opted into per
+ * call site: true only for actions the specialist role is actually meant to hold on their own
+ * booking (confirm, view); left false for no_show/cancel, which specialist never held even
+ * with a working self-scope grant (confirmed via the live role_permissions seed) -- so those
+ * two stay owner/manager/receptionist/confirmation_member territory regardless of staff
+ * assignment, closing the over-grant rather than just re-scoping it.
+ */
 async function assertBookingAction(
   supabaseAdmin: AnySupabase,
   context: { userId: string },
   businessId: string,
   branchId: string | null,
   permissionKey: string,
+  options: { assignedStaffId?: string | null; allowAssignedStaffFallback?: boolean } = {},
 ) {
   const { hasPermission } = await import("@/lib/permissions.server");
-  const [permitted, { data: owns }, { data: staffRow }] = await Promise.all([
-    hasPermission(context as never, businessId, permissionKey, branchId),
-    supabaseAdmin.rpc("owns_business", { _user_id: context.userId, _salon_id: businessId }),
-    supabaseAdmin
+
+  let assignedStaffUserId: string | null = null;
+  if (options.assignedStaffId) {
+    const { data: assignedStaff } = await supabaseAdmin
       .from("staff")
-      .select("id")
-      .eq("user_id", context.userId)
-      .eq("business_id", businessId)
-      .maybeSingle(),
+      .select("user_id")
+      .eq("id", options.assignedStaffId)
+      .maybeSingle();
+    assignedStaffUserId = assignedStaff?.user_id ?? null;
+  }
+
+  const [permitted, { data: owns }] = await Promise.all([
+    hasPermission(context as never, businessId, permissionKey, branchId, assignedStaffUserId),
+    supabaseAdmin.rpc("owns_business", { _user_id: context.userId, _salon_id: businessId }),
   ]);
-  if (!permitted && !owns && !staffRow) {
+
+  const isAssignedStaff =
+    options.allowAssignedStaffFallback === true && assignedStaffUserId === context.userId;
+
+  if (!permitted && !owns && !isAssignedStaff) {
     const { logSecurityEvent } = await import("@/lib/security-event.server");
     await logSecurityEvent(supabaseAdmin, {
       actorId: context.userId,
@@ -87,7 +117,7 @@ export const recordConfirmationCall = createServerFn({ method: "POST" })
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from("bookings")
-      .select("id, business_id, branch_id, confirmation_status")
+      .select("id, business_id, branch_id, staff_id, confirmation_status")
       .eq("id", data.bookingId)
       .maybeSingle();
     if (bookingErr) throw new Error(sanitizeDbError(bookingErr));
@@ -100,6 +130,7 @@ export const recordConfirmationCall = createServerFn({ method: "POST" })
       booking.business_id,
       booking.branch_id,
       "booking.confirm",
+      { assignedStaffId: booking.staff_id, allowAssignedStaffFallback: true },
     );
 
     const summaryByOutcome: Record<string, "pending" | "confirmed" | "unreachable" | "declined"> = {
@@ -144,7 +175,7 @@ export const listConfirmationCalls = createServerFn({ method: "POST" })
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from("bookings")
-      .select("business_id, branch_id")
+      .select("business_id, branch_id, staff_id")
       .eq("id", data.bookingId)
       .maybeSingle();
     if (bookingErr) throw new Error(sanitizeDbError(bookingErr));
@@ -156,6 +187,7 @@ export const listConfirmationCalls = createServerFn({ method: "POST" })
       booking.business_id,
       booking.branch_id,
       "booking.confirm",
+      { assignedStaffId: booking.staff_id, allowAssignedStaffFallback: true },
     );
 
     const { data: rows, error } = await supabaseAdmin
@@ -335,7 +367,7 @@ export const listBookingHistory = createServerFn({ method: "POST" })
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from("bookings")
-      .select("business_id, branch_id, customer_id")
+      .select("business_id, branch_id, customer_id, staff_id")
       .eq("id", data.bookingId)
       .maybeSingle();
     if (bookingErr) throw new Error(sanitizeDbError(bookingErr));
@@ -348,6 +380,7 @@ export const listBookingHistory = createServerFn({ method: "POST" })
         booking.business_id,
         booking.branch_id,
         "booking.view",
+        { assignedStaffId: booking.staff_id, allowAssignedStaffFallback: true },
       );
     }
 
