@@ -259,23 +259,26 @@ export const getStaffOwedAmount = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { hasPermission } = await import("@/lib/permissions.server");
+    const { myBusinessRole } = await import("@/lib/permissions.server");
 
-    const [{ data: owns }, { data: staffRow }, permitted] = await Promise.all([
-      supabaseAdmin.rpc("owns_business", {
-        _user_id: context.userId,
-        _salon_id: data.businessId,
-      }),
+    const [{ data: staffRow }, role] = await Promise.all([
       supabaseAdmin
         .from("staff")
         .select("id, user_id")
         .eq("id", data.staffId)
         .eq("business_id", data.businessId)
         .maybeSingle(),
-      hasPermission(context, data.businessId, "finance.view_staff_payouts"),
+      myBusinessRole(context, data.businessId),
     ]);
     const isSelf = staffRow?.user_id === context.userId;
-    if (!owns && !permitted && !isSelf) throw new Error("NOT_AUTHORIZED");
+    // has_permission() doesn't distinguish scope (a 'self' grant reads the same as
+    // 'business'/'global'), so scope is checked here in application code instead: a
+    // business/global-scoped grant (or the owner column) allows any staffId, but a
+    // 'self'-scoped grant (e.g. a specialist's own finance.view_staff_payouts) may only
+    // ever satisfy a lookup of the caller's own staff row — never someone else's.
+    const grant = role?.permissions.find((p) => p.key === "finance.view_staff_payouts");
+    const businessWideAllowed = role?.isOwnerColumn || (grant && grant.scope !== "self");
+    if (!businessWideAllowed && !(isSelf && grant)) throw new Error("NOT_AUTHORIZED");
 
     const { data: earnings, error: earningsErr } = await supabaseAdmin
       .from("ledger_transactions")
@@ -304,16 +307,16 @@ export const listStaffOwedAmounts = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { hasPermission } = await import("@/lib/permissions.server");
+    const { myBusinessRole } = await import("@/lib/permissions.server");
 
-    const [{ data: owns }, permitted] = await Promise.all([
-      supabaseAdmin.rpc("owns_business", {
-        _user_id: context.userId,
-        _salon_id: data.businessId,
-      }),
-      hasPermission(context, data.businessId, "finance.view_staff_payouts"),
-    ]);
-    if (!owns && !permitted) throw new Error("NOT_AUTHORIZED");
+    // Bulk, business-wide list — there is no single "self" this could ever mean, so
+    // (unlike getStaffOwedAmount) a 'self'-scoped grant may never satisfy this check, only
+    // a real business/global-scoped grant or the owner column. See getStaffOwedAmount's
+    // comment for why has_permission()'s boolean result can't be trusted for this alone.
+    const role = await myBusinessRole(context, data.businessId);
+    const grant = role?.permissions.find((p) => p.key === "finance.view_staff_payouts");
+    const businessWideAllowed = role?.isOwnerColumn || (grant && grant.scope !== "self");
+    if (!businessWideAllowed) throw new Error("NOT_AUTHORIZED");
 
     const { data: staffRows, error: staffErr } = await supabaseAdmin
       .from("staff")
