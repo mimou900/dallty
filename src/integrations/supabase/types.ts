@@ -39,6 +39,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      _sectest_ids: {
+        Row: {
+          aff_a: string | null
+          aff_b: string | null
+          biz_a: string | null
+          biz_b: string | null
+          ref_a: string | null
+        }
+        Insert: {
+          aff_a?: string | null
+          aff_b?: string | null
+          biz_a?: string | null
+          biz_b?: string | null
+          ref_a?: string | null
+        }
+        Update: {
+          aff_a?: string | null
+          aff_b?: string | null
+          biz_a?: string | null
+          biz_b?: string | null
+          ref_a?: string | null
+        }
+        Relationships: []
+      }
+      _sectest_payout: {
+        Row: {
+          ledger_id: string | null
+          payout_id: string | null
+          staff_id: string | null
+        }
+        Insert: {
+          ledger_id?: string | null
+          payout_id?: string | null
+          staff_id?: string | null
+        }
+        Update: {
+          ledger_id?: string | null
+          payout_id?: string | null
+          staff_id?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: string
@@ -1259,6 +1301,7 @@ export type Database = {
           instant_booking: boolean
           is_active: boolean
           is_listed: boolean
+          is_test: boolean
           is_verified: boolean
           languages: string[]
           latitude: number | null
@@ -1360,6 +1403,7 @@ export type Database = {
           instant_booking?: boolean
           is_active?: boolean
           is_listed?: boolean
+          is_test?: boolean
           is_verified?: boolean
           languages?: string[]
           latitude?: number | null
@@ -1461,6 +1505,7 @@ export type Database = {
           instant_booking?: boolean
           is_active?: boolean
           is_listed?: boolean
+          is_test?: boolean
           is_verified?: boolean
           languages?: string[]
           latitude?: number | null
@@ -2646,6 +2691,7 @@ export type Database = {
           gender: string | null
           hair_type: string | null
           id: string
+          is_test: boolean
           locale: string
           notify_email: boolean
           notify_in_app: boolean
@@ -2670,6 +2716,7 @@ export type Database = {
           gender?: string | null
           hair_type?: string | null
           id: string
+          is_test?: boolean
           locale?: string
           notify_email?: boolean
           notify_in_app?: boolean
@@ -2694,6 +2741,7 @@ export type Database = {
           gender?: string | null
           hair_type?: string | null
           id?: string
+          is_test?: boolean
           locale?: string
           notify_email?: boolean
           notify_in_app?: boolean

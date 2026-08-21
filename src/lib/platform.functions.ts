@@ -210,11 +210,11 @@ export const platformOverview = createServerFn({ method: "POST" })
     await assertSuperAdmin(context);
     const supabaseAdmin = await adminClient();
 
-    const [salons, services, staff, bookings, reviews, users] = await Promise.all([
+    const [salonsRaw, services, staff, bookingsRaw, reviewsRaw, users, profiles] = await Promise.all([
       supabaseAdmin
         .from("businesses")
         .select(
-          "id, name, city, country, status, plan, is_listed, is_active, rating, review_count, created_at",
+          "id, name, city, country, status, plan, is_listed, is_active, rating, review_count, created_at, is_test",
         ),
       supabaseAdmin.from("services").select("id, business_id, is_active, price, discount_price"),
       supabaseAdmin.from("staff").select("id, business_id, is_active"),
@@ -225,7 +225,25 @@ export const platformOverview = createServerFn({ method: "POST" })
         .limit(5000),
       supabaseAdmin.from("reviews").select("id, business_id, rating, is_hidden"),
       supabaseAdmin.from("user_roles").select("user_id, role"),
+      supabaseAdmin.from("profiles").select("id, is_test"),
     ]);
+
+    // Test businesses/accounts (created for manual RBAC/role testing) must never inflate
+    // real platform KPIs -- filtered out here rather than at the query layer so Super Admin
+    // tooling elsewhere (the full business directory, reconciliation) still shows them.
+    const testBusinessIds = new Set(
+      (salonsRaw.data ?? []).filter((s) => s.is_test).map((s) => s.id),
+    );
+    const testUserIds = new Set(
+      (profiles.data ?? []).filter((p) => p.is_test).map((p) => p.id),
+    );
+    const salons = { data: (salonsRaw.data ?? []).filter((s) => !s.is_test) };
+    const bookings = {
+      data: (bookingsRaw.data ?? []).filter((b) => !testBusinessIds.has(b.business_id)),
+    };
+    const reviews = {
+      data: (reviewsRaw.data ?? []).filter((r) => !testBusinessIds.has(r.business_id)),
+    };
 
     const rows = (salons.data ?? []).map((s) => {
       const shopBookings = (bookings.data ?? []).filter((b) => b.business_id === s.id);
@@ -250,7 +268,11 @@ export const platformOverview = createServerFn({ method: "POST" })
       };
     });
 
-    const roleCounts = (users.data ?? []).reduce<Record<string, number>>((acc, r) => {
+    const realUsers = (users.data ?? []).filter((u) => !testUserIds.has(u.user_id));
+    const realServices = (services.data ?? []).filter((v) => !testBusinessIds.has(v.business_id));
+    const realStaff = (staff.data ?? []).filter((v) => !testBusinessIds.has(v.business_id));
+
+    const roleCounts = realUsers.reduce<Record<string, number>>((acc, r) => {
       acc[r.role as string] = (acc[r.role as string] ?? 0) + 1;
       return acc;
     }, {});
@@ -260,13 +282,13 @@ export const platformOverview = createServerFn({ method: "POST" })
         shops: rows.length,
         listedShops: rows.filter((r) => r.isListed && r.status === "approved").length,
         pendingShops: rows.filter((r) => r.status === "pending").length,
-        services: (services.data ?? []).length,
-        staff: (staff.data ?? []).length,
+        services: realServices.length,
+        staff: realStaff.length,
         bookings: (bookings.data ?? []).length,
         customers: new Set((bookings.data ?? []).map((b) => b.customer_id)).size,
         revenue: rows.reduce((sum, r) => sum + r.revenue, 0),
         reviews: (reviews.data ?? []).filter((r) => !r.is_hidden).length,
-        accounts: new Set((users.data ?? []).map((u) => u.user_id)).size,
+        accounts: new Set(realUsers.map((u) => u.user_id)).size,
       },
       roleCounts,
       shops: rows.sort((a, b) => b.revenue - a.revenue),
