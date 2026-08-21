@@ -59,7 +59,7 @@ const SITE_URL = `https://${ROOT_DOMAIN}`;
 const SUBJECTS: Record<SupabaseAuthHookPayload["email_data"]["email_action_type"], string> = {
   signup: "Confirm your email",
   invite: "Your booking is confirmed — create your account",
-  magiclink: "Your login link",
+  magiclink: "Your sign-in code",
   recovery: "Reset your password",
   email_change: "Confirm your new email",
   reauthentication: "Your verification code",
@@ -97,7 +97,7 @@ function renderEmail(
         confirmationUrl,
       });
     case "magiclink":
-      return React.createElement(MagicLinkEmail, { siteName: SITE_NAME, confirmationUrl });
+      return React.createElement(MagicLinkEmail, { siteName: SITE_NAME, token: email_data.token });
     case "recovery":
       return React.createElement(RecoveryEmail, { siteName: SITE_NAME, confirmationUrl });
     case "email_change":
