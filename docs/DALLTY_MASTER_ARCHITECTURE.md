@@ -57,7 +57,7 @@ redesigned by future work.
 
 ## 2. Current production architecture
 
-**Live today at `https://www.dallty.com`** (verified 2026-08-19, post Project 09 deployment).
+**Live today at `https://www.dallty.com`** (verified 2026-08-21, post Project 11 deployment).
 
 ```
 Browser
@@ -81,11 +81,12 @@ Supabase (Postgres + Auth + Storage + Realtime) — RLS is the actual, final enf
   └─► Google Maps / Routes API (browser Maps JS + server-side travel-time calls)
 ```
 
-Current production commit: `3739477` (merge of `booking-engine-branches-foundation` into
-`main`, Project 09). Verified live at deploy time: homepage, `/auth`, `/search`, a business
-detail page, and real Supabase REST calls (200 responses) all confirmed working against this
-exact commit. See §19 for the full deployment architecture and §20 for Lovable-independence
-verification.
+Current production commit: `4f6d2d8` (merge of `project-11-business-operations` into
+`main`, Project 11). Verified live at deploy time: homepage (real `countries`/`businesses`
+REST calls returning 200, zero console errors) and `/admin/confirmations` (correctly
+redirects an unauthenticated visitor to `/auth?next=...` rather than crashing) confirmed
+against this exact commit. See §19 for the full deployment architecture and §20 for
+Lovable-independence verification.
 
 **No CI pipeline exists** (`.github/workflows` — confirmed absent). `npm run lint` and
 `npx tsc --noEmit` and `npm run build` are run manually before every push; there is no
@@ -683,7 +684,7 @@ main → GitHub (private repository, git@github.com:mimou900/dallty.git) → Ver
 **Production:** `https://www.dallty.com` — live and verified (§2). `dallty.com` 308-redirects
 to `www.dallty.com`. `dallty.vercel.app` also resolves to the same Production deployment.
 
-**Current deployment:** Vercel Production, commit `3739477`.
+**Current deployment:** Vercel Production, commit `4f6d2d8`.
 
 **DNS:** Cloudflare → Vercel. Cloudflare remains the authoritative DNS layer; nameservers
 were never moved to Vercel, and DNS was not touched during Project 09's deployment beyond
@@ -1157,9 +1158,15 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
   `DALLTY_BUSINESS_OPERATIONS_ARCHITECTURE.md` was created — the scope stayed small enough
   to document here without a new file, per the Master Architecture's own "don't build ahead
   of a consumer" discipline applied to documentation structure too.
-- **Git commit:** `63216ae` through `b011d6c` (7 phase commits on
-  `project-11-business-operations`), merged to `main` at `<PROJECT_11_MERGE_COMMIT>`.
-- **Production status:** **Live in production**, deployed and verified `<PROJECT_11_DEPLOY_DATE>`.
+- **Git commit:** `63216ae` through `ef33f3d` (8 commits — 7 implementation phases plus
+  documentation — on `project-11-business-operations`), merged to `main` at `4f6d2d8`
+  ("Merge branch 'project-11-business-operations': Project 11").
+- **Production status:** **Live in production**, deployed and verified 2026-08-21 —
+  `https://www.dallty.com` homepage confirmed rendering with real data (`countries`/
+  `businesses` REST calls returning 200, zero console errors), and `/admin/confirmations`
+  confirmed redirecting unauthenticated visitors to `/auth?next=...` rather than crashing,
+  against production commit `4f6d2d8`. Full authenticated click-through of the new dashboard
+  UI was not performed in this pass — see this entry's Known gaps.
 
 ---
 
