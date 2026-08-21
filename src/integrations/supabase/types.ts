@@ -1737,6 +1737,44 @@ export type Database = {
           },
         ]
       }
+      country_payout_requirements: {
+        Row: {
+          country_id: string
+          created_at: string
+          field_key: string
+          field_label: string
+          id: string
+          required: boolean
+          sort_order: number
+        }
+        Insert: {
+          country_id: string
+          created_at?: string
+          field_key: string
+          field_label: string
+          id?: string
+          required?: boolean
+          sort_order?: number
+        }
+        Update: {
+          country_id?: string
+          created_at?: string
+          field_key?: string
+          field_label?: string
+          id?: string
+          required?: boolean
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "country_payout_requirements_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       currencies: {
         Row: {
           active: boolean
