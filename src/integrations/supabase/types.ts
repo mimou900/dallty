@@ -1075,6 +1075,7 @@ export type Database = {
           min_notice_hours: number
           name: string
           name_ar: string | null
+          no_show_charge_policy: string
           notify_cancellation: boolean
           notify_daily_summary: boolean
           notify_email_address: string | null
@@ -1175,6 +1176,7 @@ export type Database = {
           min_notice_hours?: number
           name: string
           name_ar?: string | null
+          no_show_charge_policy?: string
           notify_cancellation?: boolean
           notify_daily_summary?: boolean
           notify_email_address?: string | null
@@ -1275,6 +1277,7 @@ export type Database = {
           min_notice_hours?: number
           name?: string
           name_ar?: string | null
+          no_show_charge_policy?: string
           notify_cancellation?: boolean
           notify_daily_summary?: boolean
           notify_email_address?: string | null

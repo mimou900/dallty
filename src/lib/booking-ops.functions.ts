@@ -178,6 +178,14 @@ const noShowInput = z.object({
  * exclusion constraint only covers held/pending/confirmed (see the booking-engine-core
  * migration), so flipping to no_show automatically frees the slot with zero extra logic,
  * same as cancellation.
+ *
+ * Project 12: reads the business's no_show_charge_policy (brief §87-88 — business/country
+ * policy determines financial treatment, never hardcoded) and records which one applied.
+ * 'retain_deposit' needs no ledger action — a deposit already collected simply isn't
+ * refunded, which is already this codebase's default (no automatic refund exists anywhere).
+ * 'full_charge' is recorded as intent only: no payment gateway exists in this environment to
+ * actually collect from a no-show customer, so this is honestly a flag for staff to follow
+ * up manually, not a fabricated auto-charge.
  */
 export const markNoShow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -187,7 +195,7 @@ export const markNoShow = createServerFn({ method: "POST" })
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from("bookings")
-      .select("id, business_id, branch_id, status")
+      .select("id, business_id, branch_id, status, payment_status")
       .eq("id", data.bookingId)
       .maybeSingle();
     if (bookingErr) throw new Error(sanitizeDbError(bookingErr));
@@ -202,12 +210,26 @@ export const markNoShow = createServerFn({ method: "POST" })
       "booking.no_show",
     );
 
+    const { data: business } = await supabaseAdmin
+      .from("businesses")
+      .select("no_show_charge_policy")
+      .eq("id", booking.business_id)
+      .single();
+    const policy = business?.no_show_charge_policy ?? "no_charge";
+
     const { error } = await supabaseAdmin
       .from("bookings")
       .update({ status: "no_show" } as never)
       .eq("id", data.bookingId)
       .eq("status", "confirmed");
     if (error) throw new Error(sanitizeDbError(error));
+
+    const policyNote =
+      policy === "no_charge"
+        ? null
+        : policy === "retain_deposit"
+          ? "Policy: deposit retained (no refund issued)."
+          : "Policy: full charge — no payment gateway exists, follow up manually to collect.";
 
     await Promise.all([
       supabaseAdmin.from("booking_status_history").insert({
@@ -216,7 +238,7 @@ export const markNoShow = createServerFn({ method: "POST" })
         from_status: booking.status,
         to_status: "no_show",
         actor_id: context.userId,
-        reason: data.reason ?? null,
+        reason: [data.reason, policyNote].filter(Boolean).join(" ") || null,
       } as never),
       supabaseAdmin.from("admin_audit_log").insert({
         actor_id: context.userId,
@@ -224,11 +246,15 @@ export const markNoShow = createServerFn({ method: "POST" })
         target_type: "booking",
         target_id: data.bookingId,
         business_id: booking.business_id,
-        details: { reason: data.reason ?? null } as never,
+        details: {
+          reason: data.reason ?? null,
+          noShowChargePolicy: policy,
+          paymentStatusAtNoShow: booking.payment_status,
+        } as never,
       } as never),
     ]);
 
-    return { ok: true };
+    return { ok: true, noShowChargePolicy: policy };
   });
 
 const cancelInput = z.object({

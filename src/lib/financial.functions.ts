@@ -139,7 +139,23 @@ export const markCashPayment = createServerFn({ method: "POST" })
           .single();
         const currency = business?.currency ?? "DZD";
 
-        const expected = Number(booking.total_price);
+        // Project 12: deposit-aware. A prior deposit (collectDepositPayment) already
+        // settled part of the total — "expected" here means what's still owed, not the
+        // booking's full price, so a remainder payment after a deposit is never
+        // misclassified as a shortfall.
+        const { data: priorPayments, error: priorErr } = await supabaseAdmin
+          .from("payments")
+          .select("received_amount")
+          .eq("booking_id", booking.id)
+          .in("status", ["paid", "partially_paid"]);
+        if (priorErr) throw new Error(sanitizeDbError(priorErr));
+        const alreadyPaid = (priorPayments ?? []).reduce(
+          (sum, p) => sum + Number(p.received_amount),
+          0,
+        );
+
+        const expected = Number(booking.total_price) - alreadyPaid;
+        if (expected <= 0.005) throw new Error("ALREADY_FULLY_PAID");
         const received = data.receivedAmount;
         const difference = Math.round((received - expected) * 100) / 100;
 
@@ -193,9 +209,15 @@ export const markCashPayment = createServerFn({ method: "POST" })
           .single();
         if (paymentErr) throw new Error(sanitizeDbError(paymentErr));
 
+        // Commission/staff-earning are computed on the booking's FULL final service revenue
+        // (any prior deposit's service_revenue + this payment's), posted once here — a prior
+        // deposit collection never posts its own commission/staff-earning line, so nothing
+        // is double-counted. For a booking with no deposit, alreadyPaid is 0 and this is
+        // identical to the pre-Project-12 behavior.
+        const totalServiceRevenue = alreadyPaid + finalServiceRevenue;
         const commissionRate = await resolveCommissionRate(supabaseAdmin, booking.business_id);
         const commissionAmount =
-          Math.round(finalServiceRevenue * (commissionRate / 100) * 100) / 100;
+          Math.round(totalServiceRevenue * (commissionRate / 100) * 100) / 100;
 
         const payoutRule = booking.staff_id
           ? await resolveStaffPayoutRule(
@@ -206,7 +228,7 @@ export const markCashPayment = createServerFn({ method: "POST" })
             )
           : null;
         const staffEarning =
-          Math.round(computeStaffEarning(payoutRule, finalServiceRevenue) * 100) / 100;
+          Math.round(computeStaffEarning(payoutRule, totalServiceRevenue) * 100) / 100;
 
         const postings = [
           {
@@ -602,6 +624,130 @@ export const calculateDeposit = createServerFn({ method: "POST" })
       remainingAmount: Math.round((data.totalAmount - depositAmount) * 100) / 100,
       currency: business.currency,
     };
+  });
+
+const collectDepositInput = z.object({
+  bookingId: z.string().uuid(),
+  receivedAmount: z.number().positive(),
+  idempotencyKey: z.string().max(100).optional(),
+});
+
+/**
+ * Project 12: records a deposit actually collected (calculateDeposit only ever computed
+ * what SHOULD be collected — nothing before this project ever recorded one being received).
+ * Posts only cash_received + service_revenue for the deposit amount, deliberately with NO
+ * commission/staff-earning split — that's computed once, on the booking's full final
+ * service revenue, when markCashPayment later settles the remainder (or the deposit itself,
+ * if a business takes a 100% deposit — see the ALREADY_FULLY_PAID guard there). Sets
+ * bookings.payment_status to 'deposit_paid' (an existing enum value with no prior writer).
+ */
+export const collectDepositPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => collectDepositInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { withIdempotency } = await import("@/lib/idempotency.server");
+    const { postLedgerGroup } = await import("@/lib/ledger.server");
+
+    const { data: booking, error: bookingErr } = await supabaseAdmin
+      .from("bookings")
+      .select("id, business_id, branch_id, total_price, payment_status, status")
+      .eq("id", data.bookingId)
+      .maybeSingle();
+    if (bookingErr) throw new Error(sanitizeDbError(bookingErr));
+    if (!booking) throw new Error("BOOKING_NOT_FOUND");
+    if (booking.status === "cancelled") throw new Error("BOOKING_NOT_MODIFIABLE");
+    if (["paid", "deposit_paid", "partially_paid"].includes(booking.payment_status ?? "")) {
+      throw new Error("DEPOSIT_ALREADY_COLLECTED");
+    }
+
+    await assertCanManageBookingFinance(
+      supabaseAdmin,
+      context.userId,
+      booking.business_id,
+      "payments.mark_paid",
+      booking.branch_id,
+    );
+
+    if (data.receivedAmount > Number(booking.total_price) + 0.005) {
+      throw new Error("DEPOSIT_EXCEEDS_TOTAL");
+    }
+
+    return withIdempotency(
+      supabaseAdmin,
+      {
+        actorId: context.userId,
+        operation: "collect_deposit_payment",
+        key: data.idempotencyKey ?? data.bookingId,
+      },
+      async () => {
+        const { data: business } = await supabaseAdmin
+          .from("businesses")
+          .select("currency")
+          .eq("id", booking.business_id)
+          .single();
+        const currency = business?.currency ?? "DZD";
+
+        const { data: payment, error: paymentErr } = await supabaseAdmin
+          .from("payments")
+          .insert({
+            booking_id: booking.id,
+            business_id: booking.business_id,
+            kind: "deposit",
+            method_code: "cash",
+            status: "partially_paid",
+            expected_amount: data.receivedAmount,
+            received_amount: data.receivedAmount,
+            currency,
+            created_by: context.userId,
+            completed_at: new Date().toISOString(),
+          } as never)
+          .select("id")
+          .single();
+        if (paymentErr) throw new Error(sanitizeDbError(paymentErr));
+
+        await postLedgerGroup(supabaseAdmin, {
+          postings: [
+            {
+              accountType: "external_cash",
+              accountRef: booking.business_id,
+              direction: "debit",
+              amount: data.receivedAmount,
+              type: "cash_received",
+            },
+            {
+              accountType: "business_balance",
+              accountRef: booking.business_id,
+              direction: "credit",
+              amount: data.receivedAmount,
+              type: "service_revenue",
+            },
+          ],
+          currency,
+          businessId: booking.business_id,
+          bookingId: booking.id,
+          paymentId: payment.id,
+          actorId: context.userId,
+          reason: "deposit",
+        });
+
+        await supabaseAdmin
+          .from("bookings")
+          .update({ payment_status: "deposit_paid" } as never)
+          .eq("id", booking.id);
+
+        await supabaseAdmin.from("admin_audit_log").insert({
+          actor_id: context.userId,
+          action: "payment.deposit_collected",
+          target_type: "payment",
+          target_id: payment.id,
+          business_id: booking.business_id,
+          details: { bookingId: booking.id, amount: data.receivedAmount } as never,
+        } as never);
+
+        return { ok: true, paymentId: payment.id as string };
+      },
+    );
   });
 
 const adjustBalanceInput = z.object({

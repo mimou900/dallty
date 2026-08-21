@@ -186,6 +186,7 @@ function SettingsPage() {
   const fetchSettings = useServerFn(getBusinessSettings);
   const persist = useServerFn(saveBusinessSettings);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- form fields span many distinct value types (string/number/boolean/array); a precise union isn't worth the churn for a single settings form
   const [form, setForm] = useState<Record<string, any>>({});
   const [hours, setHours] = useState<Hours[]>(DEFAULT_HOURS);
   const [logo, setLogo] = useState<File | null>(null);
@@ -210,6 +211,7 @@ function SettingsPage() {
     const stored = settings.data?.hours ?? [];
     setHours(
       DEFAULT_HOURS.map((base) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- stored hours come back loosely typed from getBusinessSettings
         const hit = stored.find((h: any) => h.weekday === base.weekday);
         return hit
           ? {
@@ -227,6 +229,7 @@ function SettingsPage() {
     );
   }, [settings.data]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors form's own loose value typing above
   const set = (key: string, value: any) => setForm((f) => ({ ...f, [key]: value }));
 
   const countries = useCountries();
@@ -236,6 +239,7 @@ function SettingsPage() {
   const save = useMutation({
     mutationFn: async () => {
       if (!businessId || !user) throw new Error("No business to update");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors form's own loose value typing above
       const patch: Record<string, any> = {
         name: form.name ?? "",
         name_ar: form.name_ar ?? null,
@@ -293,6 +297,7 @@ function SettingsPage() {
         accept_online: Boolean(form.accept_online),
         require_deposit: Boolean(form.require_deposit),
         deposit_percent: Number(form.deposit_percent ?? 0),
+        no_show_charge_policy: form.no_show_charge_policy ?? "no_charge",
         tax_rate: Number(form.tax_rate ?? 0),
         seo_title: form.seo_title ?? null,
         seo_description: form.seo_description ?? null,
@@ -1020,6 +1025,19 @@ function SettingsPage() {
                 value={form.tax_rate ?? 0}
                 onChange={(e) => set("tax_rate", Number(e.target.value))}
               />
+            </Field>
+          </div>
+          <div className="mt-4">
+            <Field label="No-show policy">
+              <select
+                className={inputClass}
+                value={form.no_show_charge_policy ?? "no_charge"}
+                onChange={(e) => set("no_show_charge_policy", e.target.value)}
+              >
+                <option value="no_charge">No charge</option>
+                <option value="retain_deposit">Retain deposit (no refund)</option>
+                <option value="full_charge">Charge full amount (manual follow-up)</option>
+              </select>
             </Field>
           </div>
         </Section>

@@ -14,7 +14,7 @@ import {
   useManagedBusinesses,
   useManagedServices,
 } from "@/lib/admin";
-import { addExtraService } from "@/lib/financial.functions";
+import { addExtraService, collectDepositPayment } from "@/lib/financial.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/payments")({
   head: () => ({
@@ -50,8 +50,11 @@ function PaymentsPage() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [addingServiceFor, setAddingServiceFor] = useState<string | null>(null);
   const [extraServiceId, setExtraServiceId] = useState("");
+  const [depositFor, setDepositFor] = useState<string | null>(null);
+  const [depositAmount, setDepositAmount] = useState("");
   const queryClient = useQueryClient();
   const addExtra = useServerFn(addExtraService);
+  const collectDeposit = useServerFn(collectDepositPayment);
 
   const { from, to } = useMemo(() => {
     const today = startOfDay(new Date());
@@ -100,6 +103,18 @@ function PaymentsPage() {
       setExtraServiceId("");
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not add service"),
+  });
+
+  const depositMutation = useMutation({
+    mutationFn: (vars: { bookingId: string; receivedAmount: number }) =>
+      collectDeposit({ data: vars }),
+    onSuccess: () => {
+      toast.success("Deposit recorded");
+      queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+      setDepositFor(null);
+      setDepositAmount("");
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not record deposit"),
   });
 
   const payingBooking = rows.find((b) => b.id === payingId);
@@ -169,6 +184,15 @@ function PaymentsPage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
+                      {b.payment_status === "unpaid" && (
+                        <button
+                          type="button"
+                          onClick={() => setDepositFor(depositFor === b.id ? null : b.id)}
+                          className="press flex min-h-10 items-center gap-1.5 rounded-2xl bg-secondary px-3 text-xs font-bold"
+                        >
+                          Deposit
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setAddingServiceFor(addingServiceFor === b.id ? null : b.id)}
@@ -193,6 +217,33 @@ function PaymentsPage() {
                       </button>
                     </div>
                   </div>
+
+                  {depositFor === b.id && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl bg-background/60 p-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        placeholder="Amount received"
+                        className="min-h-9 flex-1 rounded-xl bg-secondary/60 px-3 text-xs outline-none ring-ring focus:ring-2"
+                      />
+                      <button
+                        type="button"
+                        disabled={!depositAmount || depositMutation.isPending}
+                        onClick={() =>
+                          depositMutation.mutate({
+                            bookingId: b.id,
+                            receivedAmount: Number(depositAmount),
+                          })
+                        }
+                        className="press min-h-9 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-60"
+                      >
+                        Record
+                      </button>
+                    </div>
+                  )}
 
                   {addingServiceFor === b.id && (
                     <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl bg-background/60 p-2">
