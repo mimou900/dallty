@@ -246,6 +246,12 @@ export const PLATFORM_NAV: NavItem[] = [
     labelKey: "nav_auth_policies",
     icon: KeyRound,
   },
+  {
+    to: "/admin/platform/reconciliation",
+    namespace: "platform",
+    labelKey: "nav_reconciliation",
+    icon: Wallet,
+  },
 ];
 
 const QUICK_ACTIONS: { namespace: ShellNamespace; labelKey: string; to: string }[] = [

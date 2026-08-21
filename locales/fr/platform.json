@@ -10,5 +10,6 @@
   "nav_reserved_slugs": "URL réservées",
   "nav_email_domains": "Domaines email",
   "nav_countries": "Pays",
-  "nav_auth_policies": "Politiques d'authentification"
+  "nav_auth_policies": "Politiques d'authentification",
+  "nav_reconciliation": "Réconciliation"
 }

@@ -55,6 +55,7 @@ import { Route as AuthenticatedAdminPlatformDirectoryRouteImport } from './route
 import { Route as AuthenticatedAdminPlatformEmailDomainsRouteImport } from './routes/_authenticated/admin/platform/email-domains'
 import { Route as AuthenticatedAdminPlatformMarketplaceRouteImport } from './routes/_authenticated/admin/platform/marketplace'
 import { Route as AuthenticatedAdminPlatformOverviewRouteImport } from './routes/_authenticated/admin/platform/overview'
+import { Route as AuthenticatedAdminPlatformReconciliationRouteImport } from './routes/_authenticated/admin/platform/reconciliation'
 import { Route as AuthenticatedAdminPlatformReservedSlugsRouteImport } from './routes/_authenticated/admin/platform/reserved-slugs'
 import { Route as AuthenticatedAdminPlatformUsersRouteImport } from './routes/_authenticated/admin/platform/users'
 
@@ -310,6 +311,12 @@ const AuthenticatedAdminPlatformOverviewRoute =
     path: '/platform/overview',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminPlatformReconciliationRoute =
+  AuthenticatedAdminPlatformReconciliationRouteImport.update({
+    id: '/platform/reconciliation',
+    path: '/platform/reconciliation',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminPlatformReservedSlugsRoute =
   AuthenticatedAdminPlatformReservedSlugsRouteImport.update({
     id: '/platform/reserved-slugs',
@@ -369,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/admin/platform/email-domains': typeof AuthenticatedAdminPlatformEmailDomainsRoute
   '/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
+  '/admin/platform/reconciliation': typeof AuthenticatedAdminPlatformReconciliationRoute
   '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
   '/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
 }
@@ -417,6 +425,7 @@ export interface FileRoutesByTo {
   '/admin/platform/email-domains': typeof AuthenticatedAdminPlatformEmailDomainsRoute
   '/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
+  '/admin/platform/reconciliation': typeof AuthenticatedAdminPlatformReconciliationRoute
   '/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
   '/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
 }
@@ -468,6 +477,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/platform/email-domains': typeof AuthenticatedAdminPlatformEmailDomainsRoute
   '/_authenticated/admin/platform/marketplace': typeof AuthenticatedAdminPlatformMarketplaceRoute
   '/_authenticated/admin/platform/overview': typeof AuthenticatedAdminPlatformOverviewRoute
+  '/_authenticated/admin/platform/reconciliation': typeof AuthenticatedAdminPlatformReconciliationRoute
   '/_authenticated/admin/platform/reserved-slugs': typeof AuthenticatedAdminPlatformReservedSlugsRoute
   '/_authenticated/admin/platform/users': typeof AuthenticatedAdminPlatformUsersRoute
 }
@@ -519,6 +529,7 @@ export interface FileRouteTypes {
     | '/admin/platform/email-domains'
     | '/admin/platform/marketplace'
     | '/admin/platform/overview'
+    | '/admin/platform/reconciliation'
     | '/admin/platform/reserved-slugs'
     | '/admin/platform/users'
   fileRoutesByTo: FileRoutesByTo
@@ -567,6 +578,7 @@ export interface FileRouteTypes {
     | '/admin/platform/email-domains'
     | '/admin/platform/marketplace'
     | '/admin/platform/overview'
+    | '/admin/platform/reconciliation'
     | '/admin/platform/reserved-slugs'
     | '/admin/platform/users'
   id:
@@ -617,6 +629,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/platform/email-domains'
     | '/_authenticated/admin/platform/marketplace'
     | '/_authenticated/admin/platform/overview'
+    | '/_authenticated/admin/platform/reconciliation'
     | '/_authenticated/admin/platform/reserved-slugs'
     | '/_authenticated/admin/platform/users'
   fileRoutesById: FileRoutesById
@@ -962,6 +975,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPlatformOverviewRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/platform/reconciliation': {
+      id: '/_authenticated/admin/platform/reconciliation'
+      path: '/platform/reconciliation'
+      fullPath: '/admin/platform/reconciliation'
+      preLoaderRoute: typeof AuthenticatedAdminPlatformReconciliationRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/platform/reserved-slugs': {
       id: '/_authenticated/admin/platform/reserved-slugs'
       path: '/platform/reserved-slugs'
@@ -1003,6 +1023,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminPlatformEmailDomainsRoute: typeof AuthenticatedAdminPlatformEmailDomainsRoute
   AuthenticatedAdminPlatformMarketplaceRoute: typeof AuthenticatedAdminPlatformMarketplaceRoute
   AuthenticatedAdminPlatformOverviewRoute: typeof AuthenticatedAdminPlatformOverviewRoute
+  AuthenticatedAdminPlatformReconciliationRoute: typeof AuthenticatedAdminPlatformReconciliationRoute
   AuthenticatedAdminPlatformReservedSlugsRoute: typeof AuthenticatedAdminPlatformReservedSlugsRoute
   AuthenticatedAdminPlatformUsersRoute: typeof AuthenticatedAdminPlatformUsersRoute
 }
@@ -1041,6 +1062,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
       AuthenticatedAdminPlatformMarketplaceRoute,
     AuthenticatedAdminPlatformOverviewRoute:
       AuthenticatedAdminPlatformOverviewRoute,
+    AuthenticatedAdminPlatformReconciliationRoute:
+      AuthenticatedAdminPlatformReconciliationRoute,
     AuthenticatedAdminPlatformReservedSlugsRoute:
       AuthenticatedAdminPlatformReservedSlugsRoute,
     AuthenticatedAdminPlatformUsersRoute: AuthenticatedAdminPlatformUsersRoute,

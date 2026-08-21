@@ -10,5 +10,6 @@
   "nav_reserved_slugs": "Reserved URLs",
   "nav_email_domains": "Email domains",
   "nav_countries": "Countries",
-  "nav_auth_policies": "Auth policies"
+  "nav_auth_policies": "Auth policies",
+  "nav_reconciliation": "Reconciliation"
 }
