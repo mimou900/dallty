@@ -486,7 +486,11 @@ export const recordSubscriptionPayment = createServerFn({ method: "POST" })
           ],
           currency: data.currency,
           businessId: data.businessId,
-          paymentId: payment.id,
+          // NOT paymentId: postLedgerGroup's paymentId param has a foreign key to the
+          // `payments` table specifically (booking payments) -- confirmed live via a real
+          // insert attempt, which failed with a FK violation. subscription_payments is an
+          // unrelated table; traceability instead goes through `reason` below, matching how
+          // every other ledger consumer without a `payments` row already does it.
           actorId: context.userId,
           reason: `subscription_payment:${payment.id}`,
         });
