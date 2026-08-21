@@ -10,6 +10,8 @@ import {
   startOfMonth,
   startOfWeek,
   startOfYear,
+  subDays,
+  subMonths,
 } from "date-fns";
 import { FileDown, FileSpreadsheet, FileText, Loader2, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +35,7 @@ import {
   money,
   useActiveCurrency,
   useManagedBookings,
+  useManagedBranches,
   useManagedBusinesses,
   useManagedServices,
   useManagedStaff,
@@ -67,13 +70,15 @@ export const Route = createFileRoute("/_authenticated/admin/reports")({
   component: ReportsPage,
 });
 
-const PERIODS = ["today", "week", "month", "year", "custom"] as const;
+const PERIODS = ["today", "yesterday", "week", "month", "lastMonth", "year", "custom"] as const;
 type Period = (typeof PERIODS)[number];
 
 const PERIOD_LABELS: Record<Period, string> = {
   today: "Today",
+  yesterday: "Yesterday",
   week: "This week",
   month: "This month",
+  lastMonth: "Last month",
   year: "This year",
   custom: "Custom range",
 };
@@ -92,15 +97,30 @@ function ReportsPage() {
   );
   const [customTo, setCustomTo] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
+  const [branchId, setBranchId] = useState<string>("all");
+  const [staffId, setStaffId] = useState<string>("all");
+  const [serviceId, setServiceId] = useState<string>("all");
+  const [paymentStatus, setPaymentStatus] = useState<string>("all");
+
+  const branchesQuery = useManagedBranches(businessIds);
+
   const range = useMemo(() => {
     const now = new Date();
     if (period === "today") return { from: startOfDay(now), to: endOfDay(now) };
+    if (period === "yesterday") {
+      const y = subDays(now, 1);
+      return { from: startOfDay(y), to: endOfDay(y) };
+    }
     if (period === "week")
       return {
         from: startOfWeek(now, { weekStartsOn: 1 }),
         to: endOfWeek(now, { weekStartsOn: 1 }),
       };
     if (period === "month") return { from: startOfMonth(now), to: endOfMonth(now) };
+    if (period === "lastMonth") {
+      const m = subMonths(now, 1);
+      return { from: startOfMonth(m), to: endOfMonth(m) };
+    }
     if (period === "year") return { from: startOfYear(now), to: endOfYear(now) };
     return { from: startOfDay(new Date(customFrom)), to: endOfDay(new Date(customTo)) };
   }, [period, customFrom, customTo]);
@@ -166,7 +186,12 @@ function ReportsPage() {
 
     const inRange = all.filter((b) => {
       const t = +new Date(b.starts_at);
-      return t >= +range.from && t <= +range.to;
+      if (t < +range.from || t > +range.to) return false;
+      if (branchId !== "all" && b.branch_id !== branchId) return false;
+      if (staffId !== "all" && b.staff_id !== staffId) return false;
+      if (serviceId !== "all" && b.service_id !== serviceId) return false;
+      if (paymentStatus !== "all" && b.payment_status !== paymentStatus) return false;
+      return true;
     });
     const active = inRange.filter((b) => b.status !== "cancelled");
 
@@ -247,7 +272,16 @@ function ReportsPage() {
       busyHours,
       revenueByMonth,
     };
-  }, [bookingsQuery.data, servicesQuery.data, staffQuery.data, range]);
+  }, [
+    bookingsQuery.data,
+    servicesQuery.data,
+    staffQuery.data,
+    range,
+    branchId,
+    staffId,
+    serviceId,
+    paymentStatus,
+  ]);
 
   const rangeLabel = `${format(range.from, "d MMM yyyy")} – ${format(range.to, "d MMM yyyy")}`;
 
@@ -382,6 +416,59 @@ function ReportsPage() {
             </label>
           </div>
         )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {(branchesQuery.data?.length ?? 0) > 0 && (
+            <select
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              className="min-h-9 rounded-xl bg-card/70 px-3 text-xs font-semibold"
+            >
+              <option value="all">All branches</option>
+              {branchesQuery.data?.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <select
+            value={staffId}
+            onChange={(e) => setStaffId(e.target.value)}
+            className="min-h-9 rounded-xl bg-card/70 px-3 text-xs font-semibold"
+          >
+            <option value="all">All specialists</option>
+            {(staffQuery.data ?? []).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.full_name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={serviceId}
+            onChange={(e) => setServiceId(e.target.value)}
+            className="min-h-9 rounded-xl bg-card/70 px-3 text-xs font-semibold"
+          >
+            <option value="all">All services</option>
+            {(servicesQuery.data ?? []).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={paymentStatus}
+            onChange={(e) => setPaymentStatus(e.target.value)}
+            className="min-h-9 rounded-xl bg-card/70 px-3 text-xs font-semibold"
+          >
+            <option value="all">All payment statuses</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="deposit_paid">Deposit paid</option>
+            <option value="partially_paid">Partially paid</option>
+            <option value="paid">Paid</option>
+            <option value="refunded">Refunded</option>
+          </select>
+        </div>
 
         <p className="mt-3 text-xs font-semibold text-muted-foreground">{rangeLabel}</p>
       </div>
