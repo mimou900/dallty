@@ -1,0 +1,25 @@
+-- Project 14 Phase 1, emergency finding: `businesses` was missing the base table-level
+-- GRANT SELECT for `anon`/`authenticated` entirely -- confirmed live via has_table_privilege()
+-- AND via a real request to the production REST API with the real anon publishable key
+-- (401 "permission denied for table businesses"), then confirmed as a genuine outlier (not a
+-- test-methodology artifact) by checking `services`/`categories` via the identical path, both
+-- of which correctly return 200 with real data.
+--
+-- No migration in this repo's history ever explicitly REVOKEd this (grepped every migration
+-- for GRANT/REVOKE on public.businesses specifically -- zero matches) -- the grant appears to
+-- have simply never been (re-)issued, most plausibly during the historical salons->businesses
+-- rename (this table's predecessor, `salons`, shows up repeatedly in REVOKE statements across
+-- early migrations; if the rename recreated rather than renamed the table at some point,
+-- grants would not have carried over automatically the way a plain ALTER TABLE RENAME would
+-- have preserved them). Root cause aside, the practical effect is severe and current: RLS
+-- policies on `businesses` (including the one just consolidated in the previous migration)
+-- were being evaluated against a role that could never reach them in the first place, for
+-- both anonymous visitors AND logged-in users -- the entire public marketplace (homepage,
+-- search, business detail pages) has been inaccessible via the real anon/authenticated REST
+-- path. This went unnoticed throughout this session because all admin/business-owner
+-- dashboard functionality uses the service-role client (confirmed unaffected:
+-- has_table_privilege('service_role','businesses','SELECT') = true), and prior live
+-- verification in this session used the Management API's own privileged connection or
+-- SET LOCAL ROLE simulations for specific authenticated users, never a genuine anon-key REST
+-- call against this specific table until this audit.
+GRANT SELECT ON public.businesses TO anon, authenticated;
