@@ -17,20 +17,19 @@ export function BottomNav({ tabs }: { tabs: string[] }) {
   const { roles } = useAuth();
   const home = landingForRoles(roles);
   // Business accounts jump to their dashboard instead of the customer bookings list.
-  const items = baseItems.map((item) =>
-    item.to === "/bookings" ? { ...item, to: home } : item,
-  );
+  const items = baseItems.map((item) => (item.to === "/bookings" ? { ...item, to: home } : item));
 
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-(--z-nav) px-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden"
     >
-      <ul className="mx-auto flex max-w-md items-center justify-between rounded-3xl glass px-2 py-2">
+      <ul className="glass glass-highlight mx-auto flex max-w-md items-center justify-between rounded-3xl px-2 py-2">
         {tabs.map((tab, i) => {
           const item = items[i] ?? items[0];
           const Icon = item.icon;
-          const active = i === 0 ? pathname === "/" : pathname.startsWith(item.to) && item.to !== "/";
+          const active =
+            i === 0 ? pathname === "/" : pathname.startsWith(item.to) && item.to !== "/";
           return (
             <li key={tab} className="flex-1">
               <Link

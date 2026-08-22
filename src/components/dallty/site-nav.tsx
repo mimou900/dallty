@@ -245,8 +245,8 @@ export function SiteHeader({ lang: langProp }: NavProps) {
   }
 
   return (
-    <header className="sticky top-0 z-40 px-3 pt-3 sm:px-4 sm:pt-4">
-      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-3xl glass px-3 py-2.5 sm:gap-4 sm:px-5 sm:py-3">
+    <header className="sticky top-0 z-(--z-nav) px-3 pt-3 sm:px-4 sm:pt-4">
+      <div className="glass glass-highlight mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-3xl px-3 py-2.5 sm:gap-4 sm:px-5 sm:py-3">
         <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <LogoMark className="size-9 shrink-0 sm:size-10" />
           <div className="min-w-0">

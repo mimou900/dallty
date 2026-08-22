@@ -5,13 +5,25 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Dallty design system — premium iOS-inspired glassmorphism.
- * Brand palette (project-ui-ux-transformation): deep green = structure/identity
- * (mapped to --primary, since that token is already used throughout for nav,
- * icons, rings, borders); lime = primary action energy (--lime, used only for
- * CTA buttons per the brand board's own button mockup, not blanket-applied to
- * every --primary usage — avoids a "fluorescent everywhere" result); pink =
- * accent/highlight/selected moments (--pink); cream = base background.
+ * Dallty design system — visual-system-refinement pass.
+ *
+ * Brand palette: deep green = structure/identity (--primary); lime = primary
+ * action energy (--lime, CTA buttons only — never blanket-applied to every
+ * --primary usage, avoids a "fluorescent everywhere" result); pink = accent/
+ * highlight/selected moments (--pink).
+ *
+ * Background: previously an off-brand warm cream (oklch hue ~93°, unrelated
+ * to the brand green's hue ~161°) — the exact mismatch this pass fixes.
+ * Both --background (light) and .dark --background now sit on the SAME hue
+ * family as --primary, just at very different lightness/chroma — a soft
+ * mint-tinted neutral in light mode, a deep emerald in dark mode — so the
+ * canvas and the brand color read as one coherent family instead of two
+ * unrelated colors sharing a page.
+ *
+ * Glass is deliberately selective, not applied to every surface (see
+ * GLASS LEVELS below) — and never to buttons, which stay flat/solid so they
+ * remain the most recognizable, tappable thing on any screen.
+ *
  * All colors are oklch tokens. Never hardcode colors in components.
  */
 
@@ -59,21 +71,55 @@
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
 
+  /*
+   * Purpose-named brand-green states (brief §7: "primary, dark, light,
+   * subtle, surface, hover, active, disabled" — all one visual family, never
+   * a second unrelated green). Additive to --primary, which keeps its
+   * existing meaning everywhere it's already used.
+   */
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-light: var(--primary-light);
+  --color-primary-surface: var(--primary-surface);
+
+  /*
+   * Semantic status system — a naming layer decoupled from the brand-accent
+   * tokens it reuses, so components reference "what this means" (success,
+   * warning...) rather than "which brand color happens to render it" (lime,
+   * amber...). International conventions kept intentionally recognizable
+   * (brief §8): success reads green, warning reads amber/orange, error reads
+   * red, info reads blue — each tuned to Dallty's palette rather than a raw
+   * primary hex.
+   */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--amber);
+  --color-warning-foreground: var(--amber-foreground);
+  --color-error: var(--destructive);
+  --color-error-foreground: var(--destructive-foreground);
+  --color-info: var(--sky);
+  --color-info-foreground: var(--sky-foreground);
+  --color-neutral: var(--muted);
+  --color-neutral-foreground: var(--muted-foreground);
+
   --shadow-soft: 0 2px 8px -2px oklch(0.25 0.05 161 / 0.08);
   --shadow-glass: 0 18px 50px -18px oklch(0.25 0.06 161 / 0.28);
   --shadow-float: 0 26px 70px -22px oklch(0.25 0.06 161 / 0.38);
+  --shadow-elevation-low: var(--shadow-soft);
+  --shadow-elevation-medium: var(--shadow-glass);
+  --shadow-elevation-high: var(--shadow-float);
 
   --animate-fade-up: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-float-soft: float-soft 7s ease-in-out infinite;
   --animate-shimmer: shimmer 2.2s linear infinite;
 
-  /* Motion tokens (brief §79) — pick from these, never arbitrary durations. */
+  /* Motion tokens — pick from these, never arbitrary durations. */
   --motion-fast: 150ms;
   --motion-normal: 250ms;
   --motion-emphasis: 400ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* z-index tokens (brief §25) — centralized stacking order. */
+  /* z-index tokens — centralized stacking order. */
   --z-sticky: 30;
   --z-nav: 40;
   --z-overlay: 50;
@@ -114,21 +160,33 @@
 :root {
   --radius: 1.25rem;
 
-  /* Cream — premium base background (brand #F7F5EE). */
-  --background: oklch(0.9698 0.0095 93.57);
-  --foreground: oklch(0.22 0.02 160);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.02 160);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.02 160);
+  /*
+   * Canvas — soft mint-tinted neutral, ON the brand green's hue (161°)
+   * rather than the previous off-hue warm cream (was hue ~93°). Chroma is
+   * kept very low (0.014) so it still reads as "a light neutral," not "a
+   * green page" — just one that visibly belongs to the same family as the
+   * brand color, per brief §5-6.
+   */
+  --background: oklch(0.975 0.014 161);
+  --foreground: oklch(0.2 0.024 160);
+  --card: oklch(0.995 0.004 120);
+  --card-foreground: oklch(0.2 0.024 160);
+  --popover: oklch(0.995 0.004 120);
+  --popover-foreground: oklch(0.2 0.024 160);
 
   /* Deep Green — structure/identity (brand #0F4F35). */
   --primary: oklch(0.3811 0.0771 161.08);
   --primary-foreground: oklch(0.99 0.005 150);
-  --secondary: oklch(0.955 0.012 160);
+  /* Hover/active/light/surface — same hue as --primary, only lightness/chroma
+     move, so every state still reads as "the same green." */
+  --primary-hover: oklch(0.335 0.075 161);
+  --primary-active: oklch(0.29 0.07 161);
+  --primary-light: oklch(0.56 0.1 161);
+  --primary-surface: oklch(0.94 0.028 161);
+  --secondary: oklch(0.955 0.014 161);
   --secondary-foreground: oklch(0.3 0.03 161);
-  --muted: oklch(0.96 0.008 155);
-  --muted-foreground: oklch(0.52 0.018 160);
+  --muted: oklch(0.955 0.012 161);
+  --muted-foreground: oklch(0.5 0.02 161);
   --accent: oklch(0.94 0.03 161);
   --accent-foreground: oklch(0.32 0.05 161);
 
@@ -141,35 +199,67 @@
   --pink: oklch(0.7613 0.1982 338.76);
   --pink-foreground: oklch(0.99 0.005 150);
   --rose: oklch(0.74 0.115 15);
+  --rose-foreground: oklch(0.3 0.08 15);
   --sky: oklch(0.72 0.09 235);
+  --sky-foreground: oklch(0.28 0.06 235);
   --amber: oklch(0.78 0.14 62);
+  --amber-foreground: oklch(0.28 0.05 62);
+  /* Success — distinct from --primary (structural brand green): a clearer,
+     more saturated green whose only job is "this succeeded," legible next
+     to primary-colored brand chrome rather than blending into it. */
+  --success: oklch(0.62 0.16 152);
+  --success-foreground: oklch(0.99 0.01 152);
 
   --destructive: oklch(0.6 0.2 25);
   --destructive-foreground: oklch(0.99 0.005 150);
-  --border: oklch(0.9 0.012 160);
-  --input: oklch(0.92 0.01 160);
+  --border: oklch(0.9 0.016 161);
+  --input: oklch(0.92 0.014 161);
   --ring: oklch(0.3811 0.0771 161.08);
 
-  --glass: oklch(1 0 0 / 0.62);
+  /* Glass — Level 2 (see the .glass utilities below). Base surface is a warm
+     near-white rather than green-tinted, so translucent cards stay legible
+     over the green-tinted canvas instead of muddying into it. */
+  --glass: oklch(0.995 0.004 120 / 0.62);
   --glass-border: oklch(1 0 0 / 0.7);
+
+  /* Hero/premium-surface gradient (brief §5, §38) — a barely-there tonal
+     shift within the SAME background hue, never a second color. Used via
+     the bg-gradient-canvas utility below, opt-in, not on the page body. */
+  --gradient-canvas: linear-gradient(
+    180deg,
+    oklch(0.986 0.012 161) 0%,
+    oklch(0.975 0.014 161) 45%,
+    oklch(0.965 0.018 157) 100%
+  );
 }
 
 .dark {
-  --background: oklch(0.19 0.018 165);
-  --foreground: oklch(0.96 0.008 150);
-  --card: oklch(0.24 0.02 165);
-  --card-foreground: oklch(0.96 0.008 150);
-  --popover: oklch(0.24 0.02 165);
-  --popover-foreground: oklch(0.96 0.008 150);
+  /*
+   * Deep emerald canvas — deliberately not "black with a green hint."
+   * Lightness/chroma chosen so the brand hue (161-165°) reads clearly at a
+   * glance without tipping into neon (kept well under 0.05 chroma at this
+   * lightness) or muddy gray (kept the hue consistent with --primary rather
+   * than drifting toward neutral, brief §16).
+   */
+  --background: oklch(0.16 0.026 164);
+  --foreground: oklch(0.96 0.01 150);
+  --card: oklch(0.215 0.028 164);
+  --card-foreground: oklch(0.96 0.01 150);
+  --popover: oklch(0.215 0.028 164);
+  --popover-foreground: oklch(0.96 0.01 150);
 
   --primary: oklch(0.72 0.13 161);
-  --primary-foreground: oklch(0.18 0.02 165);
-  --secondary: oklch(0.28 0.022 165);
-  --secondary-foreground: oklch(0.95 0.008 150);
-  --muted: oklch(0.28 0.02 165);
-  --muted-foreground: oklch(0.74 0.015 155);
-  --accent: oklch(0.32 0.04 165);
-  --accent-foreground: oklch(0.95 0.008 150);
+  --primary-foreground: oklch(0.16 0.024 165);
+  --primary-hover: oklch(0.77 0.13 161);
+  --primary-active: oklch(0.67 0.13 161);
+  --primary-light: oklch(0.8 0.14 161);
+  --primary-surface: oklch(0.28 0.045 161);
+  --secondary: oklch(0.27 0.03 164);
+  --secondary-foreground: oklch(0.95 0.01 150);
+  --muted: oklch(0.27 0.028 164);
+  --muted-foreground: oklch(0.72 0.02 155);
+  --accent: oklch(0.31 0.05 164);
+  --accent-foreground: oklch(0.95 0.01 150);
 
   --gold: oklch(0.82 0.12 85);
   --gold-foreground: oklch(0.22 0.04 85);
@@ -178,8 +268,13 @@
   --pink: oklch(0.78 0.19 339);
   --pink-foreground: oklch(0.16 0.02 165);
   --rose: oklch(0.76 0.12 15);
+  --rose-foreground: oklch(0.2 0.05 15);
   --sky: oklch(0.75 0.09 235);
+  --sky-foreground: oklch(0.18 0.04 235);
   --amber: oklch(0.8 0.14 62);
+  --amber-foreground: oklch(0.22 0.04 62);
+  --success: oklch(0.72 0.16 152);
+  --success-foreground: oklch(0.16 0.02 165);
 
   --destructive: oklch(0.68 0.19 25);
   --destructive-foreground: oklch(0.16 0.02 165);
@@ -187,21 +282,65 @@
   --input: oklch(1 0 0 / 0.16);
   --ring: oklch(0.72 0.13 161);
 
-  --glass: oklch(0.28 0.025 165 / 0.55);
+  /* Glass surfaces become more visible against a dark canvas through subtle
+     transparency and a soft light-toned border, not a glow (brief §16). */
+  --glass: oklch(0.26 0.03 164 / 0.55);
   --glass-border: oklch(1 0 0 / 0.12);
+
+  --gradient-canvas: linear-gradient(
+    180deg,
+    oklch(0.13 0.022 163) 0%,
+    oklch(0.16 0.026 164) 50%,
+    oklch(0.185 0.03 166) 100%
+  );
 }
 
+/*
+ * GLASS LEVELS (brief §54) — use the lowest level that still communicates
+ * hierarchy. Most content should be Level 0 (a plain bg-card surface, no
+ * utility needed). Buttons never receive any glass level — they stay flat
+ * and solid so they remain the most recognizable tappable thing on screen.
+ *
+ *   Level 0 — solid   : bg-card / bg-background (no utility)
+ *   Level 1 — subtle   : .glass-soft — search bars, filters, secondary
+ *                         surfaces, contextual controls
+ *   Level 2 — elevated : .glass — cards, bottom/top navigation, modals,
+ *                         sheets, floating panels, featured surfaces
+ */
 @utility glass {
   background: var(--glass);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(150%);
   box-shadow: var(--shadow-glass);
 }
 
 @utility glass-soft {
-  background: color-mix(in oklab, var(--glass) 70%, transparent);
+  background: color-mix(in oklab, var(--glass) 65%, transparent);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(130%);
+}
+
+/* Faint top-edge light reflection for a glass surface (brief §39) — a single
+   soft inset highlight, never a "shiny plastic" gradient sweep. Opt-in,
+   layer onto .glass where a surface should feel like it's catching light
+   (hero cards, the bottom nav), not everywhere. */
+@utility glass-highlight {
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 0.35),
+    var(--shadow-glass);
+}
+
+.dark .glass-highlight {
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 0.08),
+    var(--shadow-glass);
+}
+
+/* Opt-in hero/premium-surface gradient — never applied to the page body
+   itself, only to specific large surfaces that want the "subtle depth"
+   brief §5 asks for. */
+@utility bg-gradient-canvas {
+  background-image: var(--gradient-canvas);
 }
 
 @utility text-gradient-gold {
@@ -229,8 +368,8 @@
 }
 
 /*
- * Typography hierarchy (brief §3): Display/H1/H2/H3 use Clash Display for
- * major headline moments; body/label/caption/button stay on Inter. Sizes are
+ * Typography hierarchy: Display/H1/H2/H3 use Clash Display for major
+ * headline moments; body/label/caption/button stay on Inter. Sizes are
  * mobile-first — each class already includes its own sm:/lg: step-up so call
  * sites don't need to repeat responsive text- utilities.
  */
@@ -281,6 +420,27 @@
   @variant sm {
     font-size: 1.375rem;
   }
+}
+
+/* Large number — dashboard/stat figures and prices. Tabular figures so a
+   column of stats or a price never jitters as digits change (brief §18). */
+@utility text-stat {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-size: 2rem;
+  @variant sm {
+    font-size: 2.5rem;
+  }
+}
+
+@utility text-body-lg {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.5;
+  font-size: 1.125rem;
 }
 
 @utility text-body {
@@ -341,5 +501,20 @@
 
   ::selection {
     background: color-mix(in oklab, var(--primary) 25%, transparent);
+  }
+
+  /* Global reduced-motion support (brief §24) — one rule instead of opting
+     every animation/transition in individually; covers the skeleton pulse,
+     `press`'s hover transform, and the fade-up/float-soft/shimmer keyframes
+     alike. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

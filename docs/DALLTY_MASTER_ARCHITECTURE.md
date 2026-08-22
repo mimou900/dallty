@@ -1555,6 +1555,67 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
 - **Git commit(s):** See `project-ui-ux-transformation` branch history.
 - **Production status:** See git/deployment section of the final report delivered in chat.
 
+#### Update — visual system refinement (branch `visual-system-refinement`, 2026-08-22)
+
+A follow-up pass, scoped app-wide (not Super Admin — see the separate
+`DALLTY_UI_UX_MASTER_SCHEMA.md` for that track), fixing the one thing this project's own
+"Remaining gaps" didn't catch: the base canvas color was off the brand's own hue family. Used
+the `frontend-design` and `ui-ux-pro-max` skills (the latter's `--design-system`/`--domain
+color` searches, run against green/nature/premium reference palettes) to ground the fix in
+palette science rather than eyeballed values.
+
+- **Root finding:** `--background` (light mode) was oklch hue ~93° (a warm cream) while
+  `--primary` (the brand green) is hue ~161° — two unrelated hues sharing a page. Every other
+  brand/accent token was already correctly on- or near-family; the canvas was the one outlier.
+- **Fixed:** `--background` now sits on the same hue family as `--primary` in both modes — a
+  soft, low-chroma mint-tinted neutral in light mode (oklch(0.975 0.014 161)), a deliberate
+  deep emerald in dark mode (oklch(0.16 0.026 164), not a desaturated near-black). `--card`
+  changed to a warm near-white (not green-tinted) so translucent glass surfaces stay legible
+  against the now-tinted canvas instead of muddying into it.
+- **Added, all additive to the existing token set:** purpose-named brand-green states
+  (`--primary-hover/-active/-light/-surface`, brief's "hover/active/disabled/subtle/surface"
+  ask) so state changes stay visibly the same green family; a semantic status layer
+  (`--color-success/-warning/-error/-info/-neutral`) decoupled from the brand-accent tokens it
+  reuses; `--gradient-canvas` (light and dark), an opt-in, barely-there tonal gradient for
+  hero/premium surfaces via a new `bg-gradient-canvas` utility — never applied to the page body
+  itself; a `glass-highlight` utility (a single soft inset top-edge highlight, not a shine
+  sweep) applied to the bottom nav and top nav, the two surfaces the brief calls out as primary
+  glass elements; `--shadow-elevation-low/-medium/-high` aliases over the existing shadow scale.
+- **Glass levels formalized** (Level 0 solid / Level 1 `.glass-soft` / Level 2 `.glass`),
+  documented directly in `styles.css` — no new component needed, this was already the shape of
+  the existing utilities, just given explicit names and a "use the lowest level that still
+  works" rule. Audited `bottom-nav.tsx` and `site-nav.tsx` (already using `.glass` correctly,
+  buttons already flat) — brought their hardcoded `z-40`/`z-50` in line with the `--z-nav`
+  token and added the highlight; no other component changes were needed since color/typography/
+  glass are all consumed via the shared tokens already.
+- **Button tactile feedback:** `src/components/ui/button.tsx` gained `active:scale-[0.98]` —
+  additive, respects the existing global `prefers-reduced-motion` rule, disabled buttons
+  excluded.
+- **Dark mode:** confirmed only wired up in the admin/business dashboard shell today —
+  the customer-facing app has no dark-mode toggle. Per explicit product decision, this pass
+  builds a genuinely coherent dark-mode token system (verified by toggling the `.dark` class
+  directly, independent of any login) but does not add a customer-facing toggle — that would be
+  a new feature, not a token refinement.
+- **Verified:** `tsc --noEmit` clean, `eslint` clean on every changed file, `npm run build`
+  clean. Visually verified in the local dev server at 390/430 (mobile), 768 (tablet), 1280/1440
+  (desktop) on the homepage, auth, search, and a real business/booking page, in both light mode
+  and (via direct `.dark` class toggle) dark mode — zero console errors, zero horizontal
+  scroll, no broken cards. Booking flow (service selection step) confirmed still functional and
+  visually consistent after the change.
+- **Remaining gaps (explicitly not claimed complete):** this was a token-level, systemically-
+  cascading change verified on a representative set of screens, not an exhaustive hand-audit of
+  every page in the app (dozens of business-dashboard/admin/specialist pages were not
+  individually opened this pass) — the brief's own "every major screen" QA list is broader than
+  what one pass can exhaustively re-screenshot. RTL/Arabic was not re-verified this pass
+  specifically (no token change should affect it, but it wasn't re-screenshotted). The
+  pre-existing, previously-flagged excessive-request issue on the booking tab (documented
+  above, still unresolved) was observed again during regression testing — confirmed unrelated
+  to this pass (this pass is CSS-only; direct URL navigation to the same tab worked cleanly).
+- **Documentation location:** This entry, plus the token rationale as comments directly in
+  `src/styles.css` (same policy as the original project — the code stays the source of truth).
+- **Git:** branch `visual-system-refinement`, off `main`. Not yet merged/deployed — see the
+  final report delivered in chat for exact commit/deployment status.
+
 ---
 
 ## NEXT PROJECT
