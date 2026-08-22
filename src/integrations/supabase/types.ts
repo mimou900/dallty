@@ -1403,7 +1403,7 @@ export type Database = {
           owner_story: string | null
           owner_story_ar: string | null
           phone: string | null
-          plan: Database["public"]["Enums"]["subscription_plan"]
+          plan: string
           postal_code: string | null
           price_range: string
           rating: number
@@ -1505,7 +1505,7 @@ export type Database = {
           owner_story?: string | null
           owner_story_ar?: string | null
           phone?: string | null
-          plan?: Database["public"]["Enums"]["subscription_plan"]
+          plan?: string
           postal_code?: string | null
           price_range?: string
           rating?: number
@@ -1607,7 +1607,7 @@ export type Database = {
           owner_story?: string | null
           owner_story_ar?: string | null
           phone?: string | null
-          plan?: Database["public"]["Enums"]["subscription_plan"]
+          plan?: string
           postal_code?: string | null
           price_range?: string
           rating?: number
@@ -1652,6 +1652,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "businesses_plan_fkey"
+            columns: ["plan"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["plan_key"]
           },
           {
             foreignKeyName: "businesses_region_id_fkey"
