@@ -7,7 +7,7 @@ import { KeyRound, Loader2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { requestOtp, verifyOtp } from "@/lib/otp.functions";
-import { clearOtpPending, isOtpPending } from "@/lib/session";
+import { clearOtpPending } from "@/lib/session";
 import { resolveLandingForSession } from "@/lib/post-login";
 import { LogoMark } from "@/components/dallty/logo";
 import { OtpCodeInput } from "@/components/dallty/otp-code-input";
@@ -33,10 +33,13 @@ export const Route = createFileRoute("/verify-otp")({
     if (!data.session) {
       throw redirect({ to: "/auth", search: { next: location.href } });
     }
-    if (!isOtpPending(data.session.user.id)) {
-      const to = await resolveLandingForSession();
-      throw redirect({ to });
-    }
+    // Deliberately does NOT bounce away when `isOtpPending` is false. That flag is only ever
+    // set by the password sign-in path (auth.tsx) — the phone/email "Continue" flows never set
+    // it, and it isn't session-scoped the way the real server-side check
+    // (auth_step_up_sessions, keyed by session_id) is, so it can say "not pending" even when a
+    // step-up-gated action just failed and sent the user here. Bouncing on a stale flag turned
+    // this into a genuine dead end: the one page that can satisfy the server's requirement was
+    // refusing to show itself. Worst case with no bounce is a harmless redundant verification.
   },
   component: VerifyOtpPage,
 });
@@ -61,6 +64,25 @@ function VerifyOtpPage() {
   );
   const [now, setNow] = useState(Date.now());
   const submittedRef = useRef(false);
+  const autoSentRef = useRef(false);
+
+  // Arriving here without a pre-sent code (expiryMinutes absent from the URL) means the
+  // redirect that sent us here — the global step-up-error handler in router.tsx — couldn't
+  // send one itself. Send the first code automatically instead of showing a blank "enter your
+  // code" screen for a code that was never sent.
+  useEffect(() => {
+    if (expiryMinutes !== undefined || autoSentRef.current) return;
+    autoSentRef.current = true;
+    requestCode({ data: { purpose: "login_step_up" } })
+      .then((sent) => {
+        setExpiresAt(Date.now() + sent.expiryMinutes * 60_000);
+        setResendReadyAt(Date.now() + sent.cooldownSeconds * 1000);
+      })
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : "Couldn't send a verification code");
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
