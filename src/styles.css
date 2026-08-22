@@ -59,9 +59,48 @@
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
 
+  /*
+   * Status system (admin-design-system, Phase 01) — a semantic naming layer
+   * decoupled from the brand-accent tokens it happens to reuse. Components
+   * reference --color-success/-warning/-error/-info/-neutral, never --lime/
+   * --amber/--sky directly, so a future rebrand of an accent color can never
+   * silently change what "warning" means.
+   */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--amber);
+  --color-warning-foreground: var(--amber-foreground);
+  --color-error: var(--destructive);
+  --color-error-foreground: var(--destructive-foreground);
+  --color-info: var(--sky);
+  --color-info-foreground: var(--sky-foreground);
+  --color-neutral: var(--muted);
+  --color-neutral-foreground: var(--muted-foreground);
+
+  /*
+   * Risk system (brief §13, admin-design-system Phase 01) — for the future
+   * Level 0-4 admin action classification. Deliberately restrained: these are
+   * accent tones for a small badge/icon/border, never a full-bleed
+   * background, so the interface never reads as "alarmist" even at Level 4.
+   */
+  --color-risk-0: var(--muted-foreground);
+  --color-risk-1: var(--sky);
+  --color-risk-1-foreground: var(--sky-foreground);
+  --color-risk-2: var(--amber);
+  --color-risk-2-foreground: var(--amber-foreground);
+  --color-risk-3: var(--rose);
+  --color-risk-3-foreground: var(--rose-foreground);
+  --color-risk-4: var(--destructive);
+  --color-risk-4-foreground: var(--destructive-foreground);
+
   --shadow-soft: 0 2px 8px -2px oklch(0.25 0.05 161 / 0.08);
   --shadow-glass: 0 18px 50px -18px oklch(0.25 0.06 161 / 0.28);
   --shadow-float: 0 26px 70px -22px oklch(0.25 0.06 161 / 0.38);
+  /* Semantic elevation aliases (brief §9) — same three values, named by
+     purpose so a component picks an elevation level, not a raw shadow. */
+  --shadow-elevation-low: var(--shadow-soft);
+  --shadow-elevation-medium: var(--shadow-glass);
+  --shadow-elevation-high: var(--shadow-float);
 
   --animate-fade-up: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-float-soft: float-soft 7s ease-in-out infinite;
@@ -141,8 +180,21 @@
   --pink: oklch(0.7613 0.1982 338.76);
   --pink-foreground: oklch(0.99 0.005 150);
   --rose: oklch(0.74 0.115 15);
+  /* Dark, not white — rose/sky are both light, low-mid-chroma bases (like
+     gold/amber), so a solid fill or light tint needs dark text to read,
+     matching the amber/gold treatment rather than pink's (pink's higher
+     chroma makes white legible on it at a similar lightness; rose/sky's
+     lower chroma does not). */
+  --rose-foreground: oklch(0.3 0.08 15);
   --sky: oklch(0.72 0.09 235);
+  --sky-foreground: oklch(0.28 0.06 235);
   --amber: oklch(0.78 0.14 62);
+  --amber-foreground: oklch(0.28 0.05 62);
+  /* Success — distinct from --primary (structural brand green): a clearer,
+     more saturated green whose only job is "this succeeded," so it reads
+     correctly even next to primary-colored brand chrome. */
+  --success: oklch(0.64 0.15 152);
+  --success-foreground: oklch(0.99 0.01 152);
 
   --destructive: oklch(0.6 0.2 25);
   --destructive-foreground: oklch(0.99 0.005 150);
@@ -178,8 +230,13 @@
   --pink: oklch(0.78 0.19 339);
   --pink-foreground: oklch(0.16 0.02 165);
   --rose: oklch(0.76 0.12 15);
+  --rose-foreground: oklch(0.2 0.05 15);
   --sky: oklch(0.75 0.09 235);
+  --sky-foreground: oklch(0.18 0.04 235);
   --amber: oklch(0.8 0.14 62);
+  --amber-foreground: oklch(0.22 0.04 62);
+  --success: oklch(0.72 0.15 152);
+  --success-foreground: oklch(0.16 0.02 165);
 
   --destructive: oklch(0.68 0.19 25);
   --destructive-foreground: oklch(0.16 0.02 165);
@@ -283,6 +340,27 @@
   }
 }
 
+/* Large number — dashboard/stat figures (brief §6's "Large number"). Tabular
+   figures so a column of stats never jitters as digits change. */
+@utility text-stat {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-size: 2rem;
+  @variant sm {
+    font-size: 2.5rem;
+  }
+}
+
+@utility text-body-lg {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.5;
+  font-size: 1.125rem;
+}
+
 @utility text-body {
   font-family: var(--font-sans);
   font-weight: 400;
@@ -341,5 +419,20 @@
 
   ::selection {
     background: color-mix(in oklab, var(--primary) 25%, transparent);
+  }
+
+  /* Global reduced-motion support (brief §32-33) — one rule instead of
+     opting every animation/transition in individually, covers the skeleton
+     pulse, `press`'s hover transform, and the fade-up/float-soft/shimmer
+     keyframes alike. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

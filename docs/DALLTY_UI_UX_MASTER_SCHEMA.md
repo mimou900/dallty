@@ -507,3 +507,138 @@ Nothing below is built. This is a sequencing recommendation only, informed by §
    sequenced after the wiring-gap items above.
 
 None of the above is authorized by this document. This is Phase 00 — audit only.
+
+---
+
+## 11. Phase 01 — Design system + UI foundation (VERIFIED CURRENT STATE)
+
+Built on branch `project-super-admin-ui-ux` (not merged to `main`). Implements the
+recommendations from §10 items 2-4 as a reusable foundation — no admin pages were built or
+redesigned; §10 items 8+ (missing-capability builds) remain future work. Every primitive below
+is real, typechecked, linted, and visually verified in the local dev server via a temporary
+unauthenticated preview route (`src/routes/dev-preview-design-system.tsx`, not committed —
+screenshotted at mobile/iPad/desktop widths, then deleted). The permanent, super-admin-gated
+showcase lives at `src/routes/_authenticated/admin/design-system.tsx`, reachable only by direct
+URL — not linked from the nav, since nav changes are Phase 02's scope.
+
+### Colors
+
+Extended `src/styles.css`'s existing oklch token set (§7 of this doc already covers what
+existed before this phase) with two semantic layers, both decoupled from the brand-accent
+tokens they reuse so a future rebrand can't silently change what "warning" or "risk level 3"
+looks like:
+
+- **Status**: `--color-success` (new — a distinct green from `--primary`'s structural brand
+  green), `--color-warning` (→ `--amber`), `--color-error` (→ `--destructive`), `--color-info`
+  (→ `--sky`), `--color-neutral` (→ `--muted`) — each with a matching `-foreground` for text use.
+- **Risk (brief §13)**: `--color-risk-0` through `--color-risk-4`, mapped to
+  `neutral/info/warning/rose/error` respectively. Deliberately restrained — consumed only as
+  small badge/icon accents (`AdminRiskBadge`), never a full-bleed background, so a Level 4
+  badge never makes the whole interface read as alarmist.
+- **Fixed during this pass**: `--sky-foreground` and `--rose-foreground` were originally
+  defined as light/white text (copying `--pink-foreground`'s pattern), which fails contrast on
+  both colors' actual light, low-chroma bases. Corrected to dark text, matching the
+  already-correct `--amber-foreground`/`--gold-foreground` treatment — verified visually in the
+  showcase (badges read clearly against their light tint backgrounds).
+
+### Typography
+
+Two gaps filled in the existing scale (Display/H1/H2/H3/Body/Body-sm/Label/Caption/Button,
+documented in §7): `text-stat` (large dashboard numbers, tabular-nums so a stat column never
+jitters as digits change) and `text-body-lg` (a lead-paragraph size between Body and H3).
+
+### Spacing &amp; radius
+
+No new tokens — Tailwind's default spacing scale and the existing `--radius-sm` through
+`--radius-4xl` scale (already documented in §7) are sufficient; adding a parallel spacing-token
+layer would only duplicate values Tailwind already keeps consistent. Components use the
+existing radius scale directly (`rounded-2xl` for controls, `rounded-3xl` for cards,
+`rounded-4xl` for drawers/major surfaces).
+
+### Shadows &amp; glass
+
+Added semantic elevation aliases — `--shadow-elevation-low/-medium/-high` — mapped onto the
+existing `--shadow-soft/-glass/-float` values (§7) rather than inventing new numbers, so a
+component picks an elevation *level*, not a raw shadow. Glass (`--glass`/`--glass-border`, the
+`.glass`/`.glass-soft` utilities) is unchanged — used by `AdminGlassCard`, dialogs' and
+drawers' overlays, exactly the "floating controls, not main content" scope the brief specifies.
+
+### Motion &amp; accessibility
+
+No new motion tokens — the existing `--motion-fast/-normal/-emphasis` (§7) are referenced
+directly by the new drawer's transition duration. Added one global rule to `src/styles.css`
+(`@media (prefers-reduced-motion: reduce)`) collapsing all animation/transition durations to
+near-zero — covers the skeleton pulse, `press`'s hover transform, and every keyframe at once,
+rather than opting each new component in individually.
+
+### Components built (`src/components/admin/ui/`)
+
+`AdminButton` (primary/lime/accent/secondary/outline/ghost/glass/destructive variants; default/
+sm/lg/icon sizes; loading state), `AdminInput`/`AdminSearchInput`/`AdminTextarea` (+
+`AdminFieldLabel`/`AdminFieldError`, error/loading/disabled states), `AdminSelect` (themed
+trigger/content/item over the existing shadcn Select primitive), `AdminCard`/`AdminGlassCard` (+
+header/title/description), `AdminBadge`/`AdminStatusBadge`/`AdminRiskBadge`, `AdminTabs`
+(themed over shadcn Tabs), `AdminDialog` (confirmations/short forms), `AdminDrawer` (single
+component, responsive by CSS — bottom sheet under `sm:`, right-side drawer at `sm:` and up, per
+brief §24's exact spec), `AdminTable` (+ `AdminTableScroll` wrapper so wide tables scroll
+instead of clipping — the concrete bug found in `reconciliation.tsx`, §8), `AdminPagination`
+(prev/next, matching what the 12 platform pages actually paginate with today), 
+`AdminBreadcrumbs`, `AdminPageHeader`, `AdminEntityHeader`, `AdminSection`/`AdminDivider`,
+`AdminFilterBar`/`AdminFilterChip`, and the four result states — `AdminEmptyState`/
+`AdminErrorState`/`AdminPermissionDenied`/`AdminNotFound` (`admin-states.tsx`).
+
+**Deliberately not built this phase** (brief §16: "do not create unnecessary components"):
+`AdminSidebar`/`AdminCommand` — both Shell/Navigation, explicitly the next phase, per the
+brief's own stop condition. `AdminCalendar` — no current consumer (nothing in the 12 platform
+pages needs a date-range picker). `AdminDropdown`/`AdminTooltip` — the stock shadcn primitives
+are already themed via the same CSS-variable system; a wrapper would add no value yet.
+`AdminToast` — `sonner`'s existing `Toaster` is already the one genuinely-consistent shared
+pattern Phase 00 found (§6); use it directly rather than re-wrapping it. `AdminIconButton` —
+folded into `AdminButton` as `size="icon"`, avoiding a near-duplicate component (matches the
+stock shadcn `Button`'s own pattern).
+
+Priority order followed throughout (brief §14): existing Dallty component (none existed for any
+of these) → shadcn primitive, themed (Select, Tabs, Dialog, Sheet-as-Drawer, Table) → custom
+built from scratch only where no primitive existed (Button — the shadcn default was judged too
+small for admin's "big and clear" requirement rather than reused and overridden; PageHeader,
+EntityHeader, Section, Filter, the four result states).
+
+### Skeleton system
+
+Extended the existing `src/components/dallty/skeletons.tsx` (§9 of this doc) rather than
+creating a parallel system, per the brief's explicit "build ONE canonical skeleton system"
+instruction. Added the missing composable primitives — `SkeletonText`, `SkeletonTitle`,
+`SkeletonAvatar`, `SkeletonCard`, `SkeletonRow` — and one new page-level pattern,
+`DetailSkeleton` (entity-header + grouped-fields shape, for the future entity-detail drawers
+§3's capability audit found missing). `DashboardSkeleton`/`TableSkeleton`/`ListSkeleton`
+(already existed) are unchanged.
+
+### Responsive foundation
+
+No new breakpoint tokens — Tailwind's default `sm`/`md`/`lg`/`xl`/`2xl` scale is used
+throughout, matching every other part of this codebase. Verified at mobile (375px), iPad
+(834px), and desktop (1440px) in the showcase: the drawer's bottom-sheet-to-side-panel switch,
+the result-states grid's 1-column-to-2-column reflow, and button/input sizing were all
+confirmed to hold up across the three widths. The full 12-breakpoint matrix (brief §35) was not
+individually re-tested — the three checked are the ones that exercise every responsive
+behavior any component actually has (nothing in this phase's components branches at a
+finer-grained breakpoint than `sm:`).
+
+### Accessibility
+
+Every interactive primitive is built on a Radix primitive (Select/Tabs/Dialog) or plain
+semantic HTML with explicit `aria-*` (buttons, inputs, badges, result states) — keyboard nav,
+focus trapping, and screen-reader roles for dialog/drawer/tabs/select come from Radix, not
+reimplemented. `focus-visible` rings are present on every focusable primitive. Result states
+never encode meaning by color alone (icon + label + color together, per brief §12/§33). Not
+run through an automated accessibility scanner this phase (no such tool is wired into this
+project yet) — verified by code review and Radix's own accessibility guarantees, not an
+independent audit tool.
+
+### What was not touched
+
+No existing admin page (`src/routes/_authenticated/admin/**`) was modified to actually use
+these primitives — per the brief's explicit "do not build admin pages yet," they remain
+available for Phase 02+ to adopt, not yet wired into `overview.tsx`/`users.tsx`/etc. The
+12-page/`admin-shell.tsx` design-token-drift findings from §7/§8 of this doc are therefore
+still accurate today; this phase built the replacement parts, not the retrofit.

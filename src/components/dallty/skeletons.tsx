@@ -1,10 +1,57 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 /**
- * Reusable skeleton system (brief §17-18). Each skeleton mirrors the shape of
- * its real destination layout so the transition from loading -> loaded state
- * doesn't jump. Compose these instead of ad hoc `animate-pulse` divs.
+ * Reusable skeleton system (brief §17-18; extended by admin-design-system
+ * Phase 01 §26 with the lower-level composable primitives below). Each
+ * skeleton mirrors the shape of its real destination layout so the
+ * transition from loading -> loaded state doesn't jump. Compose these
+ * instead of ad hoc `animate-pulse` divs — this is the ONE canonical
+ * skeleton system for the whole app, customer-facing and admin alike.
+ * Reduced-motion is handled globally (see the `prefers-reduced-motion` rule
+ * in `src/styles.css`), not per skeleton.
  */
+
+/** A single line of placeholder text. `lastLine` renders it shorter, for the
+    final line of a paragraph-shaped block. */
+export function SkeletonText({ className, lastLine }: { className?: string; lastLine?: boolean }) {
+  return <Skeleton className={cn("h-4", lastLine ? "w-2/3" : "w-full", className)} />;
+}
+
+export function SkeletonTitle({ className }: { className?: string }) {
+  return <Skeleton className={cn("h-6 w-1/2", className)} />;
+}
+
+export function SkeletonAvatar({ className }: { className?: string }) {
+  return <Skeleton className={cn("size-10 shrink-0 rounded-full", className)} />;
+}
+
+/** A generic card-shaped placeholder — avatar/title row + two text lines. */
+export function SkeletonCard({ className }: { className?: string }) {
+  return (
+    <div className={cn("space-y-3 rounded-3xl border border-border/60 p-5", className)}>
+      <div className="flex items-center gap-3">
+        <SkeletonAvatar />
+        <SkeletonTitle className="w-1/3" />
+      </div>
+      <SkeletonText />
+      <SkeletonText lastLine />
+    </div>
+  );
+}
+
+/** A single table-row-shaped placeholder — for building a custom table
+    skeleton out of the real column count instead of the fixed `TableSkeleton`
+    below. */
+export function SkeletonRow({ columns = 4, className }: { columns?: number; className?: string }) {
+  return (
+    <div className={cn("flex items-center gap-4 px-1 py-3", className)} role="presentation">
+      {Array.from({ length: columns }, (_, i) => (
+        <Skeleton key={i} className={cn("h-4", i === 0 ? "w-1/4" : "flex-1")} />
+      ))}
+    </div>
+  );
+}
 
 export function BusinessCardSkeleton() {
   return (
@@ -113,6 +160,33 @@ export function DashboardSkeleton() {
           <div key={i} className="space-y-2 rounded-3xl glass p-4">
             <Skeleton className="h-3.5 w-16" />
             <Skeleton className="h-7 w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Entity-detail page/drawer loading state — header + a few grouped fields. */
+export function DetailSkeleton() {
+  return (
+    <div className="space-y-6" role="status" aria-label="Loading" aria-hidden>
+      <div className="flex items-start gap-4">
+        <SkeletonAvatar className="size-14" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-6 w-2/3" />
+          <Skeleton className="h-4 w-1/3" />
+          <div className="flex gap-2 pt-1">
+            <Skeleton className="h-6 w-20 rounded-full" />
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="space-y-1.5 rounded-2xl border border-border/60 p-4">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-5 w-24" />
           </div>
         ))}
       </div>
