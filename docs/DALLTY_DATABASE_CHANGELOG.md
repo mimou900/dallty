@@ -196,3 +196,173 @@ Super-Admin-only write).
 CONFLICT DO NOTHING` (idempotent, re-runnable).
 **Rollback considerations:** Safe to drop — deliberately reference-data only in this
 project, no UI or server function reads it yet.
+
+---
+
+## Project 13 — Subscription/Billing Architecture (2026-08-22)
+
+Branch `project-13-subscriptions`. **Not yet merged to `main`** as of this writing — these
+migrations are applied on that branch's environment only, not confirmed live in production.
+
+### `20260822010000_project13_has_permission_scope_fix.sql`
+**Purpose:** Security prerequisite, required before building the subscription permission
+system (Phase 0). Live audit found `has_permission()`'s SQL treated `scope='self'` identically
+to `'business'`/`'global'` (a complete no-op) — live and exploitable via
+`assertBookingAction`/`rescheduleBooking`'s "any staff at this business" fallback (see
+`DALLTY_FINANCIAL_ARCHITECTURE.md`'s Project 13 Security note for the full incident detail).
+`scope='global'` was semantically wrong (required a match on one specific `_business_id`,
+which can't mean "every business") but had zero live consumers (`global` is only ever seeded
+on `super_admin`, which has 0 real `business_memberships` rows). `scope='branch'` was already
+correct, left unchanged.
+**Affected:** Modified: `has_permission()` (new optional `_target_user_id uuid DEFAULT NULL`
+parameter; old 4-arg signature dropped first so calls with default trailing args can't become
+ambiguous between two coexisting overloads). Three RLS policies
+(`booking_confirmation_calls_select`, `booking_status_history_select`,
+`booking_status_history_insert`) that reference `has_permission(...)` in their `USING`/
+`WITH CHECK` clause were dropped and recreated identically around the function replacement
+(Postgres tracks the dependency and refuses to drop the function otherwise) — both tables are
+written/read exclusively via the service-role client today (confirmed via a repo-wide grep),
+so these policies are currently unreachable in practice, but are recreated correctly
+regardless.
+**Data migration:** None — behavior is unchanged for every existing caller that doesn't pass
+`_target_user_id`, except `'self'` scope now correctly fails closed instead of silently
+passing (zero live consumers of a working `'self'` grant existed before this migration's own
+application-code rewiring in the next migration's era).
+**Rollback considerations:** Reverting to the pre-migration 4-arg `has_permission()` would
+restore the `'self'`-scope no-op (a real, exploitable regression) — not recommended once
+`assertBookingAction`/`rescheduleBooking` depend on the fixed semantics.
+
+### `20260822020000_project13_subscription_schema.sql`
+**Purpose:** The core plan/pricing/subscription/billing schema (Phases 1-3). Confirmed
+genuinely missing before this project: `businesses.plan` was a bare, unconsumed
+`subscription_plan` enum column, only ever displayed as a read-only badge (Super Admin
+directory) or read-only field (business settings — checked `patchSchema` directly and
+confirmed `plan` was never actually writable there, so no self-edit vulnerability existed).
+No plan/pricing/subscription/billing table of any kind existed anywhere.
+**Affected tables:** New: `subscription_plans` (editable reference table — price, currency,
+trial/grace days, staff/branch/booking/customer limits, `feature_entitlements jsonb`,
+`advertising_eligible`, `is_provisional`; public SELECT, Super-Admin-only write; 3 provisional
+rows seeded: starter/professional/enterprise); `business_subscriptions` (`UNIQUE
+(business_id)`, current-state row — `status` `trialing`/`active`/`past_due`/`canceled`/
+`expired`, billing period, grace period, `cancel_at_period_end`; RLS SELECT owner/
+`subscription.view`/platform-admin, no direct authenticated write policy); `subscription_events`
+(append-only transition history, `UPDATE`/`DELETE` revoked from `authenticated` and
+`service_role`); `subscription_payments` (manual/admin-recorded payment record,
+`payment_method` defaults to `'manual_admin_recorded'`, `UPDATE`/`DELETE` revoked from
+`authenticated` and `service_role`).
+**Data migration:** None — all four tables start empty (backfill is a later migration).
+**Rollback considerations:** Safe to drop all four tables if nothing has written to them yet.
+`businesses.plan` remains in place as a denormalized display mirror, unaffected either way.
+
+### `20260822030000_project13_subscription_lifecycle_sweep.sql`
+**Purpose:** Real recurring lifecycle transitions (trial expiry, renewal grace period,
+scheduled cancellation, final expiration) rather than something Super Admin has to remember to
+click. Scheduled the same real way as the existing `generate_due_booking_reminders()` job
+(pg_cron/pg_net already live on this project) since this is pure data logic, no email/HTTP
+dispatch.
+**Affected:** New function `run_subscription_lifecycle_sweep()` (four transitions: trial ended
+with no payment → `expired`; active + period ended + not scheduled to cancel → `past_due` +
+grace period starts; active + period ended + scheduled to cancel → `canceled`; `past_due` +
+grace period ended with still no payment → `expired`; each posts a matching
+`subscription_events` row). New `pg_cron` job `dallty-subscription-lifecycle-sweep`, daily at
+`0 3 * * *`.
+**Data migration:** None.
+**Rollback considerations:** `SELECT cron.unschedule('dallty-subscription-lifecycle-sweep')`
+before dropping the function, or the scheduled job will error on its next run. Safe otherwise
+— no other code calls this function directly.
+
+### `20260822040000_project13_subscription_settings.sql`
+**Purpose:** The business-referral reward trigger needs a reward *amount* to post when it
+fires automatically. Unlike the affiliate commission trigger (which already resolves a real,
+Super-Admin-configurable rule table — Project 12's `affiliate_commission_rules`),
+`business_referrals.reward_amount` was deliberately left as a Super-Admin-typed-in-manually
+value with no automatic source. Rather than inventing a hardcoded percentage in application
+code, this adds one more small Super-Admin-editable reference value, matching `auth_settings`'
+own established single-row-config pattern.
+**Affected tables:** New: `subscription_settings` (single boolean-`true`-primary-key row,
+`business_referral_reward_percent numeric(5,2) DEFAULT 10.00`, `is_provisional` default
+`true`; public SELECT, Super-Admin-only write). Seeded with its one row immediately.
+**Data migration:** None beyond the single seed row.
+**Rollback considerations:** Safe to drop if the automatic business-referral trigger (added in
+the main schema/server-function build) is never reached — its default falls back to 10% in
+application code (`Number(settings?.business_referral_reward_percent ?? 10)`) if the row is
+somehow missing.
+
+### `20260822050000_project13_backfill_and_staff_limit.sql`
+**Purpose:** Backfill + real entitlement enforcement. 9 businesses existed at migration time,
+0 had a `business_subscriptions` row (confirmed live before writing this) — without the
+backfill, the staff-limit trigger below would have immediately locked every existing business
+out of adding staff.
+**Affected tables:** Modified: `business_subscriptions` (backfill insert), `subscription_events`
+(matching `'created'` event per backfilled row), `staff` (+2 triggers). New function
+`enforce_staff_limit()` (`BEFORE INSERT`/reactivate `UPDATE` on `staff` — the actual
+add-staff-member path is a plain RLS-gated client insert, not a server function, so a DB
+trigger is the only enforcement point that can't be bypassed; raises `STAFF_LIMIT_REACHED`
+when active staff count would meet or exceed the plan's `staff_limit`; a `NULL` limit or
+missing subscription row both skip enforcement, fail-open by design).
+**Data migration:** Backfills all 9 pre-existing businesses with a grandfathered `'active'`
+subscription on their existing `businesses.plan` value, `current_period_start = businesses.created_at`,
+`current_period_end` left `NULL` (so the lifecycle sweep never force-transitions a business
+that never had a real billing cycle) — plus one matching `subscription_events` `'created'` row
+per business.
+**Rollback considerations:** Dropping the two `staff` triggers is safe (removes enforcement,
+no data loss). The backfilled `business_subscriptions`/`subscription_events` rows should not
+be deleted once real subscription activity (payments, plan changes) may have been recorded
+against them.
+
+### `20260822060000_project13_subscription_rls_owner_only.sql`
+**Purpose:** Security follow-up. The three subscription-table SELECT policies from the main
+schema migration used `owns_business(auth.uid(), business_id)` in their OR-clause. Live audit
+(via the real Manager test account) found `owns_business()` deliberately treats `'manager'` as
+owner-equivalent — correct for most surfaces, wrong for subscription data specifically (the
+project requirement: manager denied unless separately permitted; `subscription.manage`/
+`subscription.view` are only ever granted to `'owner'`/`'super_admin'`). Already fixed at the
+server-function layer (`subscription.functions.ts`'s `isLiteralOwner` helper, from the main
+build); this closes the same gap at the RLS layer for defense-in-depth.
+**Affected:** Modified: `business_subscriptions_select`, `subscription_events_select`,
+`subscription_payments_select` (all three dropped and recreated with a literal
+`EXISTS (... businesses b WHERE b.id = business_id AND b.owner_id = auth.uid())` check
+replacing `owns_business()`; `has_permission(..., 'subscription.view')` and
+`is_platform_admin()` clauses unchanged).
+**Data migration:** None.
+**Rollback considerations:** Reverting to `owns_business()` would let a manager account read
+subscription/billing data — not recommended; these tables have no INSERT/UPDATE policy for
+`authenticated`, so this migration only tightens an existing SELECT policy.
+
+### `20260822070000_project13_fix_service_role_grants.sql`
+**Purpose:** Real functional-test finding, not a theoretical one. `subscription_payments`/
+`subscription_events` had `UPDATE`/`DELETE` REVOKEd from both `authenticated` and
+`service_role` (copying `ledger_transactions`' stricter pattern) — but no other append-only
+table in this codebase (`admin_audit_log`, `booking_status_history`) actually revokes from
+`service_role`; they rely on RLS having no authenticated write policy, while trusted
+server-function code (always running as `service_role`, bypassing RLS) keeps normal
+privileges. This broke `recordSubscriptionPayment`'s own legitimate `ledger_group_id` backfill
+`UPDATE`, confirmed failing live before this fix (`SET ROLE service_role; UPDATE
+subscription_payments ...` → "permission denied").
+**Affected:** Modified: `subscription_payments`, `subscription_events` (`GRANT UPDATE ...
+TO service_role` on both). `DELETE` stays revoked even for `service_role` on both tables — no
+legitimate deletion path exists for financial/audit records.
+**Data migration:** None.
+**Rollback considerations:** Reverting would re-break `recordSubscriptionPayment`'s
+`ledger_group_id` backfill — not recommended; re-verified live after this fix (backfill
+`UPDATE` succeeds as `service_role`).
+
+### `20260822080000_project13_businesses_plan_to_text.sql`
+**Purpose:** Forward-compatibility bug caught by directly testing the scenario the
+reference-table design exists to support. `businesses.plan` was still typed as the fixed
+3-value `subscription_plan` enum, so assigning a business to a hypothetical 4th plan (created
+live to test this) threw `invalid input value for enum subscription_plan` on the
+`businesses.plan` sync every subscription function performs — silently defeating this
+project's own "treat these as the initial plan keys only" promise. `businesses.plan` is
+confirmed display-only (Super Admin directory badge, settings page's read-only field —
+neither gates any logic), so it was widened to `text` instead, with a foreign key to
+`subscription_plans.plan_key` replacing the enum's implicit domain constraint.
+**Affected:** Modified: `businesses.plan` (`subscription_plan` enum → `text`, default
+`'starter'` preserved, new `businesses_plan_fkey` FK to `subscription_plans.plan_key`).
+**Data migration:** `USING plan::text` cast on the `ALTER COLUMN ... TYPE` — all 9 existing
+businesses held `'starter'` at the time, which already exists in `subscription_plans`, so the
+new FK was satisfiable with no data changes needed.
+**Rollback considerations:** Reverting to the enum would re-break assigning any business to a
+plan key added after the initial 3 — not recommended once `subscription_plans` is treated as
+genuinely open-ended. Live-verified: created a disposable 4th plan, assigned a real business
+to it successfully, reverted, deleted the test plan — all clean.

@@ -3,11 +3,16 @@
 **Status:** Living document. Produced by Project 06 (Payments, Deposits, Cash Settlement &
 Financial Ledger); extended by Project 12 (Central Financial Ledger + Revenue + Commissions
 + Payouts — staff payout recording, deposit collection, no-show policy, reconciliation,
-affiliate and business-referral foundations, country payout config). **Project 12 is
-code-complete on branch `project-12-financial-ledger`, not yet merged to `main` or
-deployed** — everything in the Project 12 update section below is real, working code,
+affiliate and business-referral foundations, country payout config); extended by Project 13
+(Subscription/Billing Architecture — plan configuration, subscription lifecycle, temporary
+manual payment recording reusing this project's own ledger, affiliate/business-referral
+activation triggers, staff-limit entitlement enforcement). **Project 12 is code-complete on
+branch `project-12-financial-ledger`, not yet merged to `main` or deployed** — everything in
+the Project 12 update section below is real, working code, verified only on that branch.
+**Project 13 is code-complete on branch `project-13-subscriptions`, not yet merged to `main`
+or deployed** — everything in the Project 13 update section below is real, working code,
 verified only on that branch.
-**Last updated:** 2026-08-21.
+**Last updated:** 2026-08-22.
 
 **Read this first:** no payment provider credentials (CIB, Edahabia, Stripe, or any other)
 exist anywhere in this project's environment — confirmed repeatedly across every project in
@@ -160,6 +165,228 @@ permission must replicate this same application-layer scope check (or `has_permi
 itself should eventually be hardened to accept a target-user parameter) — it is **not**
 automatically safe to trust `hasPermission()`'s boolean return alone when a role might hold a
 `'self'`-scoped grant.
+
+## Project 13 update (2026-08-22) — subscription plans, billing lifecycle, entitlements
+
+Project 12 (above) explicitly named its own boundary: `activateAffiliateReferral`/
+`activateBusinessReferral` are Super-Admin-callable manual stand-ins because "becomes a paying
+subscriber" had no real trigger — no subscription system existed. Project 13 builds that
+system and wires the trigger. **Not yet merged to `main` — code-complete and live-tested on
+`project-13-subscriptions` only.**
+
+### subscription_plans — editable reference-table configuration
+
+`subscription_plans` (`src/lib/subscription.functions.ts`) holds every commercial attribute
+Super Admin needs to tune as data, not code: `monthly_price`/`yearly_price`/`currency`,
+`trial_duration_days`, `grace_period_days`, `staff_limit`/`branch_limit`/
+`monthly_booking_limit`/`customer_limit` (`NULL` = unlimited, an explicit queryable "no cap"
+rather than a magic number), `feature_entitlements jsonb`, `advertising_eligible`. `plan_key`
+is text, not the pre-existing `businesses.plan` enum, so a 4th/5th plan needs only a plain
+`INSERT`, no enum-extension migration. 3 plan keys seeded (starter/professional/enterprise),
+every row explicitly marked `is_provisional = true` — **provisional placeholder values, not
+final commercial pricing.** Public SELECT (the plan picker needs to read it unauthenticated),
+Super-Admin-only write, editable from `/admin/platform/subscription-plans`.
+
+### business_subscriptions + subscription_events — the real lifecycle chain
+
+`business_subscriptions` holds one current-state row per business (`UNIQUE (business_id)`) —
+`status` (`trialing`/`active`/`past_due`/`canceled`/`expired`), `billing_interval`,
+`current_period_start`/`current_period_end`, `grace_period_ends_at`, `cancel_at_period_end`.
+`subscription_events` is the append-only transition history (`created`/`trial_started`/
+`upgraded`/`downgraded`/`renewed`/`canceled`/`reactivated`/`expired`/`payment_recorded`/
+`grace_period_entered`/`entitlement_denied`) — mirrors Project 12's own `staff_payouts`/ledger
+split ("one current-state row, immutable trail for the history"), not a new pattern. Together
+they implement the real chain: plan → pricing → subscription → billing period → upgrade/
+downgrade (`changeSubscriptionPlan`) → cancellation (`cancelSubscription`/
+`reactivateSubscription`) → renewal (`recordSubscriptionPayment`) → expiration (the lifecycle
+sweep below). `subscription_events` is `INSERT`-only for `authenticated`/`service_role` —
+`UPDATE`/`DELETE` revoked from both, same append-only-audit-trail convention as
+`admin_audit_log`/`booking_status_history` (not `ledger_transactions`' stronger
+trigger-enforced immutability — this table holds no money itself, the ledger already does).
+
+### The lifecycle sweep — a real pg_cron job, not a manual trigger
+
+`run_subscription_lifecycle_sweep()` runs daily (`dallty-subscription-lifecycle-sweep`,
+`0 3 * * *`), scheduled the same real way as the existing
+`generate_due_booking_reminders()` job (pg_cron/pg_net are already live on this project driving
+that job — this is pure data logic, no email/HTTP dispatch, so it's scheduled identically
+rather than left manual-trigger-only). Four transitions, each posting a matching
+`subscription_events` row: trial ended with no payment ever recorded → `expired`; active
+subscription past `current_period_end` and not scheduled to cancel → `past_due` (grace period
+starts, `grace_period_ends_at = now() + plan's grace_period_days`); active subscription past
+`current_period_end` and scheduled to cancel (`cancel_at_period_end = true`) → `canceled`;
+`past_due` subscription past `grace_period_ends_at` with still no payment → `expired`.
+
+### subscription_payments + recordSubscriptionPayment — TEMPORARY, Super-Admin-only
+
+**Read this before touching `recordSubscriptionPayment`:** no payment gateway is configured
+for Dallty subscriptions anywhere in this environment — confirmed via a repo-wide grep plus a
+direct `.env` audit before building this, not assumed. `subscription_payments`
+(`payment_method` defaults to `'manual_admin_recorded'`, `provider_reference` stays `NULL`
+until a real gateway exists) is an explicit, honestly-labeled **TEMPORARY** manual-recording
+mechanism — mirrors `payments`' relationship to `ledger_transactions` for bookings: the
+domain-specific "this payment happened" record, with the ledger (reused, not duplicated)
+recording the actual accounting effect. `recordSubscriptionPayment` is **Super-Admin-only**
+(`assertSuperAdmin`) — a business self-attesting its own payment would be trivially forgeable,
+so there is deliberately no owner-facing "I paid" button. Posts the exact same balanced ledger
+shape Project 12 established for cash bookings, just in the reverse commercial direction:
+
+```
+DEBIT  external_cash    <amount>   (cash left the business's own account)
+CREDIT dallty_revenue   <amount>   (Dallty's platform revenue increases)
+```
+
+type `'subscription_payment'`, `accountRef` = the business's own id on both sides — **no new
+ledger/payment/balance/payout system**, reuses `postLedgerGroup()` exactly as every other
+project's financial event does. Wrapped in `withIdempotency` (keyed on business + current
+month by default). On success: advances `business_subscriptions` to `active` with a fresh
+`current_period_start`/`current_period_end` (computed from the plan's billing interval),
+clears `grace_period_ends_at`, syncs the `businesses.plan` display mirror, and posts both a
+`'renewed'` and a `'payment_recorded'` event.
+
+### Affiliate/business-referral activation now fires for real
+
+On a business's **first** successful `subscription_payments` row, the real affiliate-commission
+and business-referral-reward triggers Project 12 explicitly built as a hook for this
+("a future subscription-payment-success handler should call this same function") now fire
+automatically. `activateAffiliateReferralCore`/`activateBusinessReferralCore` were extracted
+from Project 12's existing, already-tested `activateAffiliateReferral`/`activateBusinessReferral`
+(`src/lib/affiliate.functions.ts`/`src/lib/business-referral.functions.ts`) so both the
+pre-existing Super-Admin manual path and this new automatic trigger share one implementation,
+rather than duplicating the commission/reward posting logic. The business-referral reward is
+computed as a percentage of the payment amount, read from the new single-row
+`subscription_settings.business_referral_reward_percent` (Super-Admin-editable, matching
+`auth_settings`' own single-row-config pattern) — **not a hardcoded number** the way an ad-hoc
+implementation might have been tempted to write it.
+
+### Real entitlement enforcement — staff_limit only
+
+A `BEFORE INSERT`/`UPDATE` trigger on `staff` (`enforce_staff_limit()`) blocks exceeding a
+plan's `staff_limit`, raising `STAFF_LIMIT_REACHED` — the actual add-staff-member path is a
+plain RLS-gated client-side insert (`"Owners manage staff"`, ALL commands), not a server
+function, so a database trigger was the only enforcement point that couldn't be bypassed by a
+future code path that forgets to call a check function. `NULL` `staff_limit` (enterprise) and
+a missing subscription row both skip enforcement (fail open rather than lock a business out
+over a row this trigger didn't create). **Branch-limit is tracked in the plan config but
+deliberately not enforced anywhere** — no branch-creation function exists in the app yet to
+enforce it against, correctly not built ahead of a consumer. `monthly_booking_limit`/
+`customer_limit` are likewise configured and surfaced in the `/admin/billing` usage display
+(`getBusinessEntitlements`) but have no enforcement point today.
+
+### Fixed: the hardcoded 14-day trial
+
+`business.functions.ts`'s `registerBusiness` previously hardcoded a 14-day trial length
+regardless of which plan a business picked. Now calls `resolvePlanTrialEndsAt`
+(`src/lib/subscription.functions.ts`), which reads the chosen plan's own
+`trial_duration_days` — a starter/professional/enterprise business today all happen to get 14
+days (the seeded provisional value), but the length is genuinely plan-driven now, not a
+literal in application code.
+
+### Backfill — 9 pre-existing businesses
+
+All 9 businesses that existed before this project (0 of which had any `business_subscriptions`
+row, confirmed live before writing the migration) were backfilled with a grandfathered
+`'active'` subscription on their existing `businesses.plan` value — `'active'`, not
+`'trialing'`, since these are already-established businesses, not new trial signups.
+`current_period_end` is left `NULL` so the lifecycle sweep (which only acts when
+`current_period_end IS NOT NULL`) never force-transitions a business that never had a real
+billing cycle into `past_due`. Without this backfill, the `staff_limit` trigger above would
+have immediately locked every existing business out of adding staff the moment it shipped.
+
+### Security note
+
+This is the most significant part of Project 13 — four separate live-testing-driven fixes,
+not just new feature code.
+
+**1. `has_permission()`'s `scope='self'` was a complete no-op, and this one was live and
+exploitable** (unlike Project 12's narrower finding above, which was dormant). A live audit
+found the SQL treated `scope='self'` identically to `'business'`/`'global'` — any grant passed
+regardless of who the action's actual target was. `assertBookingAction`
+(`booking-ops.functions.ts`) and `rescheduleBooking` (`booking-engine.functions.ts`) both fell
+back to "does the caller have ANY staff row at this business" rather than "is the caller the
+specific assigned staff for THIS booking" — meaning any specialist could confirm, reschedule,
+or view the call history of any OTHER specialist's booking, contradicting both functions' own
+documented intent. Fixed `has_permission()` itself: extended its signature with an optional
+`_target_user_id uuid DEFAULT NULL` (every existing caller that doesn't pass it keeps its
+exact current `'business'`/`'branch'`-scope behavior — but now correctly fails closed for
+`'self'` scope instead of silently passing); self-scope now requires `_target_user_id` to
+match the caller; global-scope now checks across every one of the caller's active memberships
+instead of requiring a match on one specific `business_id`. Rewired `assertBookingAction` and
+`rescheduleBooking` to resolve the booking's actual assigned staff and pass it as the target,
+narrowing their fallback from "any staff exists" to "is precisely the assigned staff for this
+booking" — and only for the actions the specialist role is meant to hold (confirm/view/
+reschedule), not no_show/cancel, which specialist never held even with a working self-scope
+grant. **Live-verified** against the real, persistent Specialist A / Specialist B test
+accounts: Specialist B correctly denied on Specialist A's booking, Specialist A correctly
+allowed on their own, no-target calls correctly fail closed. Two other callers
+(`recordBookingConfirmation`, `createWalkInBooking`) were confirmed deliberately "any staff
+member" by design per their own doc comments and correctly left untouched.
+
+**2. `owns_business()`'s manager over-grant silently defeated the subscription/billing
+restriction.** Live RBAC testing against the real Manager test account found `owns_business()`
+deliberately treats `'manager'` as owner-equivalent (its own definition ORs in
+`role.key IN ('owner','manager')`) — correct for the "almost all daily operations" surfaces it
+gates elsewhere, but wrong for subscription actions specifically: the project requirement is
+explicit that manager must be denied billing/subscription access unless separately granted,
+and `subscription.manage`/`subscription.view` are in fact only ever seeded to `'owner'` and
+`'super_admin'`, never `'manager'`. Every subscription function's
+`owns_business() OR hasPermission(...)` check let the OR-clause silently override that
+restriction regardless. Fixed by using a literal `businesses.owner_id = userId` check
+(`isLiteralOwner`, `subscription.functions.ts`) instead of `owns_business()` in all 4
+subscription management functions (`getMySubscription`, `changeSubscriptionPlan`,
+`cancelSubscription`, `reactivateSubscription`) **and** the 3 subscription tables' RLS SELECT
+policies, for defense in depth (those tables have no direct authenticated write path, but a
+future direct client read would otherwise have hit the identical gap). **Live-verified**
+against every real test account: owner PASS; manager/receptionist/specialist/affiliate/
+customer/second-owner all correctly DENY on both manage and view.
+
+**3. Two real bugs caught by an actual functional test, not just `tsc`.** Running an actual
+end-to-end SQL simulation of the payment-recording sequence (insert + ledger + backfill, not
+just trusting the type-checker) found: **(a)** `postLedgerGroup`'s `paymentId` parameter has a
+foreign key to the `payments` table specifically (booking payments) — passing
+`subscription_payments.id` there would have failed on every single real payment recorded in
+production, confirmed via a live insert that failed with an FK violation. Fixed by not passing
+`paymentId` at all — traceability goes through the `reason` field instead (`reason:
+subscription_payment:<id>`), matching how other ledger consumers without a `payments` row
+already do it. **(b)** `subscription_payments`/`subscription_events` had `UPDATE`/`DELETE`
+REVOKEd from `service_role` too, copying `ledger_transactions`' stricter immutability pattern —
+but no other append-only table in this codebase (`admin_audit_log`, `booking_status_history`)
+actually revokes from `service_role`; they rely on RLS having no authenticated write policy
+while trusted server-function code (which always runs as `service_role`, bypassing RLS) keeps
+normal privileges. This broke `recordSubscriptionPayment`'s own legitimate `ledger_group_id`
+backfill `UPDATE` — confirmed failing live before the fix (`SET ROLE service_role; UPDATE
+subscription_payments ...` → "permission denied for table subscription_payments"). Fixed by
+restoring `UPDATE` for `service_role` on both tables; `DELETE` stays revoked even for
+`service_role` — no legitimate deletion path exists for financial/audit records. Re-verified
+live after both fixes: a real payment+ledger insert balances correctly and the
+`ledger_group_id` backfill `UPDATE` now succeeds as `service_role`.
+
+**4. A forward-compatibility bug caught by directly testing the scenario the reference-table
+design exists to support.** `businesses.plan` was still typed as the fixed 3-value
+`subscription_plan` enum despite this project's own explicit "treat these as the initial plan
+keys only" promise (`subscription_plans.plan_key` is deliberately `text`, meant to support a
+4th/5th plan via a plain `INSERT`, no schema change). Confirmed live: creating a disposable 4th
+plan and assigning a business to it threw `invalid input value for enum subscription_plan` on
+the `businesses.plan` sync every subscription function performs — silently defeating the whole
+point of the reference-table architecture the moment Super Admin actually used it as intended.
+`businesses.plan` is confirmed display-only (Super Admin directory badge, settings page's
+read-only field — neither gates any logic), so it was widened to `text` with a foreign key to
+`subscription_plans.plan_key` instead. **Live-verified:** created the disposable 4th plan,
+assigned a real business to it successfully, reverted, deleted the test plan — all clean.
+
+**5. Unrelated small fix found while working in this area, not a Project 13 deliverable:** 4
+orphaned test businesses from an earlier Project 12 security-test run — correctly prevented
+from being deleted by the immutable ledger trigger (working as designed, the same guarantee
+documented for Project 06/12 above) but predating the `is_test` isolation flag — were silently
+inflating real platform KPI totals in `platformOverview`. Re-tagged `is_test = true` rather
+than left contaminating counts. No Project 13 migration touches `businesses.is_test`/
+`profiles.is_test` — this was leftover Project 12 hygiene debt, mentioned here only briefly
+since it isn't Project 13 scope in its own right.
+
+**Live testing performed:** 8/8 RLS tests pass — cross-business isolation on
+`business_subscriptions`/`subscription_payments`, manager denial at the RLS layer,
+Super-Admin-only plan-config writes — using the real, persistent Project 12 test accounts, no
+new or duplicate test accounts created for this project.
 
 ## The three-layer model (brief §2-3)
 

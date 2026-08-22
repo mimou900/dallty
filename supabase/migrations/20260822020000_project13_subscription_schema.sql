@@ -1,9 +1,10 @@
 -- Project 13 Phase 1-3: subscription plan/pricing/billing architecture. Confirmed genuinely
 -- missing before this project: businesses.plan is a bare, unconsumed subscription_plan enum
--- column (only ever displayed as a read-only badge in the Super Admin directory and,
--- oddly, directly self-editable by a business owner via settings -- fixed below, since
--- letting a business self-assign its own paid tier defeats the entire point of this
--- project), and no plan/pricing/subscription/billing table of any kind exists anywhere.
+-- column, only ever displayed as a read-only badge (Super Admin directory) or read-only field
+-- (business settings) -- checked business-settings.functions.ts's patchSchema directly and
+-- confirmed "plan" was never actually writable there despite being in the read-columns list,
+-- so no self-edit vulnerability existed to fix. No plan/pricing/subscription/billing table of
+-- any kind existed anywhere before this project.
 --
 -- Editable reference-table configuration (brief's explicit requirement): subscription_plans
 -- holds every commercial attribute Super Admin needs to tune -- price, currency, trial,
@@ -182,8 +183,8 @@ CREATE POLICY "subscription_payments_select" ON public.subscription_payments FOR
 
 -- ============================================================
 -- 5. businesses.plan is kept as a denormalized display mirror (existing UI reads it directly
--- -- platform/businesses.tsx's badge, settings.tsx) rather than rewritten, but it must stop
--- being directly self-editable: a business owner freely relabeling their own paid tier via
--- a settings PATCH would let them bypass this entire project's entitlement/billing model.
--- Server functions below (not this migration) are the only path that writes it from now on.
+-- -- platform/businesses.tsx's badge, settings.tsx's read-only field) rather than rewritten.
+-- It was already not self-editable via settings (confirmed: not in patchSchema), so no
+-- lockdown was needed there -- subscription.functions.ts's server functions are simply the
+-- only path that ever writes it, now that it means something (a real plan, not a label).
 -- ============================================================
