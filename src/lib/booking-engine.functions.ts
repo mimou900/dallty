@@ -175,7 +175,13 @@ const holdInputShape = {
   branchId: z.string().uuid().nullable().optional(),
   serviceIds: z.array(z.string().uuid()).min(1).max(10),
   staffId: z.string().uuid().nullable(), // null = "any specialist"
-  startsAt: z.string().datetime(),
+  // `{ offset: true }` is required: the client sends back the exact `slot` string
+  // get_available_slots() returned, and PostgREST serializes a timestamptz as
+  // "...+00:00" (a valid ISO 8601 offset), not "...Z" — Zod's default .datetime()
+  // rejects offset notation and only accepts "Z", which made every real hold
+  // attempt fail with a generic "Invalid datetime" input-validation error. Never
+  // exercised until now because no business had real bookable services before.
+  startsAt: z.string().datetime({ offset: true }),
 };
 const createHoldInput = z.object(holdInputShape);
 // Guest holds are created anonymously -- same as a signed-in customer's hold, the slot locks
@@ -636,7 +642,7 @@ export const cancelGuestBookingHold = createServerFn({ method: "POST" })
 
 const rescheduleInput = z.object({
   bookingId: z.string().uuid(),
-  newStartsAt: z.string().datetime(),
+  newStartsAt: z.string().datetime({ offset: true }), // see holdInputShape's startsAt comment
   reason: z.string().trim().max(500).optional(),
 });
 
@@ -814,7 +820,7 @@ const walkInInput = z
     branchId: z.string().uuid().optional(), // omit -> business's Main branch
     serviceIds: z.array(z.string().uuid()).min(1).max(10),
     staffId: z.string().uuid().nullable(), // null = "any available specialist" (brief §17)
-    startsAt: z.string().datetime().optional(), // omit -> right now
+    startsAt: z.string().datetime({ offset: true }).optional(), // omit -> right now
     customerId: z.string().uuid().optional(), // a returning customer with no appointment
     customerName: z.string().trim().min(1).max(120).optional(),
     customerPhone: z

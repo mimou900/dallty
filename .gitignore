@@ -31,6 +31,9 @@ supabase/.temp/
 .env.*
 !.env.example
 
+# Local MCP server config (contains the 21st.dev Magic API key)
+.mcp.json
+
 # Scratch output from scripts/generate-*-seed.mjs -- review before turning
 # into a real migration, never auto-committed.
 scripts/output/

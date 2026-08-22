@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueries, useQueryClient, useMutation } from "@tanstack/react-query";
 import { addDays, format } from "date-fns";
+import { z } from "zod";
 import {
+  Apple,
   ArrowLeft,
   BadgeCheck,
   BellRing,
@@ -559,7 +561,7 @@ function BookingFlow() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, phone, country_code")
+        .select("id, full_name, phone, country_code")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -610,6 +612,135 @@ function BookingFlow() {
   );
   const guestInfoReady = guestInfo.name.trim().length > 0 && isValidE164(guestPhoneE164);
 
+  // Inline phone-first authentication for step 4, replacing the old plain guest form and its
+  // "Sign in instead" redirect — auth happens right here, in the booking flow, never a
+  // navigation away. Reuses `guestInfo.phone` as the number to verify: the hold itself was
+  // already created as a guest hold (owned by `hold.guestToken`, not `customer_id`) the moment
+  // a time slot was picked, so confirming it always goes through the guest-confirm path
+  // regardless of whether the customer authenticates here — only whether a *name* is still
+  // missing changes once they do (see `needsInlineName` below).
+  // Full sign-in, not just phone — mirrors the standalone /auth "choose" step's hierarchy
+  // (phone primary, email secondary, Google/Apple below a divider) so a customer isn't
+  // limited to a number they can't receive SMS on. Email OTP and OAuth both land back on
+  // this exact page: OAuth via `redirectTo`, and the booking selections survive the round
+  // trip via the pre-existing pending-booking stash/restore effects above (`stashBooking`).
+  const [inlineAuthMethod, setInlineAuthMethod] = useState<"phone" | "email">("phone");
+  const [inlineAuthOtp, setInlineAuthOtp] = useState("");
+  const [inlineAuthOtpSent, setInlineAuthOtpSent] = useState(false);
+  const [inlineAuthEmail, setInlineAuthEmail] = useState("");
+  const [inlineAuthEmailOtpSent, setInlineAuthEmailOtpSent] = useState(false);
+  const [inlineAuthBusy, setInlineAuthBusy] = useState(false);
+
+  async function sendInlineAuthOtp() {
+    if (!isValidE164(guestPhoneE164)) {
+      toast.error("Enter a valid phone number");
+      return;
+    }
+    setInlineAuthBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ phone: guestPhoneE164 });
+      if (error) throw error;
+      setInlineAuthOtpSent(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't send the code. Try again.");
+    } finally {
+      setInlineAuthBusy(false);
+    }
+  }
+
+  async function verifyInlineAuthOtp() {
+    if (inlineAuthOtp.trim().length < 4) {
+      toast.error("Enter the code we sent you");
+      return;
+    }
+    setInlineAuthBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: guestPhoneE164,
+        token: inlineAuthOtp.trim(),
+        type: "sms",
+      });
+      if (error) throw error;
+      // `user` updates via the app-wide auth listener once the session lands; nothing else to
+      // do here — the step-4 render below reacts to it automatically.
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "That code didn't work. Try again.");
+    } finally {
+      setInlineAuthBusy(false);
+    }
+  }
+
+  async function sendInlineAuthEmailOtp() {
+    const parsed = z.string().trim().email().safeParse(inlineAuthEmail);
+    if (!parsed.success) {
+      toast.error("Enter a valid email address");
+      return;
+    }
+    setInlineAuthBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: parsed.data,
+        options: { shouldCreateUser: true },
+      });
+      if (error) throw error;
+      setInlineAuthEmailOtpSent(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't send the code. Try again.");
+    } finally {
+      setInlineAuthBusy(false);
+    }
+  }
+
+  async function verifyInlineAuthEmailOtp() {
+    if (inlineAuthOtp.trim().length < 4) {
+      toast.error("Enter the code we sent you");
+      return;
+    }
+    setInlineAuthBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: inlineAuthEmail.trim(),
+        token: inlineAuthOtp.trim(),
+        type: "email",
+      });
+      if (error) throw error;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "That code didn't work. Try again.");
+    } finally {
+      setInlineAuthBusy(false);
+    }
+  }
+
+  async function inlineOAuth(provider: "google" | "apple") {
+    setInlineAuthBusy(true);
+    try {
+      stashBooking();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: window.location.href },
+      });
+      if (error) {
+        toast.error(`${provider === "google" ? "Google" : "Apple"} sign-in failed`);
+        setInlineAuthBusy(false);
+      }
+      // On success the browser navigates away immediately — no need to reset busy here.
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Sign-in failed. Try again.");
+      setInlineAuthBusy(false);
+    }
+  }
+
+  // Once inline auth succeeds, carry the now-known name from the profile into guestInfo (the
+  // guest-confirm call's actual source of truth for customerName) — but never clobber
+  // something the customer already typed.
+  useEffect(() => {
+    if (!user || !profileQuery.isSuccess) return;
+    const name = profileQuery.data?.full_name?.trim();
+    if (name) setGuestInfo((g) => (g.name ? g : { ...g, name }));
+  }, [user, profileQuery.isSuccess, profileQuery.data]);
+
+  const needsInlineName = Boolean(user) && profileQuery.isSuccess && !guestInfo.name.trim();
+
   // Post-submit success view (guest path only — signed-in customers keep
   // navigating straight to /bookings like today).
   const [bookingResult, setBookingResult] = useState<{ id: string; reference: string } | null>(
@@ -625,7 +756,8 @@ function BookingFlow() {
   // autoConfirm effect, a manual progress-pill click) keeps working
   // unmodified; this just bounces past it the instant nothing is missing.
   const identityLoading = authLoading || (Boolean(user) && profileQuery.isLoading);
-  const identityComplete = Boolean(user) && profileQuery.isSuccess && !needsPhone;
+  const identityComplete =
+    Boolean(user) && profileQuery.isSuccess && !needsPhone && !needsInlineName;
   useEffect(() => {
     if (step !== 4 || identityLoading) return;
     if (identityComplete) setStep(5);
@@ -809,7 +941,13 @@ function BookingFlow() {
       if (!hold) throw new Error("BOOKING_NOT_FOUND");
       if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID();
       const couponCode = promo ? coupon.trim() : undefined;
-      if (user) {
+      // Ownership of a hold is decided by HOW it was created (`hold.guestToken` set means it
+      // came from createGuestBookingHold), never by whether `user` happens to be truthy right
+      // now — a customer who authenticates inline at step 4 (see sendInlineAuthOtp/
+      // verifyInlineAuthOtp above) still holds a guest-owned hold, since it was created before
+      // they signed in. Routing that through confirmBookingHold instead would fail
+      // UNAUTHORIZED_BOOKING server-side (hold.customer_id is null, not their new user id).
+      if (user && !hold.guestToken) {
         if (needsPhone) {
           if (!isValidE164(phoneE164)) throw new Error("Add a valid phone number to confirm");
           const { error: profileError } = await supabase
@@ -827,7 +965,10 @@ function BookingFlow() {
           },
         });
       }
-      // Guest checkout — no session at all, confirmed server-side via the hold's guestToken.
+      // Guest-owned hold — confirmed server-side via its guestToken, whether or not the
+      // customer has since authenticated inline (customerName/customerPhone come from
+      // guestInfo either way; verifyInlineAuthOtp populates guestInfo.name from the profile
+      // once available, see the effect above).
       if (!guestInfoReady) throw new Error("Add your name and phone number to confirm");
       if (!hold.guestToken) throw new Error("INVALID_BOOKING_CONTEXT");
       return await confirmGuestBookingHold({
@@ -995,7 +1136,11 @@ function BookingFlow() {
     // "held" here just guards the sticky-footer Continue button from double-advancing while
     // the hold request for the just-tapped slot is still in flight or already failed.
     Boolean(slot) && bookingPhase === "held",
-    user ? phoneReady : guestInfoReady,
+    // A guest-owned hold (see confirmBooking above) always needs guestInfo complete —
+    // whether the customer is still signed out or has since authenticated inline, since
+    // that's what the guest-confirm call actually reads. Only a hold created while already
+    // signed in (no guestToken) gates on the separate `phone` field instead.
+    user && !hold?.guestToken ? phoneReady : guestInfoReady,
     true,
   ][step];
 
@@ -1554,11 +1699,13 @@ function BookingFlow() {
               <section className="mt-7 animate-fade-up">
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                   <div>
-                    <h2 className="text-2xl font-extrabold">Your information</h2>
+                    <h2 className="text-2xl font-extrabold">
+                      {user ? "Your information" : "Continue to book"}
+                    </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {user
                         ? "Just need a bit more to confirm your appointment."
-                        : "So the shop knows who's booking."}
+                        : "Sign in to confirm this appointment."}
                     </p>
                   </div>
                   <HoldCountdown phase={bookingPhase} secondsLeft={holdSecondsLeft} tb={tb} />
@@ -1586,66 +1733,243 @@ function BookingFlow() {
                 {bookingPhase === "hold_expired" ? null : identityLoading ? (
                   <div className="mt-5 h-32 animate-pulse rounded-3xl bg-muted" />
                 ) : user ? (
-                  needsPhone && (
-                    <div className="mt-5 rounded-3xl glass p-6">
-                      <p className="mb-3 text-sm font-semibold">
-                        Add a phone number so the shop can reach you about this appointment.
-                      </p>
-                      <PhoneField
-                        id="booking-phone"
-                        value={phone}
-                        onChange={setPhone}
-                        label="Phone number"
-                        required
-                      />
-                    </div>
-                  )
+                  <>
+                    {needsPhone && (
+                      <div className="mt-5 rounded-3xl glass p-6">
+                        <p className="mb-3 text-sm font-semibold">
+                          Add a phone number so the shop can reach you about this appointment.
+                        </p>
+                        <PhoneField
+                          id="booking-phone"
+                          value={phone}
+                          onChange={setPhone}
+                          label="Phone number"
+                          required
+                        />
+                      </div>
+                    )}
+                    {needsInlineName && (
+                      <div className="mt-5 space-y-4 rounded-3xl glass p-6">
+                        <div>
+                          <label
+                            htmlFor="guest-name"
+                            className="mb-1.5 block text-sm font-semibold"
+                          >
+                            Full name<span className="text-destructive"> *</span>
+                          </label>
+                          <input
+                            id="guest-name"
+                            value={guestInfo.name}
+                            onChange={(e) => setGuestInfo((g) => ({ ...g, name: e.target.value }))}
+                            autoComplete="name"
+                            className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="guest-email"
+                            className="mb-1.5 block text-sm font-semibold"
+                          >
+                            Email{" "}
+                            <span className="font-semibold text-muted-foreground">(optional)</span>
+                          </label>
+                          <input
+                            id="guest-email"
+                            type="email"
+                            value={guestInfo.email}
+                            onChange={(e) => setGuestInfo((g) => ({ ...g, email: e.target.value }))}
+                            autoComplete="email"
+                            className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
+                  // Full sign-in inline — same hierarchy as the standalone /auth page's
+                  // "choose" step (phone primary, email secondary, Google/Apple below a
+                  // divider), but embedded directly in the booking flow. No redirect for
+                  // phone/email OTP; Google/Apple necessarily bounce through the provider,
+                  // but return to this exact page (stashBooking + pending-booking restore).
                   <div className="mt-5 space-y-4 rounded-3xl glass p-6">
-                    <div>
-                      <label htmlFor="guest-name" className="mb-1.5 block text-sm font-semibold">
-                        Full name<span className="text-destructive"> *</span>
-                      </label>
-                      <input
-                        id="guest-name"
-                        value={guestInfo.name}
-                        onChange={(e) => setGuestInfo((g) => ({ ...g, name: e.target.value }))}
-                        autoComplete="name"
-                        className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
-                      />
-                    </div>
-                    <PhoneField
-                      id="guest-phone"
-                      value={guestInfo.phone}
-                      onChange={(next) => setGuestInfo((g) => ({ ...g, phone: next }))}
-                      label="Phone number"
-                      required
-                    />
-                    <div>
-                      <label htmlFor="guest-email" className="mb-1.5 block text-sm font-semibold">
-                        Email{" "}
-                        <span className="font-semibold text-muted-foreground">(optional)</span>
-                      </label>
-                      <input
-                        id="guest-email"
-                        type="email"
-                        value={guestInfo.email}
-                        onChange={(e) => setGuestInfo((g) => ({ ...g, email: e.target.value }))}
-                        autoComplete="email"
-                        className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
-                      />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Already have an account?{" "}
-                      <Link
-                        to="/auth"
-                        onClick={stashBooking}
-                        search={{ next: `/business/${businessSlug}` }}
-                        className="font-semibold text-foreground underline underline-offset-4"
-                      >
-                        Sign in instead
-                      </Link>
-                    </p>
+                    {inlineAuthMethod === "phone" ? (
+                      <>
+                        <PhoneField
+                          id="guest-phone"
+                          value={guestInfo.phone}
+                          onChange={(next) => setGuestInfo((g) => ({ ...g, phone: next }))}
+                          label="Phone number"
+                          required
+                          disabled={inlineAuthOtpSent || inlineAuthBusy}
+                        />
+                        {inlineAuthOtpSent && (
+                          <div>
+                            <label
+                              htmlFor="booking-auth-otp"
+                              className="mb-1.5 block text-sm font-semibold"
+                            >
+                              Verification code
+                            </label>
+                            <input
+                              id="booking-auth-otp"
+                              inputMode="numeric"
+                              maxLength={10}
+                              value={inlineAuthOtp}
+                              onChange={(e) => setInlineAuthOtp(e.target.value)}
+                              autoComplete="one-time-code"
+                              className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base tracking-[0.4em] outline-none ring-ring focus:ring-2"
+                            />
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          disabled={inlineAuthBusy}
+                          onClick={inlineAuthOtpSent ? verifyInlineAuthOtp : sendInlineAuthOtp}
+                          className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-lime text-base font-bold text-lime-foreground disabled:opacity-60"
+                        >
+                          {inlineAuthBusy && <Loader2 className="size-4 animate-spin" />}
+                          {inlineAuthOtpSent ? "Verify and continue" : "Continue"}
+                        </button>
+                        {inlineAuthOtpSent && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInlineAuthOtpSent(false);
+                              setInlineAuthOtp("");
+                            }}
+                            className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+                          >
+                            Use a different number
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label
+                            htmlFor="booking-auth-email"
+                            className="mb-1.5 block text-sm font-semibold"
+                          >
+                            Email address
+                          </label>
+                          <input
+                            id="booking-auth-email"
+                            type="email"
+                            value={inlineAuthEmail}
+                            onChange={(e) => setInlineAuthEmail(e.target.value)}
+                            autoComplete="email"
+                            disabled={inlineAuthEmailOtpSent || inlineAuthBusy}
+                            className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2 disabled:opacity-60"
+                          />
+                        </div>
+                        {inlineAuthEmailOtpSent && (
+                          <div>
+                            <label
+                              htmlFor="booking-auth-email-otp"
+                              className="mb-1.5 block text-sm font-semibold"
+                            >
+                              Verification code
+                            </label>
+                            <input
+                              id="booking-auth-email-otp"
+                              inputMode="numeric"
+                              maxLength={10}
+                              value={inlineAuthOtp}
+                              onChange={(e) => setInlineAuthOtp(e.target.value)}
+                              autoComplete="one-time-code"
+                              className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base tracking-[0.4em] outline-none ring-ring focus:ring-2"
+                            />
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          disabled={inlineAuthBusy}
+                          onClick={
+                            inlineAuthEmailOtpSent
+                              ? verifyInlineAuthEmailOtp
+                              : sendInlineAuthEmailOtp
+                          }
+                          className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-lime text-base font-bold text-lime-foreground disabled:opacity-60"
+                        >
+                          {inlineAuthBusy && <Loader2 className="size-4 animate-spin" />}
+                          {inlineAuthEmailOtpSent ? "Verify and continue" : "Continue"}
+                        </button>
+                        {inlineAuthEmailOtpSent && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInlineAuthEmailOtpSent(false);
+                              setInlineAuthOtp("");
+                            }}
+                            className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+                          >
+                            Use a different email
+                          </button>
+                        )}
+                      </>
+                    )}
+
+                    {!inlineAuthOtpSent && !inlineAuthEmailOtpSent && (
+                      <>
+                        <p className="text-center text-sm">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setInlineAuthMethod(inlineAuthMethod === "phone" ? "email" : "phone")
+                            }
+                            className="font-semibold text-muted-foreground underline underline-offset-4"
+                          >
+                            {inlineAuthMethod === "phone"
+                              ? "Continue with email"
+                              : "Continue with phone"}
+                          </button>
+                        </p>
+
+                        <div className="flex items-center gap-3 text-xs font-semibold text-muted-foreground">
+                          <span className="h-px flex-1 bg-border" />
+                          or
+                          <span className="h-px flex-1 bg-border" />
+                        </div>
+
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => inlineOAuth("google")}
+                            disabled={inlineAuthBusy}
+                            className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold disabled:opacity-60"
+                          >
+                            <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
+                              <path
+                                fill="#FFC107"
+                                d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+                              />
+                              <path
+                                fill="#FF3D00"
+                                d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
+                              />
+                              <path
+                                fill="#4CAF50"
+                                d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+                              />
+                              <path
+                                fill="#1976D2"
+                                d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
+                              />
+                            </svg>
+                            Continue with Google
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => inlineOAuth("apple")}
+                            disabled={inlineAuthBusy}
+                            className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold disabled:opacity-60"
+                          >
+                            <Apple className="size-4 shrink-0" />
+                            Continue with Apple
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </section>
