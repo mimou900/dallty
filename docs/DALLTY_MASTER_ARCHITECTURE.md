@@ -1506,6 +1506,29 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
   request log, insufficient to distinguish a true infinite loop from a large bounded burst).
   Currently low real-world exposure: no real (non-test) approved business has services
   configured yet, so no actual customer has hit this path.
+- **Post-report fixes (found via live user bug reports after this project's final report was
+  delivered, deployed directly to `main` — commit `bb0b924`):**
+  - **Booking confirmation failure ("Something went wrong confirming your booking"):**
+    root-caused to `z.string().datetime()` (in `src/lib/booking-engine.functions.ts`) defaulting
+    to `offset: false`, which rejects the valid offset-format ISO 8601 timestamps
+    (`"...+00:00"`) that PostgREST legitimately returns for `timestamptz` columns/RPC results.
+    Fixed at all three call sites (hold create, reschedule, walk-in) with `{ offset: true }`.
+    Verified end-to-end locally (a real test booking was created and confirmed, then deleted).
+  - **Guest form replaced with inline full sign-in (`src/routes/business.$businessSlug.tsx`
+    step 4):** per explicit user instruction, the old plain guest name/phone/email form and its
+    "Sign in instead" link to `/auth` (which was also the only path from the booking flow to the
+    salon/staff signup links) were removed entirely. Step 4 now offers real authentication
+    embedded directly in the page — phone OTP, email OTP, and Google/Apple OAuth, mirroring
+    `/auth`'s own phone-first hierarchy — with no navigation away. Google/Apple necessarily
+    bounce through the provider; the existing `pending-booking.ts` stash/restore mechanism
+    (already used for the pre-existing "sign in from elsewhere" flow) carries the in-progress
+    booking selection across that round trip. Also fixed a related latent bug surfaced while
+    building this: `confirmBooking`'s mutation now branches on `hold.guestToken` presence rather
+    than current `user` state, since a guest-owned hold must always confirm via the guest path
+    even if the customer authenticates mid-flow — the previous `user`-based branch would have
+    hit `UNAUTHORIZED_BOOKING` server-side the first time this sequence occurred for a real
+    customer. Verified live on `www.dallty.com`: phone/email/Google/Apple options all render
+    inline with no redirect; zero console errors.
 - **Verified:** `tsc --noEmit` clean, `eslint .` clean (zero output), `npm run build` clean.
   Visually verified in the local dev server at mobile (375px) and tablet (834px) widths, in
   English, French-capable, and Arabic/RTL (confirmed correct mirroring and Clash Display
