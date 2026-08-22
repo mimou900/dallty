@@ -376,9 +376,15 @@ function BookingFlow() {
     };
   };
 
-  /** Only specialists who actually perform the chosen service. */
-  const eligibleStaff = (staffQuery.data ?? []).filter(
-    (m) => !serviceId || (m.service_ids ?? []).includes(serviceId),
+  /** Only specialists who actually perform the chosen service.
+   * Memoized: this feeds useQueries below, which needs a referentially
+   * stable array or it treats every render as a brand-new query set. */
+  const eligibleStaff = useMemo(
+    () =>
+      (staffQuery.data ?? []).filter(
+        (m) => !serviceId || (m.service_ids ?? []).includes(serviceId),
+      ),
+    [staffQuery.data, serviceId],
   );
 
   /** Average rating per specialist, for the specialist cards. */
@@ -409,17 +415,26 @@ function BookingFlow() {
     return acc;
   }, [staffRatingQuery.data]);
 
-  /** First open day per eligible specialist for the chosen service. */
-  const nextAvailableQueries = useQueries({
-    queries: eligibleStaff.map((m) => ({
-      queryKey: ["day-availability", m.id, serviceId, branchId],
-      enabled: Boolean(serviceId && branchId),
-      queryFn: async () =>
-        (await getStaffDayAvailability({
-          data: { staffId: m.id, branchId: branchId!, serviceId: serviceId!, days: 14 },
-        })) as DayAvailability[],
-    })),
-  });
+  /** First open day per eligible specialist for the chosen service.
+   * The `queries` array passed to useQueries must be referentially stable
+   * across renders that don't actually change the input — otherwise the
+   * observer treats it as a new query set every render, which (confirmed
+   * live: a real, pre-existing bug this project surfaced for the first time
+   * once a real business had real services/staff/availability to render
+   * against) causes a continuous request loop, not just a wasted re-render. */
+  const nextAvailableQueriesConfig = useMemo(
+    () =>
+      eligibleStaff.map((m) => ({
+        queryKey: ["day-availability", m.id, serviceId, branchId],
+        enabled: Boolean(serviceId && branchId),
+        queryFn: async () =>
+          (await getStaffDayAvailability({
+            data: { staffId: m.id, branchId: branchId!, serviceId: serviceId!, days: 14 },
+          })) as DayAvailability[],
+      })),
+    [eligibleStaff, serviceId, branchId],
+  );
+  const nextAvailableQueries = useQueries({ queries: nextAvailableQueriesConfig });
 
   const nextAvailableByStaff = useMemo(() => {
     const map = new Map<string, string>();
