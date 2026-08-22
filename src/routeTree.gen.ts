@@ -26,6 +26,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedFavoritesRouteImport } from './routes/_authenticated/favorites'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthEmailHookRouteImport } from './routes/auth/email-hook'
+import { Route as AuthSmsHookRouteImport } from './routes/auth/sms-hook'
 import { Route as BusinessIdBusinessIdRouteImport } from './routes/business-id.$businessId'
 import { Route as BusinessBusinessSlugRouteImport } from './routes/business.$businessSlug'
 import { Route as BusinessSignupRouteImport } from './routes/business/signup'
@@ -144,6 +145,11 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
 const AuthEmailHookRoute = AuthEmailHookRouteImport.update({
   id: '/email-hook',
   path: '/email-hook',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthSmsHookRoute = AuthSmsHookRouteImport.update({
+  id: '/sms-hook',
+  path: '/sms-hook',
   getParentRoute: () => AuthRoute,
 } as any)
 const BusinessIdBusinessIdRoute = BusinessIdBusinessIdRouteImport.update({
@@ -361,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/email-hook': typeof AuthEmailHookRoute
+  '/auth/sms-hook': typeof AuthSmsHookRoute
   '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
   '/business/$businessSlug': typeof BusinessBusinessSlugRoute
   '/business/signup': typeof BusinessSignupRoute
@@ -412,6 +419,7 @@ export interface FileRoutesByTo {
   '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/email-hook': typeof AuthEmailHookRoute
+  '/auth/sms-hook': typeof AuthSmsHookRoute
   '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
   '/business/$businessSlug': typeof BusinessBusinessSlugRoute
   '/business/signup': typeof BusinessSignupRoute
@@ -466,6 +474,7 @@ export interface FileRoutesById {
   '/_authenticated/favorites': typeof AuthenticatedFavoritesRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/auth/email-hook': typeof AuthEmailHookRoute
+  '/auth/sms-hook': typeof AuthSmsHookRoute
   '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
   '/business/$businessSlug': typeof BusinessBusinessSlugRoute
   '/business/signup': typeof BusinessSignupRoute
@@ -520,6 +529,7 @@ export interface FileRouteTypes {
     | '/favorites'
     | '/profile'
     | '/auth/email-hook'
+    | '/auth/sms-hook'
     | '/business-id/$businessId'
     | '/business/$businessSlug'
     | '/business/signup'
@@ -571,6 +581,7 @@ export interface FileRouteTypes {
     | '/favorites'
     | '/profile'
     | '/auth/email-hook'
+    | '/auth/sms-hook'
     | '/business-id/$businessId'
     | '/business/$businessSlug'
     | '/business/signup'
@@ -624,6 +635,7 @@ export interface FileRouteTypes {
     | '/_authenticated/favorites'
     | '/_authenticated/profile'
     | '/auth/email-hook'
+    | '/auth/sms-hook'
     | '/business-id/$businessId'
     | '/business/$businessSlug'
     | '/business/signup'
@@ -796,6 +808,13 @@ declare module '@tanstack/react-router' {
       path: '/email-hook'
       fullPath: '/auth/email-hook'
       preLoaderRoute: typeof AuthEmailHookRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/sms-hook': {
+      id: '/auth/sms-hook'
+      path: '/sms-hook'
+      fullPath: '/auth/sms-hook'
+      preLoaderRoute: typeof AuthSmsHookRouteImport
       parentRoute: typeof AuthRoute
     }
     '/business-id/$businessId': {
@@ -1146,10 +1165,12 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface AuthRouteChildren {
   AuthEmailHookRoute: typeof AuthEmailHookRoute
+  AuthSmsHookRoute: typeof AuthSmsHookRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthEmailHookRoute: AuthEmailHookRoute,
+  AuthSmsHookRoute: AuthSmsHookRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
