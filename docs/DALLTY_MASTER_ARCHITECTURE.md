@@ -1480,6 +1480,32 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
   changing the `default` variant's color — dozens of existing `variant="default"` call sites
   across the admin/dashboard are structural actions, not high-energy CTAs, and changing their
   color globally was judged out of scope and risky for this pass.
+- **CRITICAL, UNRESOLVED — excessive/looping requests on real data (found during this
+  project's own testing, not something this project caused):** Opening the booking tab of a
+  business that has real services/staff/availability configured (previously impossible — every
+  production business was `marketplace_status='draft'` with zero services until this session's
+  test-data work) produces a very high volume of repeated identical requests to
+  `getBusinessAvailabilityOverview`/`getStaffDayAvailability`, confirmed live on both
+  `www.dallty.com` and `dallty.vercel.app`. One real, verified contributing cause was found and
+  fixed: `src/routes/business.$businessSlug.tsx`'s `useQueries` call for per-specialist "next
+  available day" was fed a brand-new, unmemoized config array every render — confirmed via
+  `git blame` to predate this session (original commit `5864923`), now memoized (commit
+  `cfa696a`, already deployed to production). That fix is real and verified working in
+  isolation (local dev server, clean single-call-per-function trace, interactive booking flow
+  end to end). **However, retesting live in production after deploying it, the excessive-request
+  pattern still reproduces** — and a second instance was observed on the homepage
+  (`useLiveBusinesses`, a simple single stably-keyed `useQuery` with no plausible in-code loop
+  mechanism), suggesting either a shared root cause not yet isolated, or an artifact of the
+  testing method itself (rapid repeated navigations) rather than the app's real steady-state
+  behavior — this session could not distinguish between those with confidence. Supabase's own
+  connection count was checked and is healthy (24/60) and the request-based rate limiter (which
+  throws a hard, visible error rather than degrading silently) never fired, which rules out the
+  most severe interpretations but does not resolve the question. **Do not treat the booking or
+  marketplace pages as fully performance-verified until this is investigated with real browser
+  DevTools** (proper network waterfall timing — this session only had access to an approximated
+  request log, insufficient to distinguish a true infinite loop from a large bounded burst).
+  Currently low real-world exposure: no real (non-test) approved business has services
+  configured yet, so no actual customer has hit this path.
 - **Verified:** `tsc --noEmit` clean, `eslint .` clean (zero output), `npm run build` clean.
   Visually verified in the local dev server at mobile (375px) and tablet (834px) widths, in
   English, French-capable, and Arabic/RTL (confirmed correct mirroring and Clash Display
