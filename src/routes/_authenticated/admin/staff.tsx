@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { ListingReadiness } from "@/components/admin/listing-readiness";
+import { ListSkeleton } from "@/components/dallty/skeletons";
 import {
   SpecialistWizard,
   emptyDraft,
@@ -231,7 +232,7 @@ function SpecialistsPage() {
     });
   }, [staff.data, search, roleFilter, statusFilter, availabilityFilter, serviceFilter, availability, links.data]);
 
-  if (businessesQuery.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (businessesQuery.isLoading) return <ListSkeleton />;
   if (!activeBusinessId)
     return (
       <div className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
@@ -435,7 +436,7 @@ function SpecialistsPage() {
       </div>
 
       {staff.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading specialists…</p>
+        <ListSkeleton />
       ) : visible.length === 0 ? (
         <div className="rounded-3xl glass p-8 text-center">
           <UserCog className="mx-auto size-8 text-muted-foreground" />

@@ -49,10 +49,11 @@ function isH3SwallowedErrorBody(body: string): boolean {
 // so it's the correct single injection point rather than per-route configuration.
 //
 // CSP is scoped to the third-party origins this app actually loads from today (confirmed by
-// reading the source, not guessed): Google Maps JS API (src/lib/maps-loader.ts) and Google
-// Fonts (src/routes/__root.tsx's preconnect links) for script/style/font, and Supabase
-// (REST + Realtime websocket) for connect-src — the logo is a bundled same-origin asset
-// (src/assets/dallty-*.png), not a separate host, so it needs no extra entry.
+// reading the source, not guessed): Google Maps JS API (src/lib/maps-loader.ts), Google
+// Fonts and Fontshare — Clash Display, project-ui-ux-transformation — (src/routes/__root.tsx's
+// preconnect links) for script/style/font, and Supabase (REST + Realtime websocket) for
+// connect-src — the logo is a bundled same-origin asset (src/assets/dallty-*.png), not a
+// separate host, so it needs no extra entry.
 //
 // `unsafe-inline` on script-src is a deliberate, verified exception, not an oversight:
 // TanStack Start's client hydration injects an inline bootstrap script carrying per-request
@@ -67,8 +68,8 @@ const SUPABASE_ORIGIN = "https://cbacaplvcxytzclpiyir.supabase.co";
 const CSP = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' https://maps.googleapis.com`,
-  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-  `font-src 'self' https://fonts.gstatic.com`,
+  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com`,
+  `font-src 'self' https://fonts.gstatic.com https://cdn.fontshare.com`,
   `img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com ${SUPABASE_ORIGIN}`,
   `connect-src 'self' ${SUPABASE_ORIGIN} wss://cbacaplvcxytzclpiyir.supabase.co https://maps.googleapis.com`,
   // A library in this app spins up a blob: Web Worker (confirmed by testing — the browser

@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Apple, ArrowLeft, Loader2, Mail, Phone, Scissors, Store } from "lucide-react";
+import { Apple, ArrowLeft, Loader2, Scissors, Store } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -88,7 +88,7 @@ const inputClass =
  * account that never finished onboarding -- never for an already-complete profile, regardless
  * of which method was used to sign in.
  */
-type Step = "choose" | "password" | "phone" | "email" | "complete-profile";
+type Step = "choose" | "password" | "email" | "complete-profile";
 
 function AuthPage() {
   const { next, mode: modeParam, email: emailParam } = Route.useSearch();
@@ -538,125 +538,134 @@ function AuthPage() {
 
         {step === "choose" && (
           <>
-            <h1 className="text-3xl font-extrabold">{t("welcome")}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{t("sign_in_sub")}</p>
-
-            <div className="mt-6 space-y-2">
-              <button
-                type="button"
-                onClick={() => setStep("phone")}
-                className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold"
-              >
-                <Phone className="size-4 shrink-0" />
-                {t("continue_with_phone")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep("email")}
-                className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold"
-              >
-                <Mail className="size-4 shrink-0" />
-                {t("continue_with_email")}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleOAuth("google")}
-                disabled={busy}
-                className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold disabled:opacity-60"
-              >
-                <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
-                  <path
-                    fill="#FFC107"
-                    d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
-                  />
-                  <path
-                    fill="#FF3D00"
-                    d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
-                  />
-                  <path
-                    fill="#4CAF50"
-                    d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
-                  />
-                  <path
-                    fill="#1976D2"
-                    d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
-                  />
-                </svg>
-                {t("google")}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleOAuth("apple")}
-                disabled={busy}
-                className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold disabled:opacity-60"
-              >
-                <Apple className="size-4 shrink-0" />
-                {t("apple")}
-              </button>
-            </div>
-
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              <button
-                type="button"
-                onClick={() => setStep("password")}
-                className="font-semibold text-foreground underline underline-offset-4"
-              >
-                {t("use_password_instead")}
-              </button>
+            {/* Phone-first hierarchy (brief §36-41): phone is the dominant,
+                default-visible method with the strongest visual weight;
+                email is a small secondary text action; Google/Apple sit
+                below a separator, equal to each other but secondary to
+                phone. Never "Login" vs "Signup" — always "Continue", the
+                backend resolves existing vs. new. */}
+            <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+              {t("continue_to_book")}
             </p>
-          </>
-        )}
+            <h1 className="text-h1 mt-1">{t("enter_phone_sub")}</h1>
 
-        {step === "phone" && (
-          <form onSubmit={otpSent ? verifyPhone : continuePhone} className="mt-1 space-y-3">
-            <h1 className="text-2xl font-extrabold">{t("continue_with_phone")}</h1>
-            <PhoneField
-              id="phone-continue"
-              value={contactPhone}
-              onChange={setContactPhone}
-              label={t("phone")}
-              required
-              dir={dir}
-              disabled={otpSent || busy}
-            />
-            {otpSent && (
-              <div>
-                <label htmlFor="phone-otp-code" className="mb-1.5 block text-sm font-semibold">
-                  {t("otp_code")}
-                </label>
-                <input
-                  id="phone-otp-code"
-                  inputMode="numeric"
-                  required
-                  maxLength={10}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  autoComplete="one-time-code"
-                  className={`${inputClass} tracking-[0.4em]`}
-                />
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={busy}
-              className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
-            >
-              {busy && <Loader2 className="size-4 animate-spin" />}
-              {otpSent ? t("verify_code") : t("send_code")}
-            </button>
-            {otpSent && (
+            <form onSubmit={otpSent ? verifyPhone : continuePhone} className="mt-5 space-y-3">
+              <PhoneField
+                id="phone-continue"
+                value={contactPhone}
+                onChange={setContactPhone}
+                label={t("phone")}
+                required
+                dir={dir}
+                disabled={otpSent || busy}
+              />
+              {otpSent && (
+                <div>
+                  <label htmlFor="phone-otp-code" className="mb-1.5 block text-sm font-semibold">
+                    {t("otp_code")}
+                  </label>
+                  <input
+                    id="phone-otp-code"
+                    inputMode="numeric"
+                    required
+                    maxLength={10}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    autoComplete="one-time-code"
+                    className={`${inputClass} tracking-[0.4em]`}
+                  />
+                </div>
+              )}
               <button
-                type="button"
-                onClick={() => {
-                  setOtpSent(false);
-                  setOtp("");
-                }}
-                className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+                type="submit"
+                disabled={busy}
+                className="press flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-lime text-base font-bold text-lime-foreground disabled:opacity-60"
               >
-                {t("use_different_number")}
+                {busy && <Loader2 className="size-4 animate-spin" />}
+                {otpSent ? t("verify_code") : t("continue")}
               </button>
+              {otpSent && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpSent(false);
+                    setOtp("");
+                  }}
+                  className="w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+                >
+                  {t("use_different_number")}
+                </button>
+              )}
+            </form>
+
+            {!otpSent && (
+              <>
+                <p className="mt-4 text-center text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setStep("email")}
+                    className="font-semibold text-muted-foreground underline underline-offset-4"
+                  >
+                    {t("continue_with_email")}
+                  </button>
+                </p>
+
+                <div className="my-5 flex items-center gap-3 text-xs font-semibold text-muted-foreground">
+                  <span className="h-px flex-1 bg-border" />
+                  {t("or")}
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOAuth("google")}
+                    disabled={busy}
+                    className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold disabled:opacity-60"
+                  >
+                    <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
+                      <path
+                        fill="#FFC107"
+                        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+                      />
+                      <path
+                        fill="#FF3D00"
+                        d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
+                      />
+                      <path
+                        fill="#4CAF50"
+                        d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+                      />
+                      <path
+                        fill="#1976D2"
+                        d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
+                      />
+                    </svg>
+                    {t("google")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOAuth("apple")}
+                    disabled={busy}
+                    className="press flex min-h-12 w-full items-center gap-3 rounded-2xl glass-soft px-4 text-base font-semibold disabled:opacity-60"
+                  >
+                    <Apple className="size-4 shrink-0" />
+                    {t("apple")}
+                  </button>
+                </div>
+
+                <p className="mt-6 text-center text-sm text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() => setStep("password")}
+                    className="font-semibold text-foreground underline underline-offset-4"
+                  >
+                    {t("use_password_instead")}
+                  </button>
+                </p>
+              </>
             )}
-          </form>
+          </>
         )}
 
         {step === "email" && (

@@ -48,5 +48,8 @@
   "live_support": "Support en direct",
   "customer_app": "Application client",
   "brand_business": "Dallty Business",
-  "brand_business_subtitle": "Professionnel"
+  "brand_business_subtitle": "Professionnel",
+  "connection_lost": "Connexion perdue",
+  "connection_lost_sub": "Certaines mises à jour peuvent être indisponibles.",
+  "connection_restored": "De nouveau en ligne"
 }

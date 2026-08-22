@@ -10,6 +10,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        /* Brand "Primary Button" — lime, for the highest-energy CTA on a screen
+           (Book Now / Continue / Confirm / Save). Not the default variant: most
+           existing `variant="default"` call sites are dashboard/admin actions
+           that should stay on the structural deep-green, not turn lime. */
+        lime: "bg-lime text-lime-foreground shadow hover:bg-lime/90",
+        /* Brand "Accent Button" — pink, for a highlighted/secondary-energy moment. */
+        accent: "bg-pink text-pink-foreground shadow hover:bg-pink/90",
         destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
           "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",

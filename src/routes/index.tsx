@@ -217,9 +217,7 @@ function Index() {
                 <Sparkles className="size-3.5 shrink-0 text-gold" />
                 {t("hero_badge")}
               </span>
-              <h1 className="max-w-2xl text-[2rem] font-extrabold leading-[1.05] text-background sm:text-6xl">
-                {t("hero_title")}
-              </h1>
+              <h1 className="text-display max-w-2xl text-background">{t("hero_title")}</h1>
               <p className="max-w-xl text-sm text-background/85 sm:text-lg">{t("hero_sub")}</p>
             </div>
           </div>
@@ -261,7 +259,7 @@ function Index() {
               </label>
               <button
                 type="submit"
-                className="press flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-primary px-8 text-base font-bold text-primary-foreground shadow-lg transition-transform hover:scale-[1.02]"
+                className="press flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-lime px-8 text-base font-bold text-lime-foreground shadow-lg transition-transform hover:scale-[1.02]"
               >
                 <Search className="size-5" />
                 {t("search_btn")}
@@ -518,7 +516,7 @@ function Index() {
 
           <Link
             to={user ? home : "/auth"}
-            className="press mt-7 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-7 text-base font-bold text-primary-foreground"
+            className="press mt-7 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-pink px-7 text-base font-bold text-pink-foreground"
           >
             <Smartphone className="size-5" />
             {t("cta_btn")}

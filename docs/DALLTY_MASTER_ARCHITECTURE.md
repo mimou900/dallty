@@ -1404,6 +1404,110 @@ architecture doc and roadmap) is part of the same `dee14c6` snapshot.
 
 ---
 
+### Project 16 — UI/UX Transformation (Premium App-Like Experience)
+
+- **Scope:** Presentation/interaction layer only, per this project's own explicit rule — no
+  backend, database, auth architecture, or second booking engine. Delivered: brand design
+  tokens (colors, typography, motion, z-index), a phone-first authentication hierarchy, a
+  real booking-flow bug fix, a reusable skeleton system, a connection-lost banner, and
+  targeted responsive/mobile fixes. Full audit (design system, components, fonts, colors,
+  navigation, responsive strategy, booking flow, auth flow, loading behavior) was delivered
+  as a standalone chat report before any code changed, per the project's own audit-first
+  requirement — not reproduced here; see git history / session record for the full text.
+- **Design tokens (`src/styles.css`):** Brand palette converted from the approved hex board to
+  oklch, matching the existing token system's own convention (no hex anywhere else in the
+  file): `--primary` = deep green `#0F4F35` (structure/identity — the role this token already
+  played everywhere: nav, borders, rings, icons), new `--lime` = `#C0DD00` (primary-action
+  energy, scoped to actual CTA buttons — Book Now/Continue/Confirm — not blanket-applied to
+  every existing `--primary` usage, to avoid a "fluorescent everywhere" result the brief
+  explicitly warned against), new `--pink` = `#FF78DB` (accent/highlight moments), `--background`
+  (light) = cream `#F7F5EE`. Added `--motion-fast/normal/emphasis` and `--z-sticky/nav/overlay/
+  drawer/toast` tokens (previously no centralized motion/z-index scale existed). Added a
+  `text-display/h1/h2/h3/body/body-sm/label/caption/button` typography utility set on
+  Clash Display (headlines) + Inter (everything else, replacing Manrope) — applied to the
+  homepage hero and the auth headline as the reference implementation; full hierarchy adoption
+  across every remaining heading in the app was not attempted in this pass (see Remaining Gaps).
+  Fonts load via Google Fonts (Inter) and Fontshare (Clash Display, free-for-commercial), which
+  required adding `api.fontshare.com`/`cdn.fontshare.com` to the CSP in `src/server.ts` — that
+  CSP is otherwise deliberately minimal and origin-verified (see its own comment); this was the
+  one required addition, confirmed necessary by an actual CSP violation during testing, not
+  guessed.
+- **Booking-flow bug fix (`src/routes/business.$businessSlug.tsx`):** The audit found a real,
+  live bug matching this project's own "no booking redirects" rule: tapping a time slot as a
+  signed-out customer force-redirected to `/auth` unconditionally, via a stale code path whose
+  own comment ("online booking requires an authenticated account, no guest booking") was
+  already contradicted by the rest of the component — guest checkout (name/phone/email
+  collected inline at step 4, `createGuestBookingHold`/`confirmGuestBookingHold`) was fully
+  wired and already the intended path. Removed the dead redirect block entirely; `createHold`
+  already dispatches to the guest-safe RPC automatically based on `user` presence, so no other
+  change was needed. This was the most consequential fix in the project — every signed-out
+  customer hitting the primary booking path was being sent to a redirect that guest checkout
+  had already made unnecessary.
+- **Auth phone-first hierarchy (`src/routes/auth.tsx`):** The "choose method" screen previously
+  showed four visually-equal buttons (Phone/Email/Google/Apple). Rebuilt to match the brief's
+  own mockup exactly: the phone input renders inline as the default state with a large lime
+  "Continue" CTA, "Continue with email" is a small secondary text link, Google/Apple sit below
+  a divider, equal to each other but secondary to phone. The now-redundant separate `"phone"`
+  step was removed from the state machine (merged into `"choose"`) rather than left as dead
+  code. No new auth architecture — same OTP/OAuth/profile-completion logic underneath, only the
+  entry screen's layout changed. New i18n keys (`continue_to_book`, `enter_phone_sub`,
+  `continue`) added to all three locales (en/fr/ar), not hardcoded.
+- **Skeleton system (`src/components/dallty/skeletons.tsx`, new file):** `BusinessCardSkeleton`,
+  `SearchSkeleton`, `BusinessPageSkeleton`, `BookingSkeleton`, `CalendarSkeleton`,
+  `DashboardSkeleton`, `TableSkeleton`, `ProfileSkeleton`, `ReviewSkeleton`, plus a `ListSkeleton`
+  for the recurring "grid of glass cards" loading pattern. Wired into search results, the
+  business detail page's initial load, the customers/staff lists, and the platform overview
+  dashboard/table — replacing bare "Loading…" text and a couple of undersized ad hoc skeletons.
+  Not every loading state in the app was converted (see Remaining Gaps) — the homepage's
+  nearby-businesses section and the main business dashboard home were deliberately left
+  untouched since their loading semantics (demo-data fallback; no existing loading branch)
+  would have needed a real behavior change, not just a presentation swap, to wire in safely.
+- **Connection-lost banner (`src/components/dallty/connection-banner.tsx`, new):** Listens to
+  `online`/`offline` browser events, shows a non-blocking pill at the top of the screen. Purely
+  informational — it never retries anything itself; existing booking/payment mutations keep
+  their own idempotent retry logic untouched, per the brief's explicit "never blindly retry
+  financial mutations" rule.
+- **Responsive (`src/routes/_authenticated/admin/platform/overview.tsx`):** The one true
+  `<table>` in the app (platform shops list, previously horizontal-scroll-only on mobile) now
+  has a card-based mobile view below `sm:`, with the full table preserved at `sm:` and up.
+  Business-owner-facing "tables" (customers, staff) were already card-based per the audit and
+  needed no change.
+- **Brand color rollout beyond tokens:** `bg-lime`/`text-lime-foreground` applied to the actual
+  primary-action buttons the brief's own button mockup shows as lime (homepage hero search,
+  business card "Book", booking flow "Continue"/"Confirm booking"). `bg-pink` applied to the
+  homepage's closing marketing CTA (the brief's own "Get Started"-style accent-button example).
+  Two new `button.tsx` variants (`lime`, `accent`) added alongside the existing ones rather than
+  changing the `default` variant's color — dozens of existing `variant="default"` call sites
+  across the admin/dashboard are structural actions, not high-energy CTAs, and changing their
+  color globally was judged out of scope and risky for this pass.
+- **Verified:** `tsc --noEmit` clean, `eslint .` clean (zero output), `npm run build` clean.
+  Visually verified in the local dev server at mobile (375px) and tablet (834px) widths, in
+  English, French-capable, and Arabic/RTL (confirmed correct mirroring and Clash Display
+  rendering in Arabic too) — not the full 14-breakpoint matrix the brief lists (see Remaining
+  Gaps). No Lovable references or production-facing `localhost`/`127.0.0.1` were introduced by
+  this project (existing historical references in docs/comments from the prior vendor-migration
+  project were left as-is — they're records of what was removed, not live dependencies).
+- **Remaining gaps (explicitly not claimed complete):** Full typography hierarchy adoption
+  across every heading (only the homepage hero and auth headline use the new `.text-h1`/
+  `.text-display` utilities so far); the two remaining in-booking `/auth` links (waitlist
+  sign-in, "sign in instead" at step 4) still navigate to the auth route rather than opening an
+  in-context drawer — the forced/blocking redirect was fixed, these two are opt-in secondary
+  paths only; iPad-specific split layouts (§9/§88/§95) beyond what standard `md:`/`lg:`
+  breakpoints already provide; full booking-auth test matrix (§126) and low-network simulation
+  testing (§130) against real test accounts; LCP/CLS/INP measurement; a dedicated loading state
+  for the homepage's nearby-businesses section and the business-owner dashboard home; full
+  14-breakpoint visual QA sweep. None of this was rushed to a false "done" — see the final
+  report delivered in chat for the complete PASS/FAIL breakdown.
+- **Documentation location:** This entry. No separate `DALLTY_UI_UX_SYSTEM.md` was created —
+  the token/typography/glass/motion rules are self-documented as comments directly in
+  `src/styles.css` (the single source of truth for all of it), which stays accurate by
+  construction in a way a separate doc would drift from; this entry covers the narrative/
+  decisions a code comment can't carry.
+- **Git commit(s):** See `project-ui-ux-transformation` branch history.
+- **Production status:** See git/deployment section of the final report delivered in chat.
+
+---
+
 ## NEXT PROJECT
 
 **Recommendation: complete the Security Anti-Fraud Hardening initiative (Batches 2–6).**
