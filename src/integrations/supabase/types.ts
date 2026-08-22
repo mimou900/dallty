@@ -4628,8 +4628,11 @@ export type Database = {
         }
         Returns: {
           area: string
+          area_ar: string
+          business_type: string
           categories: string[]
           city: string
+          country_code: string
           cover_url: string
           description: string
           distance_km: number
@@ -4637,6 +4640,7 @@ export type Database = {
           id: string
           image_url: string
           instant_booking: boolean
+          is_active: boolean
           is_verified: boolean
           latitude: number
           logo_url: string

@@ -1,7 +1,6 @@
 import type React from "react";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
   Eye,
@@ -26,12 +25,12 @@ import { businesses, type Business } from "@/lib/dallty-content";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
 import { landingForRoles } from "@/lib/post-login";
 import { SiteHeader } from "@/components/dallty/site-nav";
 import { useCountries, translate } from "@/lib/reference-data";
-import { citiesFor, provincesFor, provinceOfCity } from "@/lib/arab-cities";
+import { citiesFor, provincesFor } from "@/lib/arab-cities";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
 
 export const Route = createFileRoute("/")({
@@ -63,13 +62,6 @@ const CATEGORY_DEFS = [
   { key: "makeup", en: "Makeup", icon: Sparkles },
   { key: "lashes", en: "Lashes", icon: Eye },
 ] as const;
-
-type LiveBusiness = Business & {
-  countryCode: string;
-  state: string;
-  city: string;
-  businessType: string;
-};
 
 function Index() {
   const { lang } = useLocale();
@@ -107,40 +99,12 @@ function Index() {
     document.getElementById("nearby")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const { data: liveBusinesses } = useQuery({
-    queryKey: ["businesses"],
-    queryFn: async (): Promise<LiveBusiness[]> => {
-      const { data, error } = await supabase
-        .from("businesses")
-        .select(
-          "id, slug, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, amenities, languages, awards, certifications, brands, cancellation_policy, cancellation_policy_ar, house_rules, house_rules_ar, owner_story, owner_story_ar, faq, video_tour_url, instagram_url, tiktok_url, address, status, business_type, website_url, facebook_url, country, country_code, district, postal_code, maps_url, employee_count, branch_count, logo_url, cover_url, is_listed",
-        )
-        .eq("is_active", true)
-        .eq("is_listed", true)
-        .order("rating", { ascending: false })
-        // See the matching note in src/hooks/use-live-businesses.ts — bounded per the
-        // Project 03 security audit, a stopgap until a real paginated search endpoint exists.
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []).map((s) => ({
-        id: s.id,
-        slug: s.slug,
-        image: s.image_url ?? "/salons/hair.jpg",
-        en: { name: s.name, area: s.area, tags: `${s.area} · ${s.city}` },
-        ar: { name: s.name_ar ?? s.name, area: s.area_ar ?? s.area, tags: s.area_ar ?? s.area },
-        rating: Number(s.rating),
-        reviews: s.review_count ?? 0,
-        distanceKm: Number(s.distance_km ?? 0),
-        price: s.price_range ?? "$$",
-        open: s.is_active,
-        instant: Boolean(s.instant_booking),
-        countryCode: (s.country_code ?? "").toUpperCase(),
-        state: s.district ?? provinceOfCity((s.country_code ?? "").toUpperCase(), s.city ?? ""),
-        city: s.city ?? "",
-        businessType: s.business_type ?? "",
-      }));
-    },
-  });
+  // Project 14 Phase 2: this was a second, independent copy of the same raw, unbounded,
+  // client-side `supabase.from("businesses")` query already fixed in
+  // src/hooks/use-live-businesses.ts — same audit-confirmed gaps (missing marketplace_status/
+  // deleted_at/is_test checks, no server-side rate limiting). Now shares the same secure,
+  // rate-limited hook instead of duplicating the query.
+  const { data: liveBusinesses } = useLiveBusinesses(country || undefined);
 
   const placeFiltered = country || stateName || city || shopType;
   const countries = useCountries();

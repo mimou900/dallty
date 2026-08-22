@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 
-import { supabase } from "@/integrations/supabase/client";
 import { provinceOfCity } from "@/lib/arab-cities";
 import type { Business } from "@/lib/dallty-content";
+import { getDefaultCountry } from "@/lib/reference-data";
+import { searchBusinesses } from "@/lib/marketplace-search.functions";
 
 export type LiveBusiness = Business & {
   countryCode: string;
@@ -13,33 +15,42 @@ export type LiveBusiness = Business & {
   lng: number | null;
 };
 
-const BUSINESS_COLUMNS =
-  "id, slug, owner_id, name, name_ar, description, description_ar, area, area_ar, city, image_url, rating, review_count, price_range, distance_km, opens_at, closes_at, instant_booking, is_active, created_at, address, status, business_type, country, country_code, district, logo_url, cover_url, is_listed, latitude, longitude";
+/**
+ * Project 14 Phase 2: was a raw, unbounded, client-side `supabase.from("businesses")` query —
+ * confirmed via the Project 14 audit to be missing `marketplace_status`/`deleted_at`/`is_test`
+ * checks entirely (only `is_active`/`is_listed`), with no server-side rate limiting (a direct
+ * anon-client REST call) and a hardcoded `.limit(500)` its own prior comment already called a
+ * "stopgap, not a real pagination solution." Now calls the real, secure, rate-limited
+ * `searchBusinesses()` (Project 08's `search_businesses_page()` RPC) instead — same output
+ * shape (`LiveBusiness[]`) preserved exactly so `search.tsx`/`index.tsx` need no changes.
+ *
+ * Scoped to a single country per call, since `search_businesses_page()` requires one (it's
+ * gated per-business per `countries.marketplace_enabled`, and only Algeria is enabled today —
+ * confirmed live during the audit). Defaults to `getDefaultCountry()` when no `countryCode` is
+ * passed. A real country-selector UX (brief §9's `/country/` URL strategy) is a distinct,
+ * larger follow-up — not attempted in this pass, since there is currently exactly one
+ * marketplace-enabled country to test against either way.
+ */
+export function useLiveBusinesses(countryCode?: string) {
+  const search = useServerFn(searchBusinesses);
+  const resolvedCountry = countryCode ?? getDefaultCountry().iso_code;
 
-export function useLiveBusinesses() {
   return useQuery({
-    queryKey: ["businesses"],
+    queryKey: ["businesses", resolvedCountry],
     queryFn: async (): Promise<LiveBusiness[]> => {
-      const { data, error } = await supabase
-        .from("businesses")
-        .select(BUSINESS_COLUMNS)
-        .eq("is_active", true)
-        .eq("is_listed", true)
-        .order("rating", { ascending: false })
-        // Bounded per the Project 03 security audit: this query previously had no limit at
-        // all, meaning every visit to /search fetched the entire active+listed businesses
-        // table to the browser. 500 is a stopgap bound, not a real pagination solution — the
-        // marketplace/search project should replace this whole client-side-filtering
-        // approach with a server-side, rate-limited, paginated search endpoint once result
-        // counts approach this bound.
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []).map((b) => ({
+      const { results } = await search({
+        data: { countryCode: resolvedCountry, limit: 50 },
+      });
+      return results.map((b) => ({
         id: b.id,
         slug: b.slug,
         image: b.image_url ?? "/salons/hair.jpg",
-        en: { name: b.name, area: b.area, tags: `${b.area} · ${b.city}` },
-        ar: { name: b.name_ar ?? b.name, area: b.area_ar ?? b.area, tags: b.area_ar ?? b.area },
+        en: { name: b.name, area: b.area ?? "", tags: `${b.area ?? ""} · ${b.city ?? ""}` },
+        ar: {
+          name: b.name_ar ?? b.name,
+          area: b.area_ar ?? b.area ?? "",
+          tags: b.area_ar ?? b.area ?? "",
+        },
         rating: Number(b.rating),
         reviews: b.review_count ?? 0,
         distanceKm: Number(b.distance_km ?? 0),
@@ -47,7 +58,8 @@ export function useLiveBusinesses() {
         open: b.is_active,
         instant: Boolean(b.instant_booking),
         countryCode: (b.country_code ?? "").toUpperCase(),
-        state: b.district ?? provinceOfCity((b.country_code ?? "").toUpperCase(), b.city ?? ""),
+        state:
+          b.district ?? provinceOfCity((b.country_code ?? "").toUpperCase(), b.city ?? ""),
         city: b.city ?? "",
         businessType: b.business_type ?? "",
         lat: b.latitude === null || b.latitude === undefined ? null : Number(b.latitude),
