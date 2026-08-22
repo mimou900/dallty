@@ -26,6 +26,7 @@ import { NavMenu } from "@/components/dallty/site-nav";
 import { FavoriteButton } from "@/components/dallty/favorite-button";
 import { BusinessReviews } from "@/components/dallty/business-reviews";
 import { BusinessOverview } from "@/components/dallty/business-overview";
+import { BusinessPageSkeleton } from "@/components/dallty/skeletons";
 import {
   AvailabilityCalendar,
   type DayAvailability,
@@ -1102,10 +1103,8 @@ function BookingFlow() {
 
       <main className="mx-auto max-w-3xl px-4">
         {businessQuery.isLoading && (
-          <div className="mt-6 space-y-3" aria-busy="true">
-            <div className="h-44 animate-pulse rounded-3xl bg-muted" />
-            <div className="h-24 animate-pulse rounded-3xl bg-muted" />
-            <div className="h-24 animate-pulse rounded-3xl bg-muted" />
+          <div className="mt-6" aria-busy="true">
+            <BusinessPageSkeleton />
           </div>
         )}
         {tab === "overview" && business && (
@@ -1506,27 +1505,6 @@ function BookingFlow() {
                           type="button"
                           disabled={!s.available || createHold.isPending}
                           onClick={() => {
-                            // Online booking requires an authenticated customer account (no
-                            // anonymous/guest booking) -- stash the exact selection and send
-                            // the customer to sign in; the pending-booking restore effect
-                            // above picks this back up and creates the hold once signed in,
-                            // same mechanism as the existing sign-in detour.
-                            if (!user) {
-                              savePendingBooking({
-                                businessId: businessSlug,
-                                serviceId,
-                                staffId,
-                                day,
-                                slot: s.slot,
-                                step: 4,
-                                autoConfirm: true,
-                              });
-                              navigate({
-                                to: "/auth",
-                                search: { next: `/business/${businessSlug}` },
-                              });
-                              return;
-                            }
                             resetHold();
                             setSlot(s.slot);
                             createHold.mutate({ staffId, startsAt: s.slot });
@@ -1965,7 +1943,7 @@ function BookingFlow() {
                 type="button"
                 disabled={!canContinue}
                 onClick={next}
-                className="press min-h-12 flex-1 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-50"
+                className="press min-h-12 flex-1 rounded-2xl bg-lime text-base font-bold text-lime-foreground disabled:opacity-50"
               >
                 Continue
               </button>
@@ -1978,7 +1956,7 @@ function BookingFlow() {
                   (user ? !phoneReady : !guestInfoReady)
                 }
                 onClick={() => confirmBooking.mutate()}
-                className="press flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
+                className="press flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-lime text-base font-bold text-lime-foreground disabled:opacity-60"
               >
                 {confirmBooking.isPending ? (
                   <Loader2 className="size-5 animate-spin" />

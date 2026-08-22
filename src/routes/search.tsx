@@ -21,6 +21,7 @@ import {
 
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
+import { SearchSkeleton } from "@/components/dallty/skeletons";
 import { LogoMark } from "@/components/dallty/logo";
 import { NavMenu } from "@/components/dallty/site-nav";
 import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
@@ -497,10 +498,8 @@ function SearchPage() {
         </div>
 
         {isLoading ? (
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-72 animate-pulse rounded-3xl glass" />
-            ))}
+          <div className="mt-6">
+            <SearchSkeleton count={4} />
           </div>
         ) : results.length === 0 ? (
           <div className="mt-8 rounded-3xl glass p-10 text-center">

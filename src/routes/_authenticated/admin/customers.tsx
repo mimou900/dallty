@@ -7,6 +7,7 @@ import { Phone, Search, Users } from "lucide-react";
 
 import { money, useManagedBusinesses } from "@/lib/admin";
 import { listBusinessCustomers } from "@/lib/business-crm.functions";
+import { ListSkeleton } from "@/components/dallty/skeletons";
 
 export const Route = createFileRoute("/_authenticated/admin/customers")({
   head: () => ({
@@ -49,7 +50,7 @@ function CustomersPage() {
     return [...filtered].sort((a, b) => b.totalSpent - a.totalSpent);
   }, [customers.data, term]);
 
-  if (businessesQuery.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (businessesQuery.isLoading) return <ListSkeleton />;
   if (!activeBusinessId)
     return (
       <div className="rounded-3xl glass p-8 text-center text-sm text-muted-foreground">
@@ -87,7 +88,7 @@ function CustomersPage() {
       </div>
 
       {customers.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading customers…</p>
+        <ListSkeleton />
       ) : customers.isError ? (
         <p className="text-sm text-destructive">
           {customers.error instanceof Error ? customers.error.message : "Could not load customers"}

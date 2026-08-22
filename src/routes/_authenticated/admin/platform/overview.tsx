@@ -7,6 +7,7 @@ import { Building2, CalendarCheck, Globe2, ShieldAlert, Star, Users, Wallet } fr
 import { useAuth } from "@/hooks/use-auth";
 import { money } from "@/lib/admin";
 import { platformOverview } from "@/lib/platform.functions";
+import { DashboardSkeleton } from "@/components/dallty/skeletons";
 
 export const Route = createFileRoute("/_authenticated/admin/platform/overview")({
   head: () => ({
@@ -75,7 +76,7 @@ function PlatformOverviewPage() {
     );
   }
 
-  if (overview.isLoading) return <p className="text-sm text-muted-foreground">Loading global data…</p>;
+  if (overview.isLoading) return <DashboardSkeleton />;
   if (overview.isError)
     return (
       <p className="text-sm text-destructive">
@@ -136,7 +137,56 @@ function PlatformOverviewPage() {
         </Link>
       </div>
 
-      <div className="overflow-x-auto rounded-3xl glass p-2">
+      {/* Mobile (brief §97): cards, not a horizontally-scrolled table. */}
+      <div className="grid gap-3 sm:hidden">
+        {shops.map((s) => (
+          <article key={s.id} className="rounded-3xl glass p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-bold">{s.name}</p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {s.city}
+                  {s.country ? `, ${s.country}` : ""}
+                </p>
+              </div>
+              <span className="shrink-0 text-right text-sm font-bold">{money(s.revenue)}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <span className="rounded-xl bg-secondary px-2 py-1 text-xs font-bold capitalize">
+                {s.status}
+              </span>
+              <span
+                className={`rounded-xl px-2 py-1 text-xs font-bold ${
+                  s.isListed ? "bg-primary/15 text-primary" : "bg-gold/20"
+                }`}
+              >
+                {s.isListed ? "listed" : "hidden"}
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs text-muted-foreground">
+              <div>
+                <p className="font-bold text-foreground">{s.services}</p>
+                Services
+              </div>
+              <div>
+                <p className="font-bold text-foreground">{s.staff}</p>
+                Staff
+              </div>
+              <div>
+                <p className="font-bold text-foreground">{s.bookings}</p>
+                Bookings
+              </div>
+              <div>
+                <p className="font-bold text-foreground">{s.rating.toFixed(1)}</p>
+                Rating
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {/* Desktop/tablet: full table. */}
+      <div className="hidden overflow-x-auto rounded-3xl glass p-2 sm:block">
         <table className="w-full min-w-[820px] text-sm">
           <thead>
             <tr className="text-left text-xs font-bold uppercase tracking-wide text-muted-foreground">

@@ -17,6 +17,7 @@ import { ReferenceDataProvider } from "@/lib/reference-data";
 import { supabase } from "@/integrations/supabase/client";
 import { takeNextPath } from "@/lib/next-path";
 import { Toaster } from "@/components/ui/sonner";
+import { ConnectionBanner } from "@/components/dallty/connection-banner";
 import { LocaleProvider, dirFor, langFromSearch, localizedPath } from "@/lib/i18n";
 
 function NotFoundComponent() {
@@ -87,7 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5",
       },
-      { name: "theme-color", content: "#0d5f5b" },
+      { name: "theme-color", content: "#0F4F35" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "Dallty" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
@@ -114,7 +115,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap",
+      },
+      { rel: "preconnect", href: "https://api.fontshare.com" },
+      { rel: "preconnect", href: "https://cdn.fontshare.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap",
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "icon", href: "/icon-192.png", type: "image/png", sizes: "192x192" },
@@ -204,6 +211,7 @@ function RootComponent() {
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
             <Toaster />
+            <ConnectionBanner />
           </LocaleProvider>
         </AuthProvider>
       </ReferenceDataProvider>

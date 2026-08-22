@@ -48,5 +48,8 @@
   "live_support": "Live support",
   "customer_app": "Customer app",
   "brand_business": "Dallty Business",
-  "brand_business_subtitle": "Business"
+  "brand_business_subtitle": "Business",
+  "connection_lost": "Connection lost",
+  "connection_lost_sub": "Some updates may be unavailable.",
+  "connection_restored": "Back online"
 }

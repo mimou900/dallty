@@ -48,5 +48,8 @@
   "live_support": "الدعم المباشر",
   "customer_app": "تطبيق العملاء",
   "brand_business": "دلّتي بزنس",
-  "brand_business_subtitle": "الأعمال"
+  "brand_business_subtitle": "الأعمال",
+  "connection_lost": "انقطع الاتصال",
+  "connection_lost_sub": "قد لا تتوفر بعض التحديثات.",
+  "connection_restored": "عاد الاتصال"
 }

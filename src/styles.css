@@ -5,14 +5,20 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Dallty design system — premium glassmorphism.
- * Emerald green + luxury gold on soft light/dark canvases.
+ * Dallty design system — premium iOS-inspired glassmorphism.
+ * Brand palette (project-ui-ux-transformation): deep green = structure/identity
+ * (mapped to --primary, since that token is already used throughout for nav,
+ * icons, rings, borders); lime = primary action energy (--lime, used only for
+ * CTA buttons per the brand board's own button mockup, not blanket-applied to
+ * every --primary usage — avoids a "fluorescent everywhere" result); pink =
+ * accent/highlight/selected moments (--pink); cream = base background.
  * All colors are oklch tokens. Never hardcode colors in components.
  */
 
 @theme inline {
-  --font-sans: "Manrope", "IBM Plex Sans Arabic", system-ui, sans-serif;
-  --font-arabic: "IBM Plex Sans Arabic", "Manrope", system-ui, sans-serif;
+  --font-sans: "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-arabic: "IBM Plex Sans Arabic", "Inter", system-ui, sans-serif;
+  --font-display: "Clash Display", "Inter", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 8px);
   --radius-md: calc(var(--radius) - 4px);
@@ -38,6 +44,10 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
+  --color-lime: var(--lime);
+  --color-lime-foreground: var(--lime-foreground);
+  --color-pink: var(--pink);
+  --color-pink-foreground: var(--pink-foreground);
   --color-rose: var(--rose);
   --color-sky: var(--sky);
   --color-amber: var(--amber);
@@ -49,13 +59,26 @@
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
 
-  --shadow-soft: 0 2px 8px -2px oklch(0.25 0.05 165 / 0.08);
-  --shadow-glass: 0 18px 50px -18px oklch(0.25 0.06 165 / 0.28);
-  --shadow-float: 0 26px 70px -22px oklch(0.25 0.06 165 / 0.38);
+  --shadow-soft: 0 2px 8px -2px oklch(0.25 0.05 161 / 0.08);
+  --shadow-glass: 0 18px 50px -18px oklch(0.25 0.06 161 / 0.28);
+  --shadow-float: 0 26px 70px -22px oklch(0.25 0.06 161 / 0.38);
 
   --animate-fade-up: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-float-soft: float-soft 7s ease-in-out infinite;
   --animate-shimmer: shimmer 2.2s linear infinite;
+
+  /* Motion tokens (brief §79) — pick from these, never arbitrary durations. */
+  --motion-fast: 150ms;
+  --motion-normal: 250ms;
+  --motion-emphasis: 400ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* z-index tokens (brief §25) — centralized stacking order. */
+  --z-sticky: 30;
+  --z-nav: 40;
+  --z-overlay: 50;
+  --z-drawer: 60;
+  --z-toast: 70;
 }
 
 @keyframes fade-up {
@@ -91,24 +114,32 @@
 :root {
   --radius: 1.25rem;
 
-  --background: oklch(0.985 0.006 150);
+  /* Cream — premium base background (brand #F7F5EE). */
+  --background: oklch(0.9698 0.0095 93.57);
   --foreground: oklch(0.22 0.02 160);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.22 0.02 160);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.22 0.02 160);
 
-  --primary: oklch(0.52 0.115 165);
+  /* Deep Green — structure/identity (brand #0F4F35). */
+  --primary: oklch(0.3811 0.0771 161.08);
   --primary-foreground: oklch(0.99 0.005 150);
   --secondary: oklch(0.955 0.012 160);
-  --secondary-foreground: oklch(0.3 0.03 165);
+  --secondary-foreground: oklch(0.3 0.03 161);
   --muted: oklch(0.96 0.008 155);
   --muted-foreground: oklch(0.52 0.018 160);
-  --accent: oklch(0.94 0.03 165);
-  --accent-foreground: oklch(0.32 0.05 165);
+  --accent: oklch(0.94 0.03 161);
+  --accent-foreground: oklch(0.32 0.05 161);
 
   --gold: oklch(0.78 0.115 85);
   --gold-foreground: oklch(0.28 0.05 85);
+  /* Lime — primary action / energy (brand #C0DD00). CTA buttons only. */
+  --lime: oklch(0.8462 0.1986 118.84);
+  --lime-foreground: oklch(0.28 0.05 161);
+  /* Pink — accent / highlight / selected moments (brand #FF78DB). */
+  --pink: oklch(0.7613 0.1982 338.76);
+  --pink-foreground: oklch(0.99 0.005 150);
   --rose: oklch(0.74 0.115 15);
   --sky: oklch(0.72 0.09 235);
   --amber: oklch(0.78 0.14 62);
@@ -117,7 +148,7 @@
   --destructive-foreground: oklch(0.99 0.005 150);
   --border: oklch(0.9 0.012 160);
   --input: oklch(0.92 0.01 160);
-  --ring: oklch(0.52 0.115 165);
+  --ring: oklch(0.3811 0.0771 161.08);
 
   --glass: oklch(1 0 0 / 0.62);
   --glass-border: oklch(1 0 0 / 0.7);
@@ -131,7 +162,7 @@
   --popover: oklch(0.24 0.02 165);
   --popover-foreground: oklch(0.96 0.008 150);
 
-  --primary: oklch(0.72 0.13 165);
+  --primary: oklch(0.72 0.13 161);
   --primary-foreground: oklch(0.18 0.02 165);
   --secondary: oklch(0.28 0.022 165);
   --secondary-foreground: oklch(0.95 0.008 150);
@@ -142,6 +173,10 @@
 
   --gold: oklch(0.82 0.12 85);
   --gold-foreground: oklch(0.22 0.04 85);
+  --lime: oklch(0.82 0.19 119);
+  --lime-foreground: oklch(0.2 0.04 161);
+  --pink: oklch(0.78 0.19 339);
+  --pink-foreground: oklch(0.16 0.02 165);
   --rose: oklch(0.76 0.12 15);
   --sky: oklch(0.75 0.09 235);
   --amber: oklch(0.8 0.14 62);
@@ -150,7 +185,7 @@
   --destructive-foreground: oklch(0.16 0.02 165);
   --border: oklch(1 0 0 / 0.12);
   --input: oklch(1 0 0 / 0.16);
-  --ring: oklch(0.72 0.13 165);
+  --ring: oklch(0.72 0.13 161);
 
   --glass: oklch(0.28 0.025 165 / 0.55);
   --glass-border: oklch(1 0 0 / 0.12);
@@ -191,6 +226,97 @@
   &:active {
     transform: translateY(0) scale(0.985);
   }
+}
+
+/*
+ * Typography hierarchy (brief §3): Display/H1/H2/H3 use Clash Display for
+ * major headline moments; body/label/caption/button stay on Inter. Sizes are
+ * mobile-first — each class already includes its own sm:/lg: step-up so call
+ * sites don't need to repeat responsive text- utilities.
+ */
+@utility text-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-size: 2.5rem;
+  @variant sm {
+    font-size: 3.5rem;
+  }
+  @variant lg {
+    font-size: 4.5rem;
+  }
+}
+
+@utility text-h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  font-size: 1.75rem;
+  @variant sm {
+    font-size: 2.25rem;
+  }
+  @variant lg {
+    font-size: 2.75rem;
+  }
+}
+
+@utility text-h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  font-size: 1.375rem;
+  @variant sm {
+    font-size: 1.75rem;
+  }
+}
+
+@utility text-h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  line-height: 1.2;
+  font-size: 1.125rem;
+  @variant sm {
+    font-size: 1.375rem;
+  }
+}
+
+@utility text-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.55;
+  font-size: 1rem;
+}
+
+@utility text-body-sm {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.5;
+  font-size: 0.875rem;
+}
+
+@utility text-label {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  line-height: 1.3;
+  font-size: 0.8125rem;
+}
+
+@utility text-caption {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  line-height: 1.3;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+@utility text-button {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  line-height: 1;
+  font-size: 0.9375rem;
 }
 
 @layer base {

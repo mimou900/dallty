@@ -110,7 +110,7 @@ export function BusinessCard({
             to="/business/$businessSlug"
             params={{ businessSlug: business.slug }}
             search={{ book: true }}
-            className="press block rounded-2xl bg-primary py-3 text-center text-sm font-semibold text-primary-foreground"
+            className="press block rounded-2xl bg-lime py-3 text-center text-sm font-semibold text-lime-foreground"
           >
             {t("book")}
           </Link>
