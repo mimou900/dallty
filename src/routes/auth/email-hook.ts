@@ -23,14 +23,14 @@ import { ReauthenticationEmail } from "@/lib/email-templates/reauthentication";
  * `src/lib/webhooks/standard-webhook.ts`) and Dallty's `EmailProvider`
  * abstraction (`src/lib/email/email-provider.ts`).
  *
- * NOT LIVE YET: Supabase's project-level Auth config currently has
- * `hook_send_email_enabled: false` (confirmed via the Management API), so
- * real users still receive Supabase's default unbranded auth emails and this
- * route receives no traffic. Wiring it up is an explicit, separate,
- * production-auth-affecting step (set `SUPABASE_AUTH_EMAIL_HOOK_SECRET`,
- * enable the hook in Supabase's dashboard pointing at
- * `https://<domain>/auth/email-hook`) — deliberately left for the operator to
- * do deliberately, not flipped automatically by this change.
+ * LIVE: Supabase's project-level Auth config has `hook_send_email_enabled:
+ * true` pointing at `https://www.dallty.com/auth/email-hook`, with
+ * `SUPABASE_AUTH_EMAIL_HOOK_SECRET`/`SUPABASE_URL`/`RESEND_API_KEY` all set
+ * in production (confirmed via the Management API and a safe unsigned probe
+ * of this route — it correctly reaches the "missing webhook headers" check
+ * rather than the earlier "not configured" one). Real users now receive
+ * this hook's own branded, code-only emails, not Supabase's default
+ * templates.
  *
  * Payload shape is Supabase's native Auth Hook body (NOT Lovable's wrapped
  * `{version, type:"auth", data:{...}}` shape):

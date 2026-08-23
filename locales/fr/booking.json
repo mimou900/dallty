@@ -71,6 +71,8 @@
     "error_limit_reached": "Trop de tentatives — veuillez réessayer dans quelques minutes.",
     "error_invalid_context": "Un détail de cette réservation a changé. Veuillez recommencer.",
     "error_network": "Problème de connexion — vérifiez votre connexion internet et réessayez.",
-    "error_generic": "Une erreur est survenue lors de la confirmation. Veuillez réessayer."
+    "error_generic": "Une erreur est survenue lors de la confirmation. Veuillez réessayer.",
+    "error_customer_account_required": "Vous êtes connecté avec un compte professionnel ou administrateur. La réservation client nécessite un compte client.",
+    "sign_out_continue_as_customer": "Se déconnecter et continuer en tant que client"
   }
 }

@@ -32,7 +32,48 @@ export const BOOKING_ERROR_CODES = [
   "NO_ELIGIBLE_SPECIALIST",
   "BOOKING_LIMIT_REACHED",
   "BOOKING_CONFIRMATION_FAILED",
+  "CUSTOMER_ACCOUNT_REQUIRED",
 ] as const;
+
+/**
+ * Public customer booking is customer-only (brief: privileged identities must never be
+ * silently treated as a customer). Checked globally, not per-business -- an owner/manager at
+ * Business A is still blocked from booking as a "customer" at Business B; the account TYPE is
+ * what's restricted, not the relationship to the specific business being booked.
+ *
+ * Two role systems exist in this codebase and neither alone is complete: `user_roles` covers
+ * the coarse platform roles (business_owner/specialist/admin/super_admin), while
+ * manager/receptionist/confirmation_member only ever show up as active `business_memberships`
+ * rows (Project 11 RBAC). `businesses.owner_id` is checked directly too since ownership isn't
+ * guaranteed to also have a mirrored membership row. A plain customer has no rows in any of
+ * the three.
+ */
+async function assertCustomerAccount(supabase: AnySupabase, userId: string) {
+  const [{ data: roleRows }, { data: ownedBusiness }, { data: membership }] = await Promise.all([
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .in("role", ["business_owner", "specialist", "admin", "super_admin"])
+      .limit(1),
+    supabase.from("businesses").select("id").eq("owner_id", userId).limit(1),
+    supabase
+      .from("business_memberships")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .limit(1),
+  ]);
+
+  if (
+    (roleRows?.length ?? 0) > 0 ||
+    (ownedBusiness?.length ?? 0) > 0 ||
+    (membership?.length ?? 0) > 0
+  ) {
+    throw new Error("CUSTOMER_ACCOUNT_REQUIRED");
+  }
+}
 
 /**
  * Resolves a business-supplied (client-requested, never trusted blindly) branch id, or falls
@@ -374,6 +415,7 @@ export const createBookingHold = createServerFn({ method: "POST" })
     // Repeated-hold abuse guard (§63) — generous enough for normal browsing/retries.
     await assertRateLimit(supabaseAdmin, `create_hold:${context.userId}`, 20, 10);
     await assertRateLimit(supabaseAdmin, `create_hold_ip:${ip}`, 40, 10);
+    await assertCustomerAccount(supabaseAdmin, context.userId);
 
     return holdCore(supabaseAdmin, { ...data, actorUserId: context.userId, guestToken: null });
   });
@@ -527,6 +569,8 @@ export const confirmBookingHold = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { withIdempotency } = await import("@/lib/idempotency.server");
+
+    await assertCustomerAccount(supabaseAdmin, context.userId);
 
     return withIdempotency(
       supabaseAdmin,

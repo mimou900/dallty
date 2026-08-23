@@ -156,6 +156,8 @@ function bookingErrorMessage(
       return tb("hold.error_limit_reached");
     case "INVALID_BOOKING_CONTEXT":
       return tb("hold.error_invalid_context");
+    case "CUSTOMER_ACCOUNT_REQUIRED":
+      return tb("hold.error_customer_account_required");
     case "NETWORK_ERROR":
       return tb("hold.error_network");
     default:
@@ -830,6 +832,7 @@ function BookingFlow() {
     | "success"
     | "hold_expired"
     | "slot_unavailable"
+    | "account_blocked"
     | "error";
   type HoldState = {
     holdId: string;
@@ -930,9 +933,17 @@ function BookingFlow() {
     onError: (error) => {
       const code = error instanceof Error ? error.message : "NETWORK_ERROR";
       setBookingErrorCode(code);
-      setBookingPhase(code === "SLOT_UNAVAILABLE" ? "slot_unavailable" : "error");
+      setBookingPhase(
+        code === "SLOT_UNAVAILABLE"
+          ? "slot_unavailable"
+          : code === "CUSTOMER_ACCOUNT_REQUIRED"
+            ? "account_blocked"
+            : "error",
+      );
       queryClient.invalidateQueries({ queryKey: ["slots"] });
-      if (code !== "SLOT_UNAVAILABLE") toast.error(bookingErrorMessage(code, tb));
+      if (code !== "SLOT_UNAVAILABLE" && code !== "CUSTOMER_ACCOUNT_REQUIRED") {
+        toast.error(bookingErrorMessage(code, tb));
+      }
     },
   });
 
@@ -1036,6 +1047,10 @@ function BookingFlow() {
         // A duplicate submission landed after the first one already went through (e.g. a
         // retried request racing its own earlier success) — this IS the success case.
         setBookingPhase("success");
+        return;
+      }
+      if (code === "CUSTOMER_ACCOUNT_REQUIRED") {
+        setBookingPhase("account_blocked");
         return;
       }
       setBookingPhase("error");
@@ -1664,6 +1679,24 @@ function BookingFlow() {
                         {bookingErrorMessage("SLOT_UNAVAILABLE", tb)}
                       </p>
                     )}
+                    {bookingPhase === "account_blocked" && (
+                      <div className="col-span-full space-y-3 rounded-2xl bg-destructive/10 px-4 py-3.5 text-center">
+                        <p className="text-sm font-semibold text-destructive">
+                          {bookingErrorMessage("CUSTOMER_ACCOUNT_REQUIRED", tb)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await supabase.auth.signOut();
+                            setBookingErrorCode(null);
+                            setBookingPhase("idle");
+                          }}
+                          className="press min-h-11 rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
+                        >
+                          {tb("hold.sign_out_continue_as_customer")}
+                        </button>
+                      </div>
+                    )}
                     {slotsQuery.data?.map((s) => {
                       const active = slot === s.slot;
                       const pickingThis = active && createHold.isPending;
@@ -2024,6 +2057,29 @@ function BookingFlow() {
                         </button>
                       </div>
                     )}
+                    {bookingPhase === "account_blocked" && (
+                      <div className="mt-4 space-y-3 rounded-3xl bg-destructive/10 p-5 text-center">
+                        <p className="text-sm font-semibold text-destructive">
+                          {bookingErrorMessage("CUSTOMER_ACCOUNT_REQUIRED", tb)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await supabase.auth.signOut();
+                            // The existing hold was created under the now-signed-out
+                            // identity, so it can't be confirmed as a guest -- release it
+                            // and send the customer back to pick a fresh (guest) slot
+                            // rather than surface a second, confusing auth error.
+                            resetHold();
+                            setBookingErrorCode(null);
+                            setStep(3);
+                          }}
+                          className="press min-h-11 rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
+                        >
+                          {tb("hold.sign_out_continue_as_customer")}
+                        </button>
+                      </div>
+                    )}
                     <div className="mt-5 space-y-3 rounded-3xl glass p-6">
                       <Row label="Business" value={business?.name ?? ""} />
                       <Row
@@ -2350,6 +2406,7 @@ function HoldCountdown({
     | "success"
     | "hold_expired"
     | "slot_unavailable"
+    | "account_blocked"
     | "error";
   secondsLeft: number;
   tb: (key: NamespaceKeyMap["booking"], vars?: Record<string, string | number>) => string;

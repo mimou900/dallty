@@ -71,6 +71,8 @@
     "error_limit_reached": "Too many attempts — please try again in a few minutes.",
     "error_invalid_context": "Something about this booking changed. Please start again.",
     "error_network": "Connection problem — please check your internet and try again.",
-    "error_generic": "Something went wrong confirming your booking. Please try again."
+    "error_generic": "Something went wrong confirming your booking. Please try again.",
+    "error_customer_account_required": "You're signed in with a business or admin account. Customer bookings require a customer account.",
+    "sign_out_continue_as_customer": "Sign out and continue as customer"
   }
 }
