@@ -19,16 +19,18 @@ const adminButtonVariants = cva(
     variants: {
       variant: {
         /* Deep-green structural action — the default for admin surfaces
-           (Phase 00 §5: the Super Admin should not read as "lime everywhere"). */
-        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+           (Phase 00 §5: the Super Admin should not read as "lime everywhere").
+           Subtle same-hue gradient + colored shadow (visual-direction-c,
+           approved) — depth cue only, no glass/blur/shine. */
+        primary:
+          "bg-(image:--gradient-primary) text-primary-foreground shadow-(--shadow-glow-primary) hover:brightness-105 active:brightness-95",
         /* Reserved for the single highest-energy CTA on a screen. */
-        lime: "bg-lime text-lime-foreground hover:bg-lime/90",
+        lime: "bg-(image:--gradient-lime) text-lime-foreground shadow-(--shadow-glow-lime) hover:brightness-105 active:brightness-95",
         accent: "bg-pink text-pink-foreground hover:bg-pink/90",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline: "border border-border bg-card hover:bg-secondary",
         ghost: "hover:bg-secondary text-foreground",
-        glass: "glass-soft text-foreground hover:bg-white/70",
       },
       size: {
         default: "h-11 px-5",

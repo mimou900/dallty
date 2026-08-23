@@ -183,13 +183,6 @@ function Index() {
 
   return (
     <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-background">
-      {/* ambient glass background */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-32 start-[-10%] size-[38rem] rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute top-1/3 end-[-15%] size-[32rem] rounded-full bg-gold/20 blur-3xl" />
-        <div className="absolute bottom-0 start-1/3 size-[28rem] rounded-full bg-sky/10 blur-3xl" />
-      </div>
-
       <SiteHeader lang={lang} />
 
       <main className="mx-auto max-w-6xl px-4 pb-32 md:pb-24">
@@ -398,6 +391,16 @@ function Index() {
             ))}
           </div>
         </section>
+
+        {/* Ambient glow — the one signature element (visual-direction-c).
+            Deliberately placed here, not viewport-fixed: this is the first
+            confirmed-open stretch of plain canvas on the page (everything
+            above this point is covered by the hero photo or opaque glass
+            cards) — a fixed/edge-anchored blob was verified via live
+            screenshot to land invisibly behind that opaque content. */}
+        <div aria-hidden className="pointer-events-none relative h-0">
+          <div className="glow-blob -z-10 top-[-14rem] start-1/2 size-[48rem] -translate-x-1/2" />
+        </div>
 
         {/* Categories */}
         <section className="mt-10 sm:mt-14">

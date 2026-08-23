@@ -177,6 +177,19 @@
   }
 }
 
+/* Slow, large-radius, transform-only float for the ambient glow blob —
+   GPU-cheap (translate only), respects the global reduced-motion rule
+   below (freezes to a static position, never removed). */
+@keyframes float-glow {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-46%, -54%) scale(1.08);
+  }
+}
+
 :root {
   --radius: 1.25rem;
 
@@ -256,6 +269,41 @@
     oklch(0.975 0.014 161) 45%,
     oklch(0.965 0.018 157) 100%
   );
+
+  /*
+   * Signature Glow + Gradient Energy (visual-direction-c pass, approved).
+   * Two-stop, same-hue-family gradients — never a second color — for the
+   * few surfaces that earn dimension: primary/lime CTAs and the ambient
+   * glow blob. Everything else (secondary/danger/warning buttons, forms,
+   * tables) stays flat per the explicit "buttons remain visually flat" rule.
+   */
+  --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-active) 100%);
+  --gradient-lime: linear-gradient(135deg, var(--lime) 0%, oklch(0.82 0.19 100) 100%);
+
+  /* Colored shadows — a soft tint of the surface's own color instead of
+     flat gray, so primary/lime surfaces visibly "glow" rather than just
+     sitting flat on the canvas. Kept low-opacity/large-blur so it reads as
+     depth, not a neon halo. */
+  --shadow-glow-primary: 0 12px 32px -8px oklch(0.3811 0.0771 161.08 / 0.35);
+  --shadow-glow-lime: 0 12px 28px -8px oklch(0.8462 0.1986 118.84 / 0.45);
+
+  /* Two-layer card shadow (brief §8) — a tight, near-black contact shadow
+     for grounding + a soft primary-tinted glow for lift, so cards visibly
+     separate from the now-glowing canvas instead of blending into it. */
+  --shadow-card: 0 1px 2px oklch(0.2 0.02 160 / 0.06), 0 16px 40px -20px oklch(0.3811 0.0771 161.08 / 0.22);
+
+  /* Ambient glow blob (the pass's one signature element) — large, soft,
+     blurred radial gradient anchored behind hero/key moments. Strength
+     tuned deliberately high (a light-hue glow on a light canvas needs real
+     intensity to register at all — the first attempt at 0.35/0.22 was
+     confirmed via live screenshot to be imperceptible); still never a hard
+     edge and the blur keeps it feeling atmospheric, not a sticker. */
+  --gradient-glow: radial-gradient(
+    circle,
+    oklch(0.8462 0.1986 118.84 / 0.65) 0%,
+    oklch(0.3811 0.0771 161.08 / 0.4) 45%,
+    transparent 75%
+  );
 }
 
 .dark {
@@ -318,6 +366,27 @@
     oklch(0.16 0.026 164) 50%,
     oklch(0.185 0.03 166) 100%
   );
+
+  --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  --gradient-lime: linear-gradient(135deg, var(--lime) 0%, oklch(0.86 0.19 100) 100%);
+
+  --shadow-glow-primary: 0 12px 32px -8px oklch(0.72 0.13 161 / 0.3);
+  --shadow-glow-lime: 0 12px 28px -8px oklch(0.82 0.19 119 / 0.4);
+
+  /* Dark mode: the contact shadow flips to a soft light-toned separator
+     (a dark shadow is invisible on a dark canvas), lift stays a green glow. */
+  --shadow-card: 0 1px 0 oklch(1 0 0 / 0.04), 0 16px 40px -18px oklch(0.72 0.13 161 / 0.28);
+
+  /* Dark canvas: the glow is where the brand gets to feel "slightly
+     futuristic" (brief §3). A glow reads much more easily against a dark
+     background than a light one, so this needs less raw intensity than the
+     light-mode token above to land at the same visible strength. */
+  --gradient-glow: radial-gradient(
+    circle,
+    oklch(0.82 0.19 119 / 0.45) 0%,
+    oklch(0.72 0.13 161 / 0.32) 45%,
+    transparent 75%
+  );
 }
 
 /*
@@ -335,7 +404,10 @@
 @utility glass {
   background: var(--glass);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px) saturate(150%);
+  /* Turned up from blur(20px)/saturate(150%) so Level 2 actually reads as
+     glass at a glance, not just "slightly transparent white" — still never
+     applied to buttons/forms/dense tables. */
+  backdrop-filter: blur(28px) saturate(175%);
   box-shadow: var(--shadow-glass);
 }
 
@@ -343,6 +415,21 @@
   background: color-mix(in oklab, var(--glass) 65%, transparent);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(14px) saturate(130%);
+}
+
+/*
+ * Dark glass — for badges/pills placed directly over a photo (business-card
+ * status pills, image overlays), always paired with white/light text and
+ * ideally the photo-scrim utility above. Deliberately a DIFFERENT variant
+ * from .glass/.glass-soft (which are white-tinted, made for text-on-glass
+ * over the app's own light canvas) — a white-tinted pill over a bright photo
+ * area would fail exactly the legibility requirement this exists to solve.
+ */
+@utility glass-dark {
+  background: oklch(0.15 0.02 160 / 0.45);
+  border: 1px solid oklch(1 0 0 / 0.18);
+  backdrop-filter: blur(14px) saturate(130%);
+  color: oklch(0.99 0.005 150);
 }
 
 /* Faint top-edge light reflection for a glass surface (brief §39) — a single
@@ -366,6 +453,49 @@
    brief §5 asks for. */
 @utility bg-gradient-canvas {
   background-image: var(--gradient-canvas);
+}
+
+/*
+ * Ambient glow blob — the one recurring signature element (visual-direction-c
+ * §1, §3). Usage: an absolutely-positioned, aria-hidden div, sized via
+ * width/height utilities by the caller, placed inside a `relative
+ * overflow-hidden` container:
+ *
+ *   <div className="relative overflow-hidden ...">
+ *     <div aria-hidden className="glow-blob size-[34rem] top-0 start-1/4" />
+ *     ...real content, z-10...
+ *   </div>
+ *
+ * Never given text/interactive content directly — it's a background effect
+ * layered behind real content; pair with a z-index utility (e.g. -z-10) at
+ * the call site matching its sibling background layers, since z-index is
+ * intentionally not baked in here.
+ */
+@utility glow-blob {
+  position: absolute;
+  border-radius: 9999px;
+  background-image: var(--gradient-glow);
+  filter: blur(48px);
+  animation: float-glow 16s var(--motion-ease) infinite;
+  pointer-events: none;
+}
+
+/*
+ * Photo scrim — guarantees text legibility over a photo background
+ * regardless of the photo's own content (explicit requirement: "make sure
+ * choose of color make all text appear... do not make the background
+ * somewhere make the text don't appear perfectly for pics"). A bottom-
+ * anchored dark-to-transparent gradient, tuned for white text specifically
+ * (business-card titles/badges) — always pair white/light text with this
+ * utility on a photo, never rely on the photo's own contrast.
+ */
+@utility photo-scrim {
+  background-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    oklch(0.15 0.02 160 / 0.15) 45%,
+    oklch(0.1 0.02 160 / 0.78) 100%
+  );
 }
 
 @utility text-gradient-gold {

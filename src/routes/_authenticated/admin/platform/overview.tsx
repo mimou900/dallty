@@ -27,14 +27,39 @@ export const Route = createFileRoute("/_authenticated/admin/platform/overview")(
   component: PlatformOverviewPage,
 });
 
-function Stat({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Users }) {
+function Stat({
+  label,
+  value,
+  icon: Icon,
+  promoted = false,
+}: {
+  label: string;
+  value: string;
+  icon: typeof Users;
+  /** The one metric a Super Admin actually opens this page to check — larger
+      card, larger figure, gradient icon chip, so it visibly dominates the
+      grid instead of every metric competing at equal weight. */
+  promoted?: boolean;
+}) {
   return (
-    <div className="rounded-3xl glass p-5">
+    <div
+      className={
+        promoted
+          ? "rounded-4xl glass shadow-(--shadow-card) p-6 sm:col-span-2 sm:row-span-2"
+          : "rounded-3xl glass shadow-(--shadow-card) p-5"
+      }
+    >
       <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="size-4" />
+        <Icon
+          className={
+            promoted
+              ? "size-5 shrink-0 rounded-xl bg-(image:--gradient-primary) p-1 text-primary-foreground"
+              : "size-4"
+          }
+        />
         <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
       </div>
-      <p className="mt-2 text-2xl font-extrabold">{value}</p>
+      <p className={promoted ? "text-stat mt-3" : "mt-2 text-2xl font-extrabold"}>{value}</p>
     </div>
   );
 }
@@ -98,9 +123,9 @@ function PlatformOverviewPage() {
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Gross revenue" value={money(t.revenue)} icon={Wallet} promoted />
         <Stat label="Shops" value={`${t.shops}`} icon={Building2} />
         <Stat label="Live on marketplace" value={`${t.listedShops}`} icon={Globe2} />
-        <Stat label="Gross revenue" value={money(t.revenue)} icon={Wallet} />
         <Stat label="Bookings" value={`${t.bookings}`} icon={CalendarCheck} />
         <Stat label="Customers" value={`${t.customers}`} icon={Users} />
         <Stat label="Accounts" value={`${t.accounts}`} icon={Users} />

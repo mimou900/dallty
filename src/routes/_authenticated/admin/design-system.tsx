@@ -151,7 +151,6 @@ function DesignSystemPage() {
           <AdminButton variant="secondary">Secondary</AdminButton>
           <AdminButton variant="outline">Outline</AdminButton>
           <AdminButton variant="ghost">Ghost</AdminButton>
-          <AdminButton variant="glass">Glass</AdminButton>
           <AdminButton variant="destructive">Destructive</AdminButton>
           <AdminButton variant="primary" loading>
             Loading

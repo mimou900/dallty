@@ -1163,9 +1163,14 @@ function BookingFlow() {
   return (
     <div className="relative min-h-dvh pb-32">
       {bookingPhase === "success" && user && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-background px-6 animate-fade-up">
+        <div className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-background px-6 animate-fade-up">
+          <div
+            aria-hidden
+            className="glow-blob -z-10 size-[36rem]"
+            style={{ top: "50%", left: "50%" }}
+          />
           <div className="text-center">
-            <div className="mx-auto grid size-20 place-items-center rounded-full bg-primary text-primary-foreground">
+            <div className="mx-auto grid size-20 place-items-center rounded-full bg-(image:--gradient-primary) text-primary-foreground shadow-(--shadow-glow-primary)">
               <Check className="size-10" />
             </div>
             <h1 className="mt-6 text-2xl font-extrabold">Booking confirmed</h1>
