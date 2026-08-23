@@ -76,7 +76,6 @@ function PlatformOverviewPage() {
     );
   }
 
-  if (overview.isLoading) return <DashboardSkeleton />;
   if (overview.isError)
     return (
       <p className="text-sm text-destructive">
@@ -84,8 +83,16 @@ function PlatformOverviewPage() {
       </p>
     );
 
-  const t = overview.data!.totals;
-  const roles = overview.data!.roleCounts;
+  // `isPending` (data === undefined), not `isLoading` (isPending && isFetching): with
+  // `enabled: isSuper`, the query never starts fetching while isSuper is momentarily false
+  // (e.g. the instant hasRole() settles) or hasn't started yet — isLoading stays false in that
+  // window while data is still undefined, which used to fall through to the `!` assertions
+  // below and throw "Cannot read properties of undefined (reading 'totals')". isPending covers
+  // every "no data yet" case regardless of why, not just "currently fetching."
+  if (overview.isPending || !overview.data) return <DashboardSkeleton />;
+
+  const t = overview.data.totals;
+  const roles = overview.data.roleCounts;
   const shops = visibleShops;
 
   return (
@@ -236,9 +243,9 @@ function PlatformOverviewPage() {
             ))}
           </tbody>
         </table>
-        {(overview.data!.shops.length > shops.length) && (
+        {overview.data.shops.length > shops.length && (
           <p className="px-3 py-3 text-xs font-semibold text-muted-foreground">
-            Showing {shops.length} of {overview.data!.shops.length} shops — refine the filter or open
+            Showing {shops.length} of {overview.data.shops.length} shops — refine the filter or open
             the full directory.
           </p>
         )}
