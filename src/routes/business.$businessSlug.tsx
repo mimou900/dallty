@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueries, useQueryClient, useMutation } from "@tanstack/react-query";
 import { addDays, format } from "date-fns";
 import { z } from "zod";
@@ -12,7 +12,10 @@ import {
   Check,
   Clock,
   Loader2,
+  ShieldAlert,
   Star,
+  TriangleAlert,
+  Wallet,
   Wifi,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -227,8 +230,9 @@ function BookingFlow() {
   const [autoConfirm, setAutoConfirm] = useState(false);
   const restored = useRef(false);
 
-  // Coming back from sign-in: pick the booking up exactly where it was left.
-  // Waits for the session to resolve so a refresh mid-flow still auto-confirms.
+  // Coming back from sign-in, OR just recovering from a plain refresh/dropped connection
+  // while already signed in: pick the booking up as close as possible to where it was left,
+  // never a dead restart from Service.
   useEffect(() => {
     if (authLoading || restored.current) return;
     restored.current = true;
@@ -239,14 +243,31 @@ function BookingFlow() {
     if (pending.day) setDay(pending.day);
     if (pending.slot) setSlot(pending.slot);
     setTab("book");
-    setStep(pending.slot ? 4 : 3);
     const canAutoConfirm = Boolean(pending.autoConfirm && pending.slot && user);
     if (canAutoConfirm) {
-      // Keep the intent stored until the booking actually lands, so a refresh
-      // during confirmation resumes instead of losing the slot.
+      // Left signed out with a slot already chosen and ready to go — resume and confirm
+      // automatically, the same "finish what I started before the sign-in detour" promise
+      // this mechanism has always made. Keep the intent stored until the booking actually
+      // lands, so a refresh during confirmation resumes instead of losing the slot.
+      setStep(4);
       setAutoConfirm(true);
       toast.info("Signed in — confirming your booking…");
+    } else if (user) {
+      // Already signed in — this is a plain refresh/reconnect, not a sign-in detour. Never
+      // silently confirm on their behalf; just land as close as possible to where they were.
+      // Anything past "Your Info" needs a real hold, which any refresh always loses along with
+      // all other component state — step 4 recreates one automatically (see the
+      // auto-create-hold effect near createHold's declaration) and the identityComplete effect
+      // advances straight back to Payment the moment it lands, so this is at most one extra
+      // beat on the way back, never a dead end.
+      setStep(Math.min(pending.step, 4));
+      clearPendingBooking();
     } else {
+      // Signed out, not a resume-and-confirm — land on the actual step they'd reached, never
+      // jump ahead of a selection they hadn't made yet (e.g. no specialist chosen shouldn't
+      // skip straight to Time). Capped at 4: past that needs a signed-in session either way,
+      // which is exactly what step 4 itself asks for.
+      setStep(Math.min(pending.step, 4));
       clearPendingBooking();
       toast.info("Picked up where you left off — review and confirm.");
     }
@@ -260,14 +281,19 @@ function BookingFlow() {
       day,
       slot,
       step,
-      autoConfirm: Boolean(slot && serviceId && staffId && step >= 4),
+      // Only meaningful for the signed-out -> OAuth round trip ("I'd already decided, confirm
+      // automatically once I'm back") — never set while already signed in, where the same
+      // mechanism now also runs just to survive a plain refresh; auto-confirming someone's
+      // booking behind their back because their connection blipped would be a real regression.
+      autoConfirm: Boolean(!user && slot && serviceId && staffId && step >= 4),
     });
   }
 
-  // Keep the choice mirrored to storage while signed out, so signing in from
-  // anywhere (header, menu, a deep link) still comes back to this exact slot.
+  // Keep the choice mirrored to storage continuously — both signed out (so signing in from
+  // anywhere comes back to this exact slot) and signed in (so an accidental refresh or a
+  // dropped connection mid-flow doesn't throw away service/specialist/date/slot progress).
   useEffect(() => {
-    if (user || authLoading || !restored.current) return;
+    if (authLoading || !restored.current) return;
     if (!serviceId && !staffId && !slot) return;
     stashBooking();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -877,6 +903,19 @@ function BookingFlow() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Warn before losing real progress -- reaching the Time step means a slot was actually
+  // picked (or is about to be), which is the point real work starts being at risk. Nothing to
+  // lose before that (still just browsing services/specialists/dates), and nothing to lose
+  // after a successful confirmation either. `enableBeforeUnload` also wires up the browser's
+  // own (unstylable, but real) confirmation for an actual tab close or refresh -- this custom
+  // modal only covers in-app navigation (clicking Home, Search, the back button, etc.).
+  const hasBookingProgress = tab === "book" && step >= 3 && bookingPhase !== "success";
+  const exitBlocker = useBlocker({
+    shouldBlockFn: () => hasBookingProgress,
+    enableBeforeUnload: hasBookingProgress,
+    withResolver: true,
+  });
+
   /** Best-effort — frees the slot for other customers a little sooner. The hold's own expiry
    * is what actually guarantees release, so a lost request here is never a correctness issue. */
   function releaseHold(target: HoldState | null) {
@@ -1118,8 +1157,10 @@ function BookingFlow() {
     // Signed out: the inline-auth UI has its own send/verify buttons, not this footer, so
     // there's nothing for Continue to gate here until `user` exists.
     Boolean(user) && phoneReady && nameReady,
-    // Payment: "Pay at salon" needs no selection today (see the Payment step's own comment).
-    true,
+    // Payment: "Pay at salon" needs no selection today (see the Payment step's own comment) --
+    // just needs the hold to still be valid, same guard the Confirm step's own button already
+    // has, so an expired hold can't be clicked past here either.
+    bookingPhase === "held",
     true,
   ][step];
 
@@ -1141,6 +1182,36 @@ function BookingFlow() {
 
   return (
     <div className="relative min-h-dvh pb-32">
+      {exitBlocker.status === "blocked" && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-foreground/45 px-6 backdrop-blur-sm animate-fade-up">
+          <div className="w-full max-w-sm rounded-4xl glass p-7 text-center shadow-2xl">
+            <div className="mx-auto grid size-16 place-items-center rounded-full bg-gold/15 text-gold">
+              <TriangleAlert className="size-8" />
+            </div>
+            <h2 className="mt-5 text-xl font-extrabold">Leave without finishing?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your appointment isn't confirmed yet. If you leave now, you'll lose your progress and
+              need to start over.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => exitBlocker.reset?.()}
+                className="press min-h-12 rounded-2xl bg-lime text-base font-bold text-lime-foreground"
+              >
+                Continue booking
+              </button>
+              <button
+                type="button"
+                onClick={() => exitBlocker.proceed?.()}
+                className="press min-h-11 rounded-2xl text-sm font-semibold text-muted-foreground"
+              >
+                Leave anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {bookingPhase === "success" && user && (
         <div className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-background px-6 animate-fade-up">
           <div
@@ -1987,23 +2058,69 @@ function BookingFlow() {
                   <HoldCountdown phase={bookingPhase} secondsLeft={holdSecondsLeft} tb={tb} />
                 </div>
 
-                <div className="mt-5 rounded-3xl glass-soft p-4">
-                  <p className="text-sm font-bold">Payment method</p>
-                  <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl bg-card/70 px-4 py-3">
-                    <span className="text-sm font-semibold">Pay at salon</span>
-                    <Check className="size-4 text-primary" />
-                  </div>
-                  {business?.require_deposit && Number(business.deposit_percent) > 0 && (
-                    <p className="mt-2 text-xs font-semibold text-muted-foreground">
-                      This shop requires a {business.deposit_percent}% deposit (about{" "}
-                      {formatMoney(
-                        ((promo ? promo.final : basePrice) * Number(business.deposit_percent)) /
-                          100,
-                        currency,
-                        lang,
-                      )}
-                      ), collected in person. The exact amount is confirmed at the salon.
+                {bookingPhase === "hold_expired" && (
+                  <div className="mt-5 space-y-3 rounded-3xl bg-destructive/10 p-5 text-center">
+                    <p className="text-sm font-semibold text-destructive">
+                      {bookingErrorMessage("HOLD_EXPIRED", tb)}
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetHold();
+                        setSlot(null);
+                        setStep(3);
+                      }}
+                      className="press min-h-11 rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
+                    >
+                      {tb("hold.pick_new_time")}
+                    </button>
+                  </div>
+                )}
+
+                <div
+                  className={`mt-5 rounded-3xl glass p-6 ${bookingPhase === "hold_expired" ? "hidden" : ""}`}
+                >
+                  <p className="text-sm font-bold text-muted-foreground">Payment method</p>
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-(image:--gradient-lime) p-4 shadow-(--shadow-glow-lime)">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-lime-foreground/15 text-lime-foreground">
+                        <Wallet className="size-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-lime-foreground">Pay at salon</p>
+                        <p className="text-xs font-semibold text-lime-foreground/80">
+                          Nothing to pay right now
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid size-7 shrink-0 place-items-center rounded-full bg-lime-foreground text-lime">
+                      <Check className="size-4" strokeWidth={3} />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-4">
+                    <span className="text-sm font-semibold text-muted-foreground">
+                      Total due at salon
+                    </span>
+                    <span className="text-lg font-extrabold">
+                      {formatMoney(promo ? promo.final : basePrice, currency, lang)}
+                    </span>
+                  </div>
+
+                  {business?.require_deposit && Number(business.deposit_percent) > 0 && (
+                    <div className="mt-4 flex items-start gap-2.5 rounded-2xl bg-gold/10 p-3.5">
+                      <ShieldAlert className="mt-0.5 size-4 shrink-0 text-gold" />
+                      <p className="text-xs font-semibold text-foreground/80">
+                        This shop requires a {business.deposit_percent}% deposit (about{" "}
+                        {formatMoney(
+                          ((promo ? promo.final : basePrice) * Number(business.deposit_percent)) /
+                            100,
+                          currency,
+                          lang,
+                        )}
+                        ), collected in person. The exact amount is confirmed at the salon.
+                      </p>
+                    </div>
                   )}
                 </div>
               </section>

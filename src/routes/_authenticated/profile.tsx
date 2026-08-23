@@ -7,9 +7,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { signedUrl, uploadTo } from "@/lib/storage";
-import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-field";
-import { guessCountryCode, splitE164, toE164 } from "@/lib/phone";
-import { getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import { ClientShell } from "@/components/dallty/client-shell";
 import { AccountSecurity } from "@/components/dallty/account-security";
 
@@ -48,14 +45,7 @@ function ProfilePage() {
   const queryClient = useQueryClient();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [phone, setPhone] = useState<PhoneFieldValue>({
-    countryCode: guessCountryCode(),
-    national: "",
-  });
-  const [form, setForm] = useState({
-    full_name: "",
-    phone: "",
-  });
+  const [form, setForm] = useState({ full_name: "" });
 
   const profileQuery = useQuery({
     queryKey: ["profile", user?.id],
@@ -75,34 +65,15 @@ function ProfilePage() {
 
   useEffect(() => {
     if (!profile) return;
-    setForm({
-      full_name: profile.full_name ?? "",
-      phone: profile.phone ?? "",
-    });
-
-    setPhone(
-      profile.phone
-        ? splitE164(profile.phone)
-        : { countryCode: guessCountryCode(profile.country_code), national: "" },
-    );
+    setForm({ full_name: profile.full_name ?? "" });
     signedUrl("avatars", profile.avatar_url).then(setAvatarUrl);
   }, [profile]);
-
-  const phoneE164 = toE164(
-    (getCountryByCode(phone.countryCode) ?? getDefaultCountry()).calling_code,
-    phone.national,
-  );
 
   const save = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
         .from("profiles")
-        .update({
-          full_name: form.full_name.trim(),
-          phone: phoneE164 || null,
-          country_code: phone.countryCode,
-        })
-
+        .update({ full_name: form.full_name.trim() })
         .eq("id", user!.id);
       if (error) throw error;
     },
@@ -202,8 +173,6 @@ function ProfilePage() {
             className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
           />
         </Field>
-
-        <PhoneField id="profile-phone" value={phone} onChange={setPhone} label="Phone" />
 
         <button
           type="submit"

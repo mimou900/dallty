@@ -190,14 +190,22 @@ export function AccountSecurity() {
   }
 
   async function sendPhoneCode() {
-    if (!phonePassword) return toast.error("Enter your current password");
+    // A password confirmation only makes sense as a guard against someone with a stolen
+    // session silently taking over an existing, already-verified number -- adding a first
+    // phone has nothing to protect yet, and requiring a password here would lock out any
+    // customer who signed up via OTP/OAuth and never set one at all.
+    if (phoneVerified) {
+      if (!phonePassword) return toast.error("Enter your current password");
+    }
     if (!isValidE164(phone.trim())) {
       return toast.error("Use international format, e.g. +9715xxxxxxx");
     }
     setBusy("phone");
     try {
-      const { valid } = await checkPassword({ data: { password: phonePassword } });
-      if (!valid) throw new Error("Current password is incorrect");
+      if (phoneVerified) {
+        const { valid } = await checkPassword({ data: { password: phonePassword } });
+        if (!valid) throw new Error("Current password is incorrect");
+      }
 
       if (phone.trim() !== user?.phone) {
         const { exists } = await checkPhone({ data: { phone: phone.trim() } });
@@ -327,16 +335,18 @@ export function AccountSecurity() {
               </div>
             </div>
             <div className="mt-3 space-y-2">
-              <input
-                type="password"
-                value={phonePassword}
-                onChange={(e) => setPhonePassword(e.target.value)}
-                placeholder="Current password"
-                aria-label="Current password"
-                autoComplete="current-password"
-                disabled={otpSent}
-                className={`${inputClass} disabled:opacity-60`}
-              />
+              {phoneVerified && (
+                <input
+                  type="password"
+                  value={phonePassword}
+                  onChange={(e) => setPhonePassword(e.target.value)}
+                  placeholder="Current password"
+                  aria-label="Current password"
+                  autoComplete="current-password"
+                  disabled={otpSent}
+                  className={`${inputClass} disabled:opacity-60`}
+                />
+              )}
               <input
                 type="tel"
                 value={phone}
