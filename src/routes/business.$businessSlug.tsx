@@ -572,7 +572,6 @@ function BookingFlow() {
   });
 
   const savedPhone = profileQuery.data?.phone ?? null;
-  const needsPhone = Boolean(user) && profileQuery.isSuccess && !isValidE164(savedPhone ?? "");
   const [phone, setPhone] = useState<PhoneFieldValue>({
     countryCode: guessCountryCode(),
     national: "",
@@ -594,8 +593,6 @@ function BookingFlow() {
     (getCountryByCode(phone.countryCode) ?? getDefaultCountry()).calling_code,
     phone.national,
   );
-  const phoneReady = !needsPhone || isValidE164(phoneE164);
-
   // Guest checkout — asked for on step 4 only when signed out. Kept separate
   // from `phone` above (that one feeds the authenticated missing-phone case
   // and updates `profiles`; this one feeds a brand-new booking's own columns).
@@ -741,8 +738,6 @@ function BookingFlow() {
     if (name) setGuestInfo((g) => (g.name ? g : { ...g, name }));
   }, [user, profileQuery.isSuccess, profileQuery.data]);
 
-  const needsInlineName = Boolean(user) && profileQuery.isSuccess && !guestInfo.name.trim();
-
   // Post-submit success view (guest path only — signed-in customers keep
   // navigating straight to /bookings like today).
   const [bookingResult, setBookingResult] = useState<{ id: string; reference: string } | null>(
@@ -751,19 +746,6 @@ function BookingFlow() {
   const [emailAccountCheck, setEmailAccountCheck] = useState<
     "idle" | "checking" | "existing" | "new" | "none"
   >("idle");
-
-  // Step 4 ("Customer Information") is skipped entirely once we already know
-  // who's booking — an authenticated user with a phone on file. Every place
-  // that sets `step` to 4 (time-slot pick, the sign-in-detour restore, the
-  // autoConfirm effect, a manual progress-pill click) keeps working
-  // unmodified; this just bounces past it the instant nothing is missing.
-  const identityLoading = authLoading || (Boolean(user) && profileQuery.isLoading);
-  const identityComplete =
-    Boolean(user) && profileQuery.isSuccess && !needsPhone && !needsInlineName;
-  useEffect(() => {
-    if (step !== 4 || identityLoading) return;
-    if (identityComplete) setStep(5);
-  }, [step, identityLoading, identityComplete]);
 
   // Optional coupon, applied only on the confirmation step.
   const basePrice = service ? Number(service.discount_price ?? service.price) : 0;
@@ -847,6 +829,41 @@ function BookingFlow() {
   const [bookingPhase, setBookingPhase] = useState<BookingPhase>("idle");
   const [hold, setHold] = useState<HoldState | null>(null);
   const [bookingErrorCode, setBookingErrorCode] = useState<string | null>(null);
+
+  // Whether this hold is guest-owned (created before -- or without -- a customer_id). This
+  // decides which state a still-missing phone number here actually has to feed: a guest
+  // hold's confirm call only ever reads `guestInfo` (the guest-confirm contract), never the
+  // separate `phone` state above, which exists for the other case -- a hold created while
+  // already signed in, confirmed through the signed-in path that updates `profiles` directly.
+  // Getting this wrong is exactly the bug it fixes: after inline email-OTP sign-in the phone
+  // box was writing into `phone`, but the Continue button (and the actual confirm call) were
+  // checking `guestInfo.phone` -- a value nothing in the email sign-in flow ever touches, so
+  // a correctly-typed number could never satisfy it. Phone sign-in never hit this, since
+  // `guestInfo.phone` is exactly the number the customer already entered to receive that SMS.
+  const isGuestHold = Boolean(hold?.guestToken);
+  const needsPhone = isGuestHold
+    ? Boolean(user) && profileQuery.isSuccess && !isValidE164(guestPhoneE164)
+    : Boolean(user) && profileQuery.isSuccess && !isValidE164(savedPhone ?? "");
+  const phoneReady = !needsPhone || isValidE164(phoneE164);
+  // The profile's own full_name, never guestInfo.name -- checking the input's own live value
+  // here made the field hide itself the instant the customer typed anything into it (this
+  // same flag also gates whether the input renders at all, so "needed" flipping false the
+  // moment it had content made it vanish mid-keystroke).
+  const needsInlineName =
+    Boolean(user) && profileQuery.isSuccess && !profileQuery.data?.full_name?.trim();
+
+  // Step 4 ("Customer Information") is skipped entirely once we already know
+  // who's booking — an authenticated user with a phone on file. Every place
+  // that sets `step` to 4 (time-slot pick, the sign-in-detour restore, the
+  // autoConfirm effect, a manual progress-pill click) keeps working
+  // unmodified; this just bounces past it the instant nothing is missing.
+  const identityLoading = authLoading || (Boolean(user) && profileQuery.isLoading);
+  const identityComplete =
+    Boolean(user) && profileQuery.isSuccess && !needsPhone && !needsInlineName;
+  useEffect(() => {
+    if (step !== 4 || identityLoading) return;
+    if (identityComplete) setStep(5);
+  }, [step, identityLoading, identityComplete]);
   // Generated once per hold, reused across every confirm retry for that hold so a flaky
   // connection or a double-tap can never create two bookings (withIdempotency, server-side).
   const idempotencyKeyRef = useRef<string | null>(null);
@@ -1774,23 +1791,9 @@ function BookingFlow() {
                 {bookingPhase === "hold_expired" ? null : identityLoading ? (
                   <div className="mt-5 h-32 animate-pulse rounded-3xl bg-muted" />
                 ) : user ? (
-                  <>
-                    {needsPhone && (
-                      <div className="mt-5 rounded-3xl glass p-6">
-                        <p className="mb-3 text-sm font-semibold">
-                          Add a phone number so the shop can reach you about this appointment.
-                        </p>
-                        <PhoneField
-                          id="booking-phone"
-                          value={phone}
-                          onChange={setPhone}
-                          label="Phone number"
-                          required
-                        />
-                      </div>
-                    )}
-                    {needsInlineName && (
-                      <div className="mt-5 space-y-4 rounded-3xl glass p-6">
+                  (needsPhone || needsInlineName) && (
+                    <div className="mt-5 space-y-4 rounded-3xl glass p-6">
+                      {needsInlineName && (
                         <div>
                           <label
                             htmlFor="guest-name"
@@ -1806,6 +1809,21 @@ function BookingFlow() {
                             className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
                           />
                         </div>
+                      )}
+                      {needsPhone && (
+                        <PhoneField
+                          id="booking-phone"
+                          value={isGuestHold ? guestInfo.phone : phone}
+                          onChange={
+                            isGuestHold
+                              ? (next) => setGuestInfo((g) => ({ ...g, phone: next }))
+                              : setPhone
+                          }
+                          label="Phone number"
+                          required
+                        />
+                      )}
+                      {needsInlineName && (
                         <div>
                           <label
                             htmlFor="guest-email"
@@ -1823,9 +1841,9 @@ function BookingFlow() {
                             className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
                           />
                         </div>
-                      </div>
-                    )}
-                  </>
+                      )}
+                    </div>
+                  )
                 ) : (
                   // Full sign-in inline — same hierarchy as the standalone /auth page's
                   // "choose" step (phone primary, email secondary, Google/Apple below a
