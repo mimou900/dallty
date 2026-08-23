@@ -1207,8 +1207,11 @@ function BookingFlow() {
       )}
 
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-32 start-[-10%] size-[34rem] rounded-full bg-primary/15 blur-3xl" />
-        <div className="absolute bottom-0 end-[-10%] size-[30rem] rounded-full bg-gold/15 blur-3xl" />
+        <div className="glow-blob -top-32 start-[-10%] size-[34rem]" />
+        <div
+          className="glow-blob bottom-0 end-[-10%] size-[30rem]"
+          style={{ animationDelay: "-8s" }}
+        />
       </div>
 
       <header className="sticky top-0 z-40 px-4 pt-4">

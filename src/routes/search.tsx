@@ -247,8 +247,11 @@ function SearchPage() {
   return (
     <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-background">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-40 start-[-10%] size-[36rem] rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute top-1/4 end-[-15%] size-[30rem] rounded-full bg-gold/20 blur-3xl" />
+        <div className="glow-blob -top-40 start-[-10%] size-[36rem]" />
+        <div
+          className="glow-blob top-1/4 end-[-15%] size-[30rem]"
+          style={{ animationDelay: "-8s" }}
+        />
       </div>
 
       <header className="sticky top-0 z-40 px-4 pt-4">

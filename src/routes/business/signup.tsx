@@ -546,8 +546,11 @@ function BusinessSignupPage() {
   return (
     <main className="relative min-h-dvh overflow-hidden px-4 py-8">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -top-40 start-[-10%] size-[34rem] rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute bottom-[-10%] end-[-10%] size-[30rem] rounded-full bg-gold/20 blur-3xl" />
+        <div className="glow-blob -top-40 start-[-10%] size-[34rem]" />
+        <div
+          className="glow-blob bottom-[-10%] end-[-10%] size-[30rem]"
+          style={{ animationDelay: "-8s" }}
+        />
       </div>
 
       <div className="mx-auto w-full max-w-3xl">

@@ -28,8 +28,11 @@ export function ClientShell({
   return (
     <div className="relative min-h-dvh pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-32 start-[-10%] size-[34rem] rounded-full bg-primary/15 blur-3xl" />
-        <div className="absolute bottom-0 end-[-10%] size-[30rem] rounded-full bg-gold/15 blur-3xl" />
+        <div className="glow-blob -top-32 start-[-10%] size-[34rem]" />
+        <div
+          className="glow-blob bottom-0 end-[-10%] size-[30rem]"
+          style={{ animationDelay: "-8s" }}
+        />
       </div>
 
       <SiteHeader lang={lang} />

@@ -136,7 +136,7 @@ function ReschedulePage() {
   return (
     <div className="relative min-h-dvh px-4 pb-32 pt-4">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-32 start-[-10%] size-[34rem] rounded-full bg-primary/15 blur-3xl" />
+        <div className="glow-blob -top-32 start-[-10%] size-[34rem]" />
       </div>
 
       <header className="mx-auto flex max-w-3xl items-center gap-3 rounded-3xl glass px-4 py-3">

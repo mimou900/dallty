@@ -278,7 +278,7 @@
    * tables) stays flat per the explicit "buttons remain visually flat" rule.
    */
   --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-active) 100%);
-  --gradient-lime: linear-gradient(135deg, var(--lime) 0%, oklch(0.82 0.19 100) 100%);
+  --gradient-lime: linear-gradient(135deg, var(--lime) 0%, oklch(0.78 0.19 118.84) 100%);
 
   /* Colored shadows — a soft tint of the surface's own color instead of
      flat gray, so primary/lime surfaces visibly "glow" rather than just
@@ -368,7 +368,7 @@
   );
 
   --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-  --gradient-lime: linear-gradient(135deg, var(--lime) 0%, oklch(0.86 0.19 100) 100%);
+  --gradient-lime: linear-gradient(135deg, var(--lime) 0%, oklch(0.74 0.18 119) 100%);
 
   --shadow-glow-primary: 0 12px 32px -8px oklch(0.72 0.13 161 / 0.3);
   --shadow-glow-lime: 0 12px 28px -8px oklch(0.82 0.19 119 / 0.4);

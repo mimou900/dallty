@@ -83,7 +83,7 @@ function ResetPasswordPage() {
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -top-40 start-[-10%] size-[34rem] rounded-full bg-primary/20 blur-3xl" />
+        <div className="glow-blob -top-40 start-[-10%] size-[34rem]" />
       </div>
       <div className="w-full max-w-md rounded-4xl glass p-7 sm:p-9">
         <Link to="/" className="mb-7 flex items-center gap-3">
@@ -97,9 +97,13 @@ function ResetPasswordPage() {
 
         {!ready ? (
           <p className="mt-3 text-sm text-muted-foreground">
-            Open this page from the reset link in your email. If the link expired, request a new
-            one from the{" "}
-            <Link to="/auth" search={{ next: undefined }} className="font-semibold underline underline-offset-4">
+            Open this page from the reset link in your email. If the link expired, request a new one
+            from the{" "}
+            <Link
+              to="/auth"
+              search={{ next: undefined }}
+              className="font-semibold underline underline-offset-4"
+            >
               sign-in page
             </Link>
             .
@@ -156,7 +160,6 @@ function ResetPasswordPage() {
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
               Update password
             </button>
-
           </form>
         )}
       </div>
