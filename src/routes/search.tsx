@@ -23,7 +23,7 @@ import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
 import { SearchSkeleton } from "@/components/dallty/skeletons";
 import { LogoMark } from "@/components/dallty/logo";
-import { NavMenu } from "@/components/dallty/site-nav";
+import { LanguageSwitcher } from "@/components/dallty/language-switcher";
 import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
 import { useUserLocation, haversineKm } from "@/hooks/use-user-location";
 import { getTravelTimes } from "@/lib/geo.functions";
@@ -329,7 +329,7 @@ function SearchPage() {
                 </span>
               ) : null}
             </button>
-            <NavMenu lang={lang} />
+            <LanguageSwitcher variant="icon" />
           </div>
 
           {showFilters ? (

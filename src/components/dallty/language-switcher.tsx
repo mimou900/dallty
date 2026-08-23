@@ -1,7 +1,13 @@
-import { Languages } from "lucide-react";
+import { Check, Languages } from "lucide-react";
 
 import { LANGUAGES, useLocale, type Lang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const SHORT_LABEL: Record<Lang, string> = { en: "EN", fr: "FR", ar: "ع" };
 
@@ -14,9 +20,38 @@ export function LanguageSwitcher({
   variant = "segmented",
 }: {
   className?: string;
-  variant?: "segmented" | "row";
+  variant?: "segmented" | "row" | "icon";
 }) {
   const { lang, setLang } = useLocale();
+
+  if (variant === "icon") {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label="Language"
+          className={cn(
+            "press flex size-11 shrink-0 items-center justify-center rounded-2xl glass-soft",
+            className,
+          )}
+        >
+          <Languages className="size-5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44 glass">
+          {LANGUAGES.map((l) => (
+            <DropdownMenuItem
+              key={l.code}
+              lang={l.code}
+              onSelect={() => setLang(l.code)}
+              className="flex items-center justify-between font-semibold"
+            >
+              {l.native}
+              {lang === l.code && <Check className="size-4 shrink-0 text-primary" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
 
   if (variant === "row") {
     return (

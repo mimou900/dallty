@@ -206,7 +206,7 @@ function Index() {
             />
 
             <div className="flex min-h-[19rem] flex-col justify-end gap-3 p-5 pb-12 sm:min-h-[26rem] sm:p-10 sm:pb-16">
-              <span className="inline-flex w-fit items-center gap-2 rounded-full glass-soft px-3 py-1.5 text-[0.7rem] font-bold tracking-wide text-background sm:text-xs">
+              <span className="inline-flex w-fit items-center gap-2 rounded-full glass-dark px-3 py-1.5 text-[0.7rem] font-bold tracking-wide sm:text-xs">
                 <Sparkles className="size-3.5 shrink-0 text-gold" />
                 {t("hero_badge")}
               </span>

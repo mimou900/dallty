@@ -31,6 +31,13 @@
   --font-sans: "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif;
   --font-arabic: "IBM Plex Sans Arabic", "Inter", system-ui, sans-serif;
   --font-display: "Clash Display", "Inter", system-ui, sans-serif;
+  /* Every heading utility (text-display/h1/h2/h3) and the global h1-h4 base
+     rule reference this indirection, not --font-display directly, so the
+     `[dir="rtl"]` override below reaches them regardless of which Tailwind
+     v4 cascade layer (base vs. utilities) the consuming rule lives in --
+     custom-property inheritance isn't subject to layer ordering the way a
+     competing `font-family` declaration in a lower layer would be. */
+  --font-heading: var(--font-display);
 
   --radius-sm: calc(var(--radius) - 8px);
   --radius-md: calc(var(--radius) - 4px);
@@ -426,9 +433,10 @@
  * area would fail exactly the legibility requirement this exists to solve.
  */
 @utility glass-dark {
-  background: oklch(0.15 0.02 160 / 0.45);
-  border: 1px solid oklch(1 0 0 / 0.18);
-  backdrop-filter: blur(14px) saturate(130%);
+  background: oklch(0.15 0.02 160 / 0.4);
+  border: 1px solid oklch(1 0 0 / 0.28);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.25);
+  backdrop-filter: blur(20px) saturate(160%);
   color: oklch(0.99 0.005 150);
 }
 
@@ -529,7 +537,7 @@
  * sites don't need to repeat responsive text- utilities.
  */
 @utility text-display {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -543,7 +551,7 @@
 }
 
 @utility text-h1 {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.1;
@@ -557,7 +565,7 @@
 }
 
 @utility text-h2 {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.15;
@@ -568,7 +576,7 @@
 }
 
 @utility text-h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-weight: 500;
   line-height: 1.2;
   font-size: 1.125rem;
@@ -652,6 +660,23 @@
 
   [dir="rtl"] body {
     font-family: var(--font-arabic);
+  }
+
+  /* Clash Display has no Arabic glyphs -- redirect the shared heading token
+     for every RTL descendant (base h1-h4 below, and every text-display/h1/
+     h2/h3 utility) rather than fighting Tailwind's layer ordering per rule. */
+  [dir="rtl"] {
+    --font-heading: var(--font-arabic);
+  }
+
+  /* Every heading uses the display face by default -- the same one the homepage
+     hero opts into via `text-display` -- so headline weight is consistent site-
+     wide instead of only appearing on a handful of hand-picked elements. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
   }
 
   ::selection {

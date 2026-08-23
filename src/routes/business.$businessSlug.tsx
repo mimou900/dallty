@@ -22,9 +22,9 @@ import { savePendingBooking, readPendingBooking, clearPendingBooking } from "@/l
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { BottomNav } from "@/components/dallty/bottom-nav";
+import { LanguageSwitcher } from "@/components/dallty/language-switcher";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
-import { NavMenu } from "@/components/dallty/site-nav";
 import { FavoriteButton } from "@/components/dallty/favorite-button";
 import { BusinessReviews } from "@/components/dallty/business-reviews";
 import { BusinessOverview } from "@/components/dallty/business-overview";
@@ -1244,7 +1244,7 @@ function BookingFlow() {
           {business && user && (
             <FavoriteButton kind="business" targetId={business.id} label={business.name} />
           )}
-          <NavMenu />
+          <LanguageSwitcher variant="icon" />
         </div>
 
         <div

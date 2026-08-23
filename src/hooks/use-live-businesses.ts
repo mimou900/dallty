@@ -55,11 +55,10 @@ export function useLiveBusinesses(countryCode?: string) {
         reviews: b.review_count ?? 0,
         distanceKm: Number(b.distance_km ?? 0),
         price: b.price_range ?? "$$",
-        open: b.is_active,
+        open: b.open_now,
         instant: Boolean(b.instant_booking),
         countryCode: (b.country_code ?? "").toUpperCase(),
-        state:
-          b.district ?? provinceOfCity((b.country_code ?? "").toUpperCase(), b.city ?? ""),
+        state: b.district ?? provinceOfCity((b.country_code ?? "").toUpperCase(), b.city ?? ""),
         city: b.city ?? "",
         businessType: b.business_type ?? "",
         lat: b.latitude === null || b.latitude === undefined ? null : Number(b.latitude),

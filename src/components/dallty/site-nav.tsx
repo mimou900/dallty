@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Briefcase,
@@ -6,19 +5,14 @@ import {
   ChevronDown,
   Heart,
   LayoutDashboard,
-  LogIn,
-  LogOut,
-  Menu,
   Search,
   Sparkles,
   Store,
   User,
-  UserPlus,
   Users,
 } from "lucide-react";
 
 import wordmarkUrl from "@/assets/dallty-wordmark.png";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +24,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { landingForRoles } from "@/lib/post-login";
 import type { Lang } from "@/lib/dallty-content";
-import { dirFor, useLocale } from "@/lib/i18n";
+import { useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { LanguageSwitcher } from "@/components/dallty/language-switcher";
@@ -101,136 +95,6 @@ function useReturnPath() {
   });
 }
 
-export function NavMenu({ lang: langProp }: NavProps) {
-  const { lang: activeLang } = useLocale();
-  const lang = langProp ?? activeLang;
-  const returnPath = useReturnPath();
-  const [open, setOpen] = useState(false);
-  const { customer, business, user, home, isManager, m } = useNavLinks(lang);
-  const { t } = useTranslation("common");
-  const dir = dirFor(lang);
-
-  async function signOut() {
-    setOpen(false);
-    await supabase.auth.signOut();
-  }
-
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger
-        aria-label={m.open}
-        className="press flex size-11 shrink-0 items-center justify-center rounded-2xl glass-soft"
-      >
-        <Menu className="size-5" />
-      </SheetTrigger>
-      <SheetContent
-        side={dir === "rtl" ? "left" : "right"}
-        dir={dir}
-        className="w-[19rem] border-s border-border bg-background p-0 shadow-2xl"
-      >
-        <div className="flex h-full flex-col overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5">
-          <SheetHeader className="space-y-0 text-start">
-            <SheetTitle className="flex items-center">
-              <img src={wordmarkUrl} alt={t("brand")} className="h-7 w-auto object-contain" />
-            </SheetTitle>
-          </SheetHeader>
-
-          {/* Priority 1 — the account / sign-in action */}
-          <Link
-            to={user ? home : "/auth"}
-            search={user ? undefined : { next: returnPath }}
-            onClick={() => setOpen(false)}
-            className="press mt-5 flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
-          >
-            {user ? (
-              <>
-                <LayoutDashboard className="size-4" />
-                {isManager ? m.dashboard : m.bookings}
-              </>
-            ) : (
-              <>
-                <LogIn className="size-4" />
-                {t("sign_in")}
-              </>
-            )}
-          </Link>
-          {!user && (
-            <Link
-              to="/auth"
-              search={{ next: returnPath }}
-              onClick={() => setOpen(false)}
-              className="press mt-2 flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-card text-sm font-semibold text-foreground"
-            >
-              <UserPlus className="size-4" />
-              {m.createAccount}
-            </Link>
-          )}
-
-          {/* Priority 2 — customer navigation */}
-          <p className="mt-6 px-1 text-[0.7rem] font-bold uppercase tracking-wide text-muted-foreground">
-            {m.customers}
-          </p>
-          <nav aria-label="Menu" className="mt-2 flex flex-col gap-1">
-            {customer.map(({ to, label, icon: Icon }) => (
-              <Link
-                key={to}
-                to={to}
-                onClick={() => setOpen(false)}
-                activeProps={{ className: "bg-primary/10 !text-primary" }}
-                className="flex min-h-11 items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-              >
-                <Icon className="size-4 shrink-0 text-muted-foreground" />
-                {label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Priority 3 — business, hidden once signed in */}
-          {!user && (
-            <div className="mt-6 rounded-3xl border border-border bg-muted/60 p-3">
-              <p className="px-1 text-[0.7rem] font-bold uppercase tracking-wide text-muted-foreground">
-                {m.business}
-              </p>
-              <nav aria-label="Business menu" className="mt-2 flex flex-col gap-1">
-                {business.map(({ to, label, icon: Icon }) => (
-                  <Link
-                    key={to + label}
-                    to={to}
-                    onClick={() => setOpen(false)}
-                    className="flex min-h-11 items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-foreground transition-colors hover:bg-background"
-                  >
-                    <Icon className="size-4 shrink-0 text-muted-foreground" />
-                    {label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-          )}
-
-          <div className="mt-auto flex flex-col gap-2 border-t border-border pt-4">
-            <div>
-              <p className="mb-2 px-1 text-[0.7rem] font-bold uppercase tracking-wide text-muted-foreground">
-                {t("language")}
-              </p>
-              <LanguageSwitcher variant="row" />
-            </div>
-            {user && (
-              <button
-                type="button"
-                onClick={signOut}
-                className="flex min-h-11 items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-destructive"
-              >
-                <LogOut className="size-4 shrink-0" />
-                {m.signOut}
-              </button>
-            )}
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
 /** Full public header: logo, customer links, demoted business menu, account action. */
 export function SiteHeader({ lang: langProp }: NavProps) {
   const { lang: activeLang } = useLocale();
@@ -293,7 +157,7 @@ export function SiteHeader({ lang: langProp }: NavProps) {
 
           <NotificationCenter />
 
-          <LanguageSwitcher className="hidden shrink-0 sm:flex" />
+          <LanguageSwitcher variant="icon" />
 
           {user ? (
             <DropdownMenu>
@@ -331,16 +195,11 @@ export function SiteHeader({ lang: langProp }: NavProps) {
             <Link
               to="/auth"
               search={{ next: returnPath }}
-              className="press flex min-h-11 shrink-0 items-center rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground sm:px-5"
+              className="press flex min-h-11 shrink-0 items-center rounded-2xl bg-lime px-4 text-sm font-semibold text-lime-foreground sm:px-5"
             >
               {t("sign_in")}
             </Link>
           )}
-
-          {/* Mobile: everything lives in one prioritized sheet */}
-          <div className="md:hidden">
-            <NavMenu lang={lang} />
-          </div>
         </div>
       </div>
     </header>

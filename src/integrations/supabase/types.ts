@@ -4647,6 +4647,7 @@ export type Database = {
           longitude: number
           name: string
           name_ar: string
+          open_now: boolean
           price_range: string
           rank_score: number
           rating: number

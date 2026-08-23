@@ -155,7 +155,7 @@ function ResetPasswordPage() {
             <button
               type="submit"
               disabled={busy || !isPasswordStrong(password, policy)}
-              className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-bold text-primary-foreground disabled:opacity-60"
+              className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-lime text-base font-bold text-lime-foreground disabled:opacity-60"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
               Update password
