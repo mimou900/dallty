@@ -11,8 +11,10 @@ import {
   CalendarDays,
   Check,
   Clock,
+  CreditCard,
   Loader2,
   ShieldAlert,
+  Smartphone,
   Star,
   TriangleAlert,
   Wallet,
@@ -2113,6 +2115,26 @@ function BookingFlow() {
                     <div className="grid size-7 shrink-0 place-items-center rounded-full bg-lime-foreground text-lime">
                       <Check className="size-4" strokeWidth={3} />
                     </div>
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    {[
+                      { icon: CreditCard, label: "Edahabia / CIB" },
+                      { icon: CreditCard, label: "Debit / credit card" },
+                      { icon: Smartphone, label: "Apple Pay / Google Pay" },
+                    ].map(({ icon: Icon, label }) => (
+                      <span
+                        key={label}
+                        aria-disabled="true"
+                        className="flex min-h-14 cursor-not-allowed items-center gap-3 rounded-2xl bg-muted/50 px-4 text-foreground/50"
+                      >
+                        <Icon className="size-5 shrink-0" />
+                        <span className="text-sm font-bold">{label}</span>
+                        <span className="ms-auto shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-extrabold uppercase text-muted-foreground">
+                          Soon
+                        </span>
+                      </span>
+                    ))}
                   </div>
 
                   <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-4">
