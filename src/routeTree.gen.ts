@@ -38,6 +38,7 @@ import { Route as AuthenticatedAdminBillingRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminCalendarRouteImport } from './routes/_authenticated/admin/calendar'
 import { Route as AuthenticatedAdminConfirmationsRouteImport } from './routes/_authenticated/admin/confirmations'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin/customers'
+import { Route as AuthenticatedAdminDesignSystemRouteImport } from './routes/_authenticated/admin/design-system'
 import { Route as AuthenticatedAdminMarketplaceRouteImport } from './routes/_authenticated/admin/marketplace'
 import { Route as AuthenticatedAdminMyAppointmentsRouteImport } from './routes/_authenticated/admin/my-appointments'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
@@ -212,6 +213,12 @@ const AuthenticatedAdminCustomersRoute =
     path: '/customers',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminDesignSystemRoute =
+  AuthenticatedAdminDesignSystemRouteImport.update({
+    id: '/design-system',
+    path: '/design-system',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminMarketplaceRoute =
   AuthenticatedAdminMarketplaceRouteImport.update({
     id: '/marketplace',
@@ -372,6 +379,7 @@ export interface FileRoutesByFullPath {
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/admin/confirmations': typeof AuthenticatedAdminConfirmationsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/design-system': typeof AuthenticatedAdminDesignSystemRoute
   '/admin/marketplace': typeof AuthenticatedAdminMarketplaceRoute
   '/admin/my-appointments': typeof AuthenticatedAdminMyAppointmentsRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -423,6 +431,7 @@ export interface FileRoutesByTo {
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/admin/confirmations': typeof AuthenticatedAdminConfirmationsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/design-system': typeof AuthenticatedAdminDesignSystemRoute
   '/admin/marketplace': typeof AuthenticatedAdminMarketplaceRoute
   '/admin/my-appointments': typeof AuthenticatedAdminMyAppointmentsRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -477,6 +486,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/_authenticated/admin/confirmations': typeof AuthenticatedAdminConfirmationsRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/_authenticated/admin/design-system': typeof AuthenticatedAdminDesignSystemRoute
   '/_authenticated/admin/marketplace': typeof AuthenticatedAdminMarketplaceRoute
   '/_authenticated/admin/my-appointments': typeof AuthenticatedAdminMyAppointmentsRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -531,6 +541,7 @@ export interface FileRouteTypes {
     | '/admin/calendar'
     | '/admin/confirmations'
     | '/admin/customers'
+    | '/admin/design-system'
     | '/admin/marketplace'
     | '/admin/my-appointments'
     | '/admin/notifications'
@@ -582,6 +593,7 @@ export interface FileRouteTypes {
     | '/admin/calendar'
     | '/admin/confirmations'
     | '/admin/customers'
+    | '/admin/design-system'
     | '/admin/marketplace'
     | '/admin/my-appointments'
     | '/admin/notifications'
@@ -635,6 +647,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/calendar'
     | '/_authenticated/admin/confirmations'
     | '/_authenticated/admin/customers'
+    | '/_authenticated/admin/design-system'
     | '/_authenticated/admin/marketplace'
     | '/_authenticated/admin/my-appointments'
     | '/_authenticated/admin/notifications'
@@ -882,6 +895,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCustomersRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/design-system': {
+      id: '/_authenticated/admin/design-system'
+      path: '/design-system'
+      fullPath: '/admin/design-system'
+      preLoaderRoute: typeof AuthenticatedAdminDesignSystemRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/marketplace': {
       id: '/_authenticated/admin/marketplace'
       path: '/marketplace'
@@ -1046,6 +1066,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminCalendarRoute: typeof AuthenticatedAdminCalendarRoute
   AuthenticatedAdminConfirmationsRoute: typeof AuthenticatedAdminConfirmationsRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
+  AuthenticatedAdminDesignSystemRoute: typeof AuthenticatedAdminDesignSystemRoute
   AuthenticatedAdminMarketplaceRoute: typeof AuthenticatedAdminMarketplaceRoute
   AuthenticatedAdminMyAppointmentsRoute: typeof AuthenticatedAdminMyAppointmentsRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
@@ -1078,6 +1099,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminCalendarRoute: AuthenticatedAdminCalendarRoute,
     AuthenticatedAdminConfirmationsRoute: AuthenticatedAdminConfirmationsRoute,
     AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
+    AuthenticatedAdminDesignSystemRoute: AuthenticatedAdminDesignSystemRoute,
     AuthenticatedAdminMarketplaceRoute: AuthenticatedAdminMarketplaceRoute,
     AuthenticatedAdminMyAppointmentsRoute:
       AuthenticatedAdminMyAppointmentsRoute,
