@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Apple, ArrowLeft, Loader2, Scissors, Store } from "lucide-react";
+import { Apple, ArrowLeft, Loader2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -100,7 +100,9 @@ function AuthPage() {
   const { t } = useTranslation("auth");
   const [step, setStep] = useState<Step>("choose");
   const [mode, setMode] = useState<"signin" | "signup">(modeParam ?? "signin");
-  const [role, setRole] = useState<(typeof roleOptions)[number]["value"]>("client");
+  // Client-only signup via this form now — the business-registration role picker was removed;
+  // `role` stays fixed at its only real value and is still passed to signUp's metadata below.
+  const role: (typeof roleOptions)[number]["value"] = "client";
   const [email, setEmail] = useState(emailParam ?? "");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -735,47 +737,6 @@ function AuthPage() {
               {mode === "signin" ? t("sign_in_sub") : t("sign_up_sub")}
             </p>
 
-            {mode === "signup" && (
-              <fieldset className="mt-6">
-                <legend className="mb-2 text-sm font-semibold">{t("role_legend")}</legend>
-                <div className="grid gap-2">
-                  {roleOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setRole(option.value)}
-                      aria-pressed={role === option.value}
-                      className={`flex min-h-12 items-center justify-between rounded-2xl px-4 py-3 text-start text-sm font-semibold transition-colors ${
-                        role === option.value
-                          ? "bg-primary text-primary-foreground"
-                          : "glass-soft text-foreground"
-                      }`}
-                    >
-                      <span>{t("role_client")}</span>
-                      <span
-                        className={
-                          role === option.value
-                            ? "text-xs font-medium opacity-80"
-                            : "text-xs font-medium text-muted-foreground"
-                        }
-                      >
-                        {t("role_client_hint")}
-                      </span>
-                    </button>
-                  ))}
-                  <Link
-                    to="/business/signup"
-                    className="flex min-h-12 items-center justify-between rounded-2xl glass-soft px-4 py-3 text-sm font-semibold"
-                  >
-                    <span>{t("role_business")}</span>
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {t("role_business_hint")}
-                    </span>
-                  </Link>
-                </div>
-              </fieldset>
-            )}
-
             <form onSubmit={handleSubmit} className="mt-6 space-y-3">
               {mode === "signup" && (
                 <div>
@@ -944,26 +905,6 @@ function AuthPage() {
               {t("finish_setup")}
             </button>
           </form>
-        )}
-
-        {step !== "complete-profile" && (
-          <>
-            <Link
-              to="/business/signup"
-              className="press mt-4 flex min-h-11 items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold"
-            >
-              <Store className="size-4" />
-              {t("business")}
-            </Link>
-
-            <Link
-              to="/staff/signup"
-              className="press mt-2 flex min-h-11 items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold"
-            >
-              <Scissors className="size-4" />
-              {t("join_team")}
-            </Link>
-          </>
         )}
       </main>
     </div>
