@@ -9,13 +9,23 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        /*
+         * Primary/lime get a subtle two-stop same-hue gradient + a soft
+         * colored shadow (visual-direction-c, approved) — depth cues only,
+         * explicitly NOT glass/blur/shine: no backdrop-filter, no gradient
+         * sweep, no highlight overlay. Every other variant stays a flat
+         * solid fill, unchanged. Hover/active adjust brightness + the
+         * shadow's lift, never the fill itself, so the gradient never
+         * looks like it's "shining."
+         */
+        default:
+          "bg-(image:--gradient-primary) text-primary-foreground shadow-(--shadow-glow-primary) hover:brightness-105 active:brightness-95",
         /* Brand "Primary Button" — lime, for the highest-energy CTA on a screen
            (Book Now / Continue / Confirm / Save). Not the default variant: most
            existing `variant="default"` call sites are dashboard/admin actions
            that should stay on the structural deep-green, not turn lime. */
-        lime: "bg-lime text-lime-foreground shadow hover:bg-lime/90",
-        /* Brand "Accent Button" — pink, for a highlighted/secondary-energy moment. */
+        lime: "bg-(image:--gradient-lime) text-lime-foreground shadow-(--shadow-glow-lime) hover:brightness-105 active:brightness-95",
+        /* Brand "Accent Button" — pink, flat solid (unchanged — only primary/lime get the gradient treatment). */
         accent: "bg-pink text-pink-foreground shadow hover:bg-pink/90",
         destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:

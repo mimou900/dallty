@@ -25,7 +25,7 @@ export function BusinessCard({
   const s = business[lang === "ar" ? "ar" : "en"];
 
   return (
-    <article className="press group overflow-hidden rounded-3xl glass">
+    <article className="press group overflow-hidden rounded-3xl glass shadow-(--shadow-card)">
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
           src={business.image}
@@ -35,6 +35,9 @@ export function BusinessCard({
           height={700}
           className="size-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
+        {/* Guarantees the badges below stay legible regardless of what's in the
+            photo underneath — never rely on the photo's own contrast. */}
+        <div aria-hidden className="photo-scrim absolute inset-0" />
         <FavoriteButton
           kind="business"
           targetId={business.id}
@@ -42,7 +45,7 @@ export function BusinessCard({
           className="absolute end-3 top-3 !size-11 transition-transform active:scale-90"
         />
         <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
-          <span className="rounded-full glass-soft px-3 py-1 text-xs font-semibold">
+          <span className="rounded-full glass-dark px-3 py-1 text-xs font-semibold">
             {business.open ? t("open") : t("closed")}
           </span>
           {business.instant && (
@@ -110,7 +113,7 @@ export function BusinessCard({
             to="/business/$businessSlug"
             params={{ businessSlug: business.slug }}
             search={{ book: true }}
-            className="press block rounded-2xl bg-lime py-3 text-center text-sm font-semibold text-lime-foreground"
+            className="press block rounded-2xl bg-(image:--gradient-lime) py-3 text-center text-sm font-semibold text-lime-foreground shadow-(--shadow-glow-lime)"
           >
             {t("book")}
           </Link>

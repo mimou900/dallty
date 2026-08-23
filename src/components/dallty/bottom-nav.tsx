@@ -35,8 +35,10 @@ export function BottomNav({ tabs }: { tabs: string[] }) {
               <Link
                 to={item.to}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-11 w-full flex-col items-center gap-1 rounded-2xl py-2 text-[11px] font-semibold transition-colors ${
-                  active ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                className={`flex min-h-11 w-full flex-col items-center gap-1 rounded-2xl py-2 text-[11px] font-semibold transition-[background-color,color,box-shadow] ${
+                  active
+                    ? "bg-(image:--gradient-primary) text-primary-foreground shadow-(--shadow-glow-primary)"
+                    : "text-muted-foreground"
                 }`}
               >
                 <Icon className="size-5" />
