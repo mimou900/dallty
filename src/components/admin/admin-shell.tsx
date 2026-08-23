@@ -47,7 +47,6 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { LogoMark } from "@/components/dallty/logo";
 import wordmarkUrl from "@/assets/dallty-wordmark.png";
 import { useLocale, type Lang } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
@@ -638,10 +637,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh bg-background">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 start-0 z-40 hidden w-64 flex-col border-e border-border/60 bg-card/60 backdrop-blur-xl lg:flex">
-        <Link to="/" className="flex items-center gap-3 px-5 py-5">
-          <LogoMark className="size-10" />
+        <Link to="/" className="flex items-center px-5 py-5">
           <span>
-            <img src={wordmarkUrl} alt="Dallty" className="h-5 w-auto object-contain" />
+            <img src={wordmarkUrl} alt="Dallty" className="h-6 w-auto object-contain" />
             <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {tCommon("brand_business_subtitle")}
             </span>

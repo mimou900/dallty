@@ -19,7 +19,7 @@ import { setOtpPending, setRememberMe } from "@/lib/session";
 import { ensureSessionAfterSignUp } from "@/lib/auth-session";
 import { resolveLandingForSession } from "@/lib/post-login";
 import { friendlyError } from "@/lib/friendly-error";
-import { Logo } from "@/components/dallty/logo";
+import wordmarkUrl from "@/assets/dallty-wordmark.png";
 import { LanguageSwitcher } from "@/components/dallty/language-switcher";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
@@ -533,8 +533,8 @@ function AuthPage() {
               <ArrowLeft className="size-5 rtl:rotate-180" />
             </button>
           ) : (
-            <Link to="/" className="flex items-center gap-3">
-              <Logo markClassName="size-11" className="gap-3" />
+            <Link to="/" className="flex items-center">
+              <img src={wordmarkUrl} alt="Dallty" className="h-8 w-auto object-contain" />
             </Link>
           )}
           <LanguageSwitcher />

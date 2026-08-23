@@ -17,7 +17,6 @@ import {
   Users,
 } from "lucide-react";
 
-import { LogoMark } from "@/components/dallty/logo";
 import wordmarkUrl from "@/assets/dallty-wordmark.png";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -131,9 +130,8 @@ export function NavMenu({ lang: langProp }: NavProps) {
       >
         <div className="flex h-full flex-col overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5">
           <SheetHeader className="space-y-0 text-start">
-            <SheetTitle className="flex items-center gap-2.5">
-              <LogoMark className="size-9 shrink-0" />
-              <img src={wordmarkUrl} alt={t("brand")} className="h-6 w-auto object-contain" />
+            <SheetTitle className="flex items-center">
+              <img src={wordmarkUrl} alt={t("brand")} className="h-7 w-auto object-contain" />
             </SheetTitle>
           </SheetHeader>
 
@@ -248,10 +246,9 @@ export function SiteHeader({ lang: langProp }: NavProps) {
   return (
     <header className="sticky top-0 z-(--z-nav) px-3 pt-3 sm:px-4 sm:pt-4">
       <div className="glass glass-highlight mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-3xl px-3 py-2.5 sm:gap-4 sm:px-5 sm:py-3">
-        <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-          <LogoMark className="size-9 shrink-0 sm:size-10" />
+        <Link to="/" className="flex min-w-0 items-center">
           <div className="min-w-0">
-            <img src={wordmarkUrl} alt={t("brand")} className="h-5 w-auto object-contain sm:h-6" />
+            <img src={wordmarkUrl} alt={t("brand")} className="h-6 w-auto object-contain sm:h-7" />
             <p className="truncate text-[0.7rem] text-muted-foreground sm:text-xs">
               {t("tagline")}
             </p>

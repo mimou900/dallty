@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { requestOtp, verifyOtp } from "@/lib/otp.functions";
 import { clearOtpPending } from "@/lib/session";
 import { resolveLandingForSession } from "@/lib/post-login";
-import { Logo } from "@/components/dallty/logo";
+import wordmarkUrl from "@/assets/dallty-wordmark.png";
 import { OtpCodeInput } from "@/components/dallty/otp-code-input";
 
 const searchSchema = z.object({
@@ -146,8 +146,8 @@ function VerifyOtpPage() {
         <div className="glow-blob -top-40 start-[-10%] size-[34rem]" />
       </div>
       <main className="w-full max-w-md rounded-4xl glass p-7 sm:p-9">
-        <Link to="/" className="mb-7 flex items-center gap-3">
-          <Logo markClassName="size-11" className="gap-3" />
+        <Link to="/" className="mb-7 flex items-center">
+          <img src={wordmarkUrl} alt="Dallty" className="h-8 w-auto object-contain" />
         </Link>
 
         <h1 className="flex items-center gap-2 text-3xl font-extrabold">
