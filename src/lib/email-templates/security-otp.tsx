@@ -16,7 +16,7 @@ import { BrandHeader } from "./brand-header";
 
 import { card, codeStyle, container, divider, footer, h1, main, text } from "./brand";
 
-export type OtpPurpose = "login_step_up" | "change_email" | "change_password";
+export type OtpPurpose = "login_step_up" | "change_email" | "change_password" | "change_phone";
 
 interface Props {
   code?: string;
@@ -39,6 +39,11 @@ const COPY: Record<OtpPurpose, { subject: string; heading: string; body: string 
     subject: "Your Dallty password change code",
     heading: "Confirm your password change",
     body: "Enter this code to confirm the password change on your Dallty account:",
+  },
+  change_phone: {
+    subject: "Your Dallty phone number change code",
+    heading: "Confirm your phone number change",
+    body: "Enter this code to confirm the phone number change on your Dallty account:",
   },
 };
 

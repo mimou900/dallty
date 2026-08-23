@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const PURPOSES = ["login_step_up", "change_email", "change_password"] as const;
+const PURPOSES = ["login_step_up", "change_email", "change_password", "change_phone"] as const;
 type OtpPurpose = (typeof PURPOSES)[number];
 
 const requestOtpInput = z.object({

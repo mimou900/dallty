@@ -5,7 +5,12 @@ import type { Database } from "@/integrations/supabase/types";
 import { sanitizeDbError } from "@/lib/db-error.server";
 
 type AnySupabase = SupabaseClient<Database>;
-export type OtpPurpose = "login_step_up" | "change_email" | "change_email_new" | "change_password";
+export type OtpPurpose =
+  | "login_step_up"
+  | "change_email"
+  | "change_email_new"
+  | "change_password"
+  | "change_phone";
 
 /** Generates a 6-digit numeric code, zero-padded (e.g. "004821"). */
 export function generateOtpCode(): string {

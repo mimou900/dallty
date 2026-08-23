@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
@@ -24,9 +24,9 @@ import {
   notifyPhoneChanged,
   requestEmailChange,
   requestPasswordChange,
-  verifyCurrentPassword,
   verifyOldEmailForChange,
 } from "@/lib/account.functions";
+import { requestOtp, verifyOtp } from "@/lib/otp.functions";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { OtpCodeInput } from "@/components/dallty/otp-code-input";
 import { policyForRoles } from "@/lib/password-policy";
@@ -45,7 +45,6 @@ export function AccountSecurity() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const removeAccount = useServerFn(deleteMyAccount);
-  const checkPassword = useServerFn(verifyCurrentPassword);
   const startEmailChange = useServerFn(requestEmailChange);
   const verifyOldEmail = useServerFn(verifyOldEmailForChange);
   const finishEmailChange = useServerFn(confirmEmailChange);
@@ -67,17 +66,47 @@ export function AccountSecurity() {
   const [passwordOtpPending, setPasswordOtpPending] = useState(false);
   const [passwordCode, setPasswordCode] = useState("");
 
-  // Change phone
-  const [phonePassword, setPhonePassword] = useState("");
-  const [phone, setPhone] = useState(user?.phone ?? "");
+  // Change phone — "idle" shows the current status; changing an already-verified number
+  // gates through "email-otp" first (proves account ownership via a channel that's never the
+  // number being replaced, so a lost/inaccessible old phone is never the thing blocking a
+  // legitimate change); adding a first number, or (re-)verifying one already on file (e.g.
+  // saved unverified from a booking), skips straight to "phone-otp" — nothing to protect yet.
+  const [phoneStep, setPhoneStep] = useState<"idle" | "email-otp" | "phone-input" | "phone-otp">(
+    "idle",
+  );
+  const [phoneEmailCode, setPhoneEmailCode] = useState("");
+  const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState("");
 
+  // Shares profile.tsx's exact query key/shape -- React Query serves this from the same
+  // cache, no extra fetch. Needed because a phone added during the booking flow's inline
+  // "Your Info" step is written straight to profiles.phone (never through
+  // supabase.auth.updateUser), so it exists in the profile before auth.users/`user.phone`
+  // ever knows about it -- without this, a number saved that way would be invisible here.
+  const profileQuery = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const savedPhone = profileQuery.data?.phone || user?.phone || "";
   const emailVerified = Boolean(user?.email_confirmed_at);
-  const phoneVerified = Boolean(user?.phone_confirmed_at);
+  // Verified only when the auth-confirmed number is the SAME one currently saved on the
+  // profile -- a number written by the booking flow (or any other direct profile update)
+  // never went through OTP, so it must show as unverified even if some other, now-stale
+  // number was verified in the past.
+  const phoneVerified =
+    Boolean(user?.phone_confirmed_at) && Boolean(savedPhone) && user?.phone === savedPhone;
   const providers = (user?.app_metadata?.providers as string[] | undefined) ?? [];
 
   async function requestEmail(e: React.FormEvent) {
@@ -189,24 +218,54 @@ export function AccountSecurity() {
     }
   }
 
-  async function sendPhoneCode() {
-    // A password confirmation only makes sense as a guard against someone with a stolen
-    // session silently taking over an existing, already-verified number -- adding a first
-    // phone has nothing to protect yet, and requiring a password here would lock out any
-    // customer who signed up via OTP/OAuth and never set one at all.
+  /** Entry point from the "idle" card. Changing an already-verified number is gated by an
+   * email OTP first; adding a first number, or (re-)verifying one already saved (e.g. from a
+   * booking) but never confirmed, has nothing to protect yet and skips straight to typing/
+   * confirming the number itself. */
+  function startPhoneChange() {
     if (phoneVerified) {
-      if (!phonePassword) return toast.error("Enter your current password");
+      void requestPhoneEmailOtp();
+    } else {
+      setPhone(savedPhone);
+      setPhoneStep("phone-input");
     }
+  }
+
+  async function requestPhoneEmailOtp() {
+    setBusy("phone-email");
+    try {
+      await requestOtp({ data: { purpose: "change_phone" } });
+      setPhoneStep("email-otp");
+      toast.success("Code sent to your email");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send code");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function verifyPhoneEmailOtp() {
+    if (phoneEmailCode.length !== 6) return;
+    setBusy("phone-email");
+    try {
+      await verifyOtp({ data: { purpose: "change_phone", code: phoneEmailCode } });
+      setPhoneEmailCode("");
+      setPhone("");
+      setPhoneStep("phone-input");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not verify code");
+      setPhoneEmailCode("");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function sendPhoneCode() {
     if (!isValidE164(phone.trim())) {
       return toast.error("Use international format, e.g. +9715xxxxxxx");
     }
     setBusy("phone");
     try {
-      if (phoneVerified) {
-        const { valid } = await checkPassword({ data: { password: phonePassword } });
-        if (!valid) throw new Error("Current password is incorrect");
-      }
-
       if (phone.trim() !== user?.phone) {
         const { exists } = await checkPhone({ data: { phone: phone.trim() } });
         if (exists) throw new Error("This phone number is already registered to another account");
@@ -214,7 +273,7 @@ export function AccountSecurity() {
 
       const { error } = await supabase.auth.updateUser({ phone: phone.trim() });
       if (error) throw error;
-      setOtpSent(true);
+      setPhoneStep("phone-otp");
       toast.success("Verification code sent by SMS");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not send code");
@@ -235,9 +294,8 @@ export function AccountSecurity() {
       await supabase.from("profiles").update({ phone: phone.trim() }).eq("id", user!.id);
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       announcePhoneChanged({ data: { newPhone: phone.trim() } }).catch(() => {});
-      setOtpSent(false);
+      setPhoneStep("idle");
       setOtp("");
-      setPhonePassword("");
       toast.success("Phone verified");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not verify code");
@@ -329,46 +387,119 @@ export function AccountSecurity() {
               )}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold">Phone</p>
-                <p className="text-xs text-muted-foreground">
-                  {phoneVerified ? "Phone verified" : "Add a number for SMS alerts and OTP login"}
+                <p className="text-xs text-muted-foreground" dir="ltr">
+                  {savedPhone ? savedPhone : "Add a number for SMS alerts and OTP login"}
+                  {savedPhone && !phoneVerified && " · not verified yet"}
                 </p>
               </div>
             </div>
-            <div className="mt-3 space-y-2">
-              {phoneVerified && (
-                <input
-                  type="password"
-                  value={phonePassword}
-                  onChange={(e) => setPhonePassword(e.target.value)}
-                  placeholder="Current password"
-                  aria-label="Current password"
-                  autoComplete="current-password"
-                  disabled={otpSent}
-                  className={`${inputClass} disabled:opacity-60`}
-                />
-              )}
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+9715xxxxxxx"
-                aria-label="Phone number"
-                disabled={otpSent}
-                className={`${inputClass} disabled:opacity-60`}
-              />
-              {otpSent && (
-                <OtpCodeInput value={otp} onChange={setOtp} disabled={busy === "phone"} />
-              )}
+
+            {phoneStep === "idle" && (
               <button
                 type="button"
-                onClick={otpSent ? verifyPhoneCode : sendPhoneCode}
-                disabled={busy === "phone" || (otpSent && otp.length !== 6)}
-                className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+                onClick={startPhoneChange}
+                disabled={busy === "phone-email"}
+                className="press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
               >
-                {busy === "phone" && <Loader2 className="size-4 animate-spin" />}
-                {otpSent ? "Verify code" : "Send verification code"}
+                {busy === "phone-email" && <Loader2 className="size-4 animate-spin" />}
+                {!savedPhone
+                  ? "Add phone number"
+                  : phoneVerified
+                    ? "Change number"
+                    : "Verify this number"}
               </button>
-            </div>
+            )}
+
+            {phoneStep === "email-otp" && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  For your security, changing a verified number starts with a code sent to your
+                  email ({user?.email}) — not the old phone, in case it's the one you lost.
+                </p>
+                <OtpCodeInput
+                  value={phoneEmailCode}
+                  onChange={setPhoneEmailCode}
+                  disabled={busy === "phone-email"}
+                />
+                <button
+                  type="button"
+                  onClick={verifyPhoneEmailOtp}
+                  disabled={busy === "phone-email" || phoneEmailCode.length !== 6}
+                  className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  {busy === "phone-email" && <Loader2 className="size-4 animate-spin" />}
+                  Verify code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhoneStep("idle");
+                    setPhoneEmailCode("");
+                  }}
+                  className="press w-full text-center text-xs font-semibold text-muted-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {phoneStep === "phone-input" && (
+              <div className="mt-3 space-y-2">
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+9715xxxxxxx"
+                  aria-label="Phone number"
+                  disabled={busy === "phone"}
+                  className={`${inputClass} disabled:opacity-60`}
+                />
+                <button
+                  type="button"
+                  onClick={sendPhoneCode}
+                  disabled={busy === "phone"}
+                  className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  {busy === "phone" && <Loader2 className="size-4 animate-spin" />}
+                  Send verification code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPhoneStep("idle")}
+                  className="press w-full text-center text-xs font-semibold text-muted-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {phoneStep === "phone-otp" && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-muted-foreground" dir="ltr">
+                  Code sent by SMS to {phone}
+                </p>
+                <OtpCodeInput value={otp} onChange={setOtp} disabled={busy === "phone"} />
+                <button
+                  type="button"
+                  onClick={verifyPhoneCode}
+                  disabled={busy === "phone" || otp.length !== 6}
+                  className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  {busy === "phone" && <Loader2 className="size-4 animate-spin" />}
+                  Verify code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhoneStep("phone-input");
+                    setOtp("");
+                  }}
+                  className="press w-full text-center text-xs font-semibold text-muted-foreground"
+                >
+                  Back
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>

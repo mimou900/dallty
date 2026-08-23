@@ -17,6 +17,7 @@ import {
   TriangleAlert,
   Wallet,
   Wifi,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1183,13 +1184,29 @@ function BookingFlow() {
   return (
     <div className="relative min-h-dvh pb-32">
       {exitBlocker.status === "blocked" && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-foreground/45 px-6 backdrop-blur-sm animate-fade-up">
-          <div className="w-full max-w-sm rounded-4xl glass p-7 text-center shadow-2xl">
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center bg-foreground/50 px-6 backdrop-blur-sm animate-fade-up"
+          onClick={() => exitBlocker.reset?.()}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-4xl bg-card p-7 text-center shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => exitBlocker.reset?.()}
+              aria-label="Close"
+              className="press absolute end-4 top-4 grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+            >
+              <X className="size-4" />
+            </button>
             <div className="mx-auto grid size-16 place-items-center rounded-full bg-gold/15 text-gold">
               <TriangleAlert className="size-8" />
             </div>
-            <h2 className="mt-5 text-xl font-extrabold">Leave without finishing?</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <h2 className="mt-5 text-xl font-extrabold text-foreground">
+              Leave without finishing?
+            </h2>
+            <p className="mt-2 text-sm text-foreground/70">
               Your appointment isn't confirmed yet. If you leave now, you'll lose your progress and
               need to start over.
             </p>
@@ -1204,7 +1221,7 @@ function BookingFlow() {
               <button
                 type="button"
                 onClick={() => exitBlocker.proceed?.()}
-                className="press min-h-11 rounded-2xl text-sm font-semibold text-muted-foreground"
+                className="press min-h-11 rounded-2xl text-sm font-semibold text-foreground/60"
               >
                 Leave anyway
               </button>
