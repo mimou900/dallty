@@ -57,7 +57,7 @@ const ROOT_DOMAIN = "dallty.com";
 const SITE_URL = `https://${ROOT_DOMAIN}`;
 
 const SUBJECTS: Record<SupabaseAuthHookPayload["email_data"]["email_action_type"], string> = {
-  signup: "Confirm your email",
+  signup: "Your verification code",
   invite: "Your booking is confirmed — create your account",
   magiclink: "Your sign-in code",
   recovery: "Reset your password",
@@ -89,6 +89,7 @@ function renderEmail(
         siteUrl: SITE_URL,
         recipient: user.email,
         confirmationUrl,
+        token: email_data.token,
       });
     case "invite":
       return React.createElement(InviteEmail, {
