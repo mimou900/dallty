@@ -70,32 +70,9 @@ export const changeMyPassword = createServerFn({ method: "POST" })
   });
 
 /**
- * Does this email already belong to a Dallty account? Guest-callable (no
- * session yet), so the response is kept to a single boolean.
- */
-export const checkEmailHasAccount = createServerFn({ method: "POST" })
-  .inputValidator((input: { email: string }) =>
-    z.object({ email: z.string().trim().email().max(255) }).parse(input),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { emailExists } = await import("@/lib/account.server");
-    const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
-    const { getRequest } = await import("@tanstack/react-start/server");
-
-    // Rate-limited by IP, not by the submitted email — the risk this guards against is
-    // one source scanning many different addresses, not repeated checks of the same one.
-    const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
-    await assertRateLimit(supabaseAdmin, `check_email:${ip}`, 20, 10);
-
-    return { exists: await emailExists(supabaseAdmin, data.email) };
-  });
-
-/**
- * Does this phone number already belong to a Dallty account? Guest-callable
- * (no session yet), mirroring `checkEmailHasAccount` so signup forms can
- * surface a friendly error before hitting the `profiles_phone_unique`
- * constraint. Expects an already-normalized E.164 value.
+ * Does this phone number already belong to a Dallty account? Callable before a session
+ * exists, so signup forms can surface a friendly error before hitting the
+ * `profiles_phone_unique` constraint. Expects an already-normalized E.164 value.
  */
 export const checkPhoneHasAccount = createServerFn({ method: "POST" })
   .inputValidator((input: { phone: string }) =>
@@ -427,31 +404,6 @@ export const notifyPhoneChanged = createServerFn({ method: "POST" })
         newPhone: data.newPhone,
       },
     );
-    return { ok: true };
-  });
-
-/**
- * Fires Supabase's `invite` auth email (routed through the branded template
- * pipeline in `src/routes/auth/email-hook.ts`) so a guest who booked with a
- * fresh email has a way to create their account. Must never block or roll
- * back an already-confirmed booking — callers should treat this as
- * fire-and-forget.
- */
-export const sendGuestAccountInvite = createServerFn({ method: "POST" })
-  .inputValidator((input: { email: string; fullName?: string }) =>
-    z
-      .object({
-        email: z.string().trim().email().max(255),
-        fullName: z.string().trim().max(120).optional(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
-      data: { full_name: data.fullName ?? "", role: "client" },
-    });
-    if (error && !/registered|exists/i.test(error.message)) throw new Error(sanitizeDbError(error));
     return { ok: true };
   });
 

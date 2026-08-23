@@ -13,8 +13,7 @@ const HOLD_DURATION_MINUTES = 15;
 /**
  * Errors are thrown with these exact codes as the message so the client can map them to a
  * localized string (Project 10 brief §64-65) rather than showing a raw/generic error, RPC
- * name, or Postgres detail. Shared by both the signed-in and guest hold/confirm paths — a
- * guest and a signed-in customer hitting the same failure see the same code.
+ * name, or Postgres detail.
  */
 export const BOOKING_ERROR_CODES = [
   "SLOT_UNAVAILABLE",
@@ -225,10 +224,6 @@ const holdInputShape = {
   startsAt: z.string().datetime({ offset: true }),
 };
 const createHoldInput = z.object(holdInputShape);
-// Guest holds are created anonymously -- same as a signed-in customer's hold, the slot locks
-// the instant a time is picked, before any contact details exist. Identity is collected only
-// at confirm time (confirmGuestHoldInput below), never as a precondition of holding.
-const createGuestHoldInput = z.object(holdInputShape);
 
 type HoldParams = {
   businessId: string;
@@ -247,9 +242,10 @@ type HoldParams = {
  * Postgres decide atomically. Never trusts client-supplied price/duration/end-time/branch (§12)
  * — everything is recomputed here from `services`/`staff_services`/`branch_services`.
  *
- * Shared core for both the signed-in (createBookingHold) and guest (createGuestBookingHold)
- * entry points — same engine, same safety guarantees, different ownership mechanism only
- * (customer_id for signed-in, a random guest_hold_token for guests — Project 10 brief §12/§74).
+ * Called from createBookingHold, the one entry point now that every booking requires a
+ * signed-in customer account. Still accepts an (always-null) guestToken in its params —
+ * that ownership mechanism predates this and isn't worth ripping out of a private helper
+ * with no other caller, but nothing constructs a non-null one anymore.
  */
 async function holdCore(supabaseAdmin: AnySupabase, params: HoldParams) {
   const { logSecurityEvent } = await import("@/lib/security-event.server");
@@ -420,28 +416,6 @@ export const createBookingHold = createServerFn({ method: "POST" })
     return holdCore(supabaseAdmin, { ...data, actorUserId: context.userId, guestToken: null });
   });
 
-/**
- * Guest equivalent of createBookingHold — no Supabase session at all. Ownership of the hold is
- * proven by a server-generated random token (never client-supplied, never guessable) returned
- * once in this response and required back on confirm/cancel, the same shape as every other
- * capability-token pattern in this codebase (Project 10 brief §12/§74: guests are not exempt
- * from the hold->confirm rework).
- */
-export const createGuestBookingHold = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => createGuestHoldInput.parse(input))
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
-    const { getRequest } = await import("@tanstack/react-start/server");
-
-    const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
-    await assertRateLimit(supabaseAdmin, `create_guest_hold_ip:${ip}`, 15, 10);
-
-    const guestToken = crypto.randomUUID();
-    const result = await holdCore(supabaseAdmin, { ...data, actorUserId: null, guestToken });
-    return { ...result, guestToken };
-  });
-
 const confirmHoldInput = z.object({
   holdId: z.string().uuid(),
   idempotencyKey: z.string().min(1).max(100).optional(),
@@ -465,8 +439,9 @@ type ConfirmParams = {
 /**
  * Confirms a held slot into a real booking. Re-validates everything — never trusts the hold
  * blindly, and never assumes that because a hold existed a moment ago it's still valid without
- * checking again right now (§ "never assume a hold is still valid"). Shared core for both the
- * signed-in and guest confirm entry points.
+ * checking again right now (§ "never assume a hold is still valid"). Called from
+ * confirmBookingHold, the one entry point now that every booking requires a signed-in
+ * customer account.
  */
 async function confirmCore(supabaseAdmin: AnySupabase, params: ConfirmParams) {
   const { data: hold, error: holdErr } = await supabaseAdmin
@@ -592,59 +567,6 @@ export const confirmBookingHold = createServerFn({ method: "POST" })
     );
   });
 
-const confirmGuestHoldInput = z.object({
-  holdId: z.string().uuid(),
-  guestToken: z.string().min(1).max(100),
-  idempotencyKey: z.string().min(1).max(100).optional(),
-  customerName: z.string().trim().min(1).max(120),
-  customerPhone: z
-    .string()
-    .trim()
-    .regex(/^\+[1-9]\d{7,14}$/, "Invalid phone"),
-  customerEmail: z.string().trim().email().max(255).optional(),
-  couponCode: z.string().trim().max(40).optional(),
-  notes: z.string().trim().max(1000).nullable().optional(),
-});
-
-/**
- * Guest equivalent of confirmBookingHold. Ownership is the guest_hold_token returned by
- * createGuestBookingHold — never a client-supplied customer id (§ "never trust a forged
- * customer_id"). Idempotency keys the guest as `actor_id = null`, which is safe because the
- * key itself defaults to the (globally unique) holdId — two different guests can never collide.
- */
-export const confirmGuestBookingHold = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => confirmGuestHoldInput.parse(input))
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { withIdempotency } = await import("@/lib/idempotency.server");
-    const { assertRateLimit, clientIpFromHeaders } = await import("@/lib/rate-limit.server");
-    const { getRequest } = await import("@tanstack/react-start/server");
-
-    const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
-    await assertRateLimit(supabaseAdmin, `confirm_guest_hold_ip:${ip}`, 20, 10);
-
-    return withIdempotency(
-      supabaseAdmin,
-      {
-        actorId: null,
-        operation: "confirm_booking_hold_guest",
-        key: data.idempotencyKey ?? data.holdId,
-      },
-      () =>
-        confirmCore(supabaseAdmin, {
-          holdId: data.holdId,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          customerEmail: data.customerEmail,
-          couponCode: data.couponCode,
-          notes: data.notes,
-          actorUserId: null,
-          ownerCheck: (hold) =>
-            hold.customer_id === null && hold.guest_hold_token === data.guestToken,
-        }),
-    );
-  });
-
 const cancelHoldInput = z.object({ holdId: z.string().uuid() });
 
 /** Releases a hold early (customer backed out before it expired). */
@@ -658,27 +580,6 @@ export const cancelBookingHold = createServerFn({ method: "POST" })
       .update({ status: "expired" } as never)
       .eq("id", data.holdId)
       .eq("customer_id", context.userId)
-      .eq("status", "held");
-    if (error) throw new Error(sanitizeDbError(error));
-    return { ok: true };
-  });
-
-const cancelGuestHoldInput = z.object({
-  holdId: z.string().uuid(),
-  guestToken: z.string().min(1).max(100),
-});
-
-/** Guest equivalent of cancelBookingHold — same guest_hold_token ownership check as confirm. */
-export const cancelGuestBookingHold = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => cancelGuestHoldInput.parse(input))
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("bookings")
-      .update({ status: "expired" } as never)
-      .eq("id", data.holdId)
-      .eq("guest_hold_token", data.guestToken)
-      .is("customer_id", null)
       .eq("status", "held");
     if (error) throw new Error(sanitizeDbError(error));
     return { ok: true };

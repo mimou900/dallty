@@ -37,7 +37,6 @@ import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-fiel
 import { guessCountryCode, isValidE164, splitE164, toE164 } from "@/lib/phone";
 import { getCountryByCode, getDefaultCountry, useCategories } from "@/lib/reference-data";
 import { useLocale } from "@/lib/i18n";
-import { checkEmailHasAccount, sendGuestAccountInvite } from "@/lib/account.functions";
 import {
   getBusinessPublicStaff,
   getBusinessAvailabilityOverview,
@@ -49,9 +48,6 @@ import {
   createBookingHold,
   confirmBookingHold,
   cancelBookingHold,
-  createGuestBookingHold,
-  confirmGuestBookingHold,
-  cancelGuestBookingHold,
 } from "@/lib/booking-engine.functions";
 
 export const Route = createFileRoute("/business/$businessSlug")({
@@ -118,7 +114,7 @@ export const Route = createFileRoute("/business/$businessSlug")({
   component: BookingFlow,
 });
 
-const STEPS = ["Service", "Specialist", "Date", "Time", "Your Info", "Confirm"] as const;
+const STEPS = ["Service", "Specialist", "Date", "Time", "Your Info", "Payment", "Confirm"] as const;
 
 /**
  * Maps the server's machine-readable booking error codes (booking-engine.functions.ts
@@ -593,31 +589,25 @@ function BookingFlow() {
     (getCountryByCode(phone.countryCode) ?? getDefaultCountry()).calling_code,
     phone.national,
   );
-  // Guest checkout — asked for on step 4 only when signed out. Kept separate
-  // from `phone` above (that one feeds the authenticated missing-phone case
-  // and updates `profiles`; this one feeds a brand-new booking's own columns).
-  const [guestInfo, setGuestInfo] = useState<{
-    name: string;
-    phone: PhoneFieldValue;
-    email: string;
-  }>({
+  // Every booking is a customer account now -- no guest checkout. `name` is collected once
+  // authenticated (step 4, if the profile doesn't already have one); `phone` is the number
+  // typed pre-auth to receive the inline sign-in SMS OTP -- a *different* phone concern than
+  // the top-level `phone` state above, which is the post-auth "profile is missing a phone"
+  // case and is what actually gets saved once signed in.
+  const [customerDraft, setCustomerDraft] = useState<{ name: string; phone: PhoneFieldValue }>({
     name: "",
     phone: { countryCode: guessCountryCode(), national: "" },
-    email: "",
   });
-  const guestPhoneE164 = toE164(
-    (getCountryByCode(guestInfo.phone.countryCode) ?? getDefaultCountry()).calling_code,
-    guestInfo.phone.national,
+  const customerDraftPhoneE164 = toE164(
+    (getCountryByCode(customerDraft.phone.countryCode) ?? getDefaultCountry()).calling_code,
+    customerDraft.phone.national,
   );
-  const guestInfoReady = guestInfo.name.trim().length > 0 && isValidE164(guestPhoneE164);
 
-  // Inline phone-first authentication for step 4, replacing the old plain guest form and its
-  // "Sign in instead" redirect — auth happens right here, in the booking flow, never a
-  // navigation away. Reuses `guestInfo.phone` as the number to verify: the hold itself was
-  // already created as a guest hold (owned by `hold.guestToken`, not `customer_id`) the moment
-  // a time slot was picked, so confirming it always goes through the guest-confirm path
-  // regardless of whether the customer authenticates here — only whether a *name* is still
-  // missing changes once they do (see `needsInlineName` below).
+  // Inline phone-first authentication for step 4 — every booking requires a signed-in
+  // customer account, so a time slot picked while signed out advances straight here instead
+  // of creating any hold; the hold itself is only ever created afterward, once `user` exists
+  // (see the auto-create-hold effect below), always through the same authenticated path a
+  // returning customer uses. Reuses `customerDraft.phone` as the number to verify.
   // Full sign-in, not just phone — mirrors the standalone /auth "choose" step's hierarchy
   // (phone primary, email secondary, Google/Apple below a divider) so a customer isn't
   // limited to a number they can't receive SMS on. Email OTP and OAuth both land back on
@@ -631,13 +621,13 @@ function BookingFlow() {
   const [inlineAuthBusy, setInlineAuthBusy] = useState(false);
 
   async function sendInlineAuthOtp() {
-    if (!isValidE164(guestPhoneE164)) {
+    if (!isValidE164(customerDraftPhoneE164)) {
       toast.error("Enter a valid phone number");
       return;
     }
     setInlineAuthBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({ phone: guestPhoneE164 });
+      const { error } = await supabase.auth.signInWithOtp({ phone: customerDraftPhoneE164 });
       if (error) throw error;
       setInlineAuthOtpSent(true);
     } catch (err) {
@@ -655,7 +645,7 @@ function BookingFlow() {
     setInlineAuthBusy(true);
     try {
       const { error } = await supabase.auth.verifyOtp({
-        phone: guestPhoneE164,
+        phone: customerDraftPhoneE164,
         token: inlineAuthOtp.trim(),
         type: "sms",
       });
@@ -729,23 +719,20 @@ function BookingFlow() {
     }
   }
 
-  // Once inline auth succeeds, carry the now-known name from the profile into guestInfo (the
-  // guest-confirm call's actual source of truth for customerName) — but never clobber
-  // something the customer already typed.
+  // Once inline auth succeeds and the profile already has a name (e.g. from a Google
+  // account), carry it into customerDraft so the name field doesn't ask again — but never
+  // clobber something the customer already typed here themselves.
   useEffect(() => {
     if (!user || !profileQuery.isSuccess) return;
     const name = profileQuery.data?.full_name?.trim();
-    if (name) setGuestInfo((g) => (g.name ? g : { ...g, name }));
+    if (name) setCustomerDraft((c) => (c.name ? c : { ...c, name }));
   }, [user, profileQuery.isSuccess, profileQuery.data]);
 
-  // Post-submit success view (guest path only — signed-in customers keep
-  // navigating straight to /bookings like today).
+  // Briefly holds the just-confirmed booking's reference before the full-screen success
+  // takeover (every booking is a signed-in customer now, so that takeover always fires).
   const [bookingResult, setBookingResult] = useState<{ id: string; reference: string } | null>(
     null,
   );
-  const [emailAccountCheck, setEmailAccountCheck] = useState<
-    "idle" | "checking" | "existing" | "new" | "none"
-  >("idle");
 
   // Optional coupon, applied only on the confirmation step.
   const basePrice = service ? Number(service.discount_price ?? service.price) : 0;
@@ -823,34 +810,24 @@ function BookingFlow() {
     expiresAt: string;
     totalPrice: number;
     currency: string;
-    guestToken?: string;
   };
 
   const [bookingPhase, setBookingPhase] = useState<BookingPhase>("idle");
   const [hold, setHold] = useState<HoldState | null>(null);
   const [bookingErrorCode, setBookingErrorCode] = useState<string | null>(null);
 
-  // Whether this hold is guest-owned (created before -- or without -- a customer_id). This
-  // decides which state a still-missing phone number here actually has to feed: a guest
-  // hold's confirm call only ever reads `guestInfo` (the guest-confirm contract), never the
-  // separate `phone` state above, which exists for the other case -- a hold created while
-  // already signed in, confirmed through the signed-in path that updates `profiles` directly.
-  // Getting this wrong is exactly the bug it fixes: after inline email-OTP sign-in the phone
-  // box was writing into `phone`, but the Continue button (and the actual confirm call) were
-  // checking `guestInfo.phone` -- a value nothing in the email sign-in flow ever touches, so
-  // a correctly-typed number could never satisfy it. Phone sign-in never hit this, since
-  // `guestInfo.phone` is exactly the number the customer already entered to receive that SMS.
-  const isGuestHold = Boolean(hold?.guestToken);
-  const needsPhone = isGuestHold
-    ? Boolean(user) && profileQuery.isSuccess && !isValidE164(guestPhoneE164)
-    : Boolean(user) && profileQuery.isSuccess && !isValidE164(savedPhone ?? "");
+  // Every hold is now created through the same authenticated path (createBookingHold) --
+  // there's no more guest-owned hold, so a still-missing phone/name always feeds `phone`/
+  // `customerDraft.name` and always gets saved onto `profiles` at confirm time.
+  const needsPhone = Boolean(user) && profileQuery.isSuccess && !isValidE164(savedPhone ?? "");
   const phoneReady = !needsPhone || isValidE164(phoneE164);
-  // The profile's own full_name, never guestInfo.name -- checking the input's own live value
-  // here made the field hide itself the instant the customer typed anything into it (this
-  // same flag also gates whether the input renders at all, so "needed" flipping false the
-  // moment it had content made it vanish mid-keystroke).
+  // The profile's own full_name, never customerDraft.name -- checking the input's own live
+  // value here made the field hide itself the instant the customer typed anything into it
+  // (this same flag also gates whether the input renders at all, so "needed" flipping false
+  // the moment it had content made it vanish mid-keystroke).
   const needsInlineName =
     Boolean(user) && profileQuery.isSuccess && !profileQuery.data?.full_name?.trim();
+  const nameReady = !needsInlineName || Boolean(customerDraft.name.trim());
 
   // Step 4 ("Customer Information") is skipped entirely once we already know
   // who's booking — an authenticated user with a phone on file. Every place
@@ -904,13 +881,7 @@ function BookingFlow() {
    * is what actually guarantees release, so a lost request here is never a correctness issue. */
   function releaseHold(target: HoldState | null) {
     if (!target) return;
-    if (target.guestToken) {
-      cancelGuestBookingHold({
-        data: { holdId: target.holdId, guestToken: target.guestToken },
-      }).catch(() => {});
-    } else {
-      cancelBookingHold({ data: { holdId: target.holdId } }).catch(() => {});
-    }
+    cancelBookingHold({ data: { holdId: target.holdId } }).catch(() => {});
   }
 
   function resetHold() {
@@ -931,9 +902,7 @@ function BookingFlow() {
         staffId: params.staffId,
         startsAt: params.startsAt,
       };
-      return user
-        ? await createBookingHold({ data: payload })
-        : await createGuestBookingHold({ data: payload });
+      return await createBookingHold({ data: payload });
     },
     onMutate: () => {
       setBookingPhase("holding");
@@ -964,49 +933,49 @@ function BookingFlow() {
     },
   });
 
+  // A time slot picked while signed out (see the Time step's onClick above) advances straight
+  // to step 4 without creating a hold. The moment inline sign-in succeeds and `user` lands,
+  // create the hold now, through the same authenticated path a returning customer uses — then
+  // let the normal step-by-step flow continue (profile completion, payment, explicit confirm)
+  // rather than skipping ahead. Distinct from the `autoConfirm` effect below, which is only
+  // for the OAuth-redirect-and-fully-resume case and deliberately also auto-confirms.
+  useEffect(() => {
+    if (autoConfirm) return;
+    if (!user || !service || !slot || hold) return;
+    if (bookingPhase !== "idle" || createHold.isPending) return;
+    createHold.mutate({ staffId, startsAt: slot });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, service, staffId, slot, hold, bookingPhase, autoConfirm]);
+
   const confirmBooking = useMutation({
     mutationFn: async () => {
       if (!hold) throw new Error("BOOKING_NOT_FOUND");
       if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID();
       const couponCode = promo ? coupon.trim() : undefined;
-      // Ownership of a hold is decided by HOW it was created (`hold.guestToken` set means it
-      // came from createGuestBookingHold), never by whether `user` happens to be truthy right
-      // now — a customer who authenticates inline at step 4 (see sendInlineAuthOtp/
-      // verifyInlineAuthOtp above) still holds a guest-owned hold, since it was created before
-      // they signed in. Routing that through confirmBookingHold instead would fail
-      // UNAUTHORIZED_BOOKING server-side (hold.customer_id is null, not their new user id).
-      if (user && !hold.guestToken) {
-        if (needsPhone) {
-          if (!isValidE164(phoneE164)) throw new Error("Add a valid phone number to confirm");
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .update({ phone: phoneE164, country_code: phone.countryCode })
-            .eq("id", user.id);
-          if (profileError) throw profileError;
-        }
-        return await confirmBookingHold({
-          data: {
-            holdId: hold.holdId,
-            idempotencyKey: idempotencyKeyRef.current,
-            customerPhone: needsPhone ? phoneE164 : undefined,
-            couponCode,
-          },
-        });
+      if (needsPhone && !isValidE164(phoneE164)) {
+        throw new Error("Add a valid phone number to confirm");
       }
-      // Guest-owned hold — confirmed server-side via its guestToken, whether or not the
-      // customer has since authenticated inline (customerName/customerPhone come from
-      // guestInfo either way; verifyInlineAuthOtp populates guestInfo.name from the profile
-      // once available, see the effect above).
-      if (!guestInfoReady) throw new Error("Add your name and phone number to confirm");
-      if (!hold.guestToken) throw new Error("INVALID_BOOKING_CONTEXT");
-      return await confirmGuestBookingHold({
+      if (needsInlineName && !customerDraft.name.trim()) {
+        throw new Error("Add your name to confirm");
+      }
+      if (needsPhone || needsInlineName) {
+        const profileUpdates: { phone?: string; country_code?: string; full_name?: string } = {};
+        if (needsPhone) {
+          profileUpdates.phone = phoneE164;
+          profileUpdates.country_code = phone.countryCode;
+        }
+        if (needsInlineName) profileUpdates.full_name = customerDraft.name.trim();
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update(profileUpdates)
+          .eq("id", user!.id);
+        if (profileError) throw profileError;
+      }
+      return await confirmBookingHold({
         data: {
           holdId: hold.holdId,
-          guestToken: hold.guestToken,
           idempotencyKey: idempotencyKeyRef.current,
-          customerName: guestInfo.name.trim(),
-          customerPhone: guestPhoneE164,
-          customerEmail: guestInfo.email.trim() || undefined,
+          customerPhone: needsPhone ? phoneE164 : undefined,
           couponCode,
         },
       });
@@ -1023,32 +992,10 @@ function BookingFlow() {
       setAutoConfirm(false);
       setBookingPhase("success");
       setBookingResult({ id: data.id, reference: data.reference });
-      if (user) {
-        // Full-screen success takeover (below) shows briefly, then redirects to /bookings
-        // itself — see the timed-redirect effect near the mutation's declaration.
-        queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
-        queryClient.invalidateQueries({ queryKey: ["booking-profile"] });
-        return;
-      }
-      // Guest: stay on step 5 and show the success card instead of navigating
-      // (there's no /bookings to send a guest to — it's auth-guarded).
-      setBookingResult({ id: data.id, reference: data.reference });
-      const email = guestInfo.email.trim();
-      if (!email) {
-        setEmailAccountCheck("none");
-        return;
-      }
-      setEmailAccountCheck("checking");
-      checkEmailHasAccount({ data: { email } })
-        .then(({ exists }) => {
-          setEmailAccountCheck(exists ? "existing" : "new");
-          if (!exists) {
-            sendGuestAccountInvite({ data: { email, fullName: guestInfo.name.trim() } }).catch(
-              () => {},
-            );
-          }
-        })
-        .catch(() => setEmailAccountCheck("none"));
+      // Full-screen success takeover (below) shows briefly, then redirects to /bookings
+      // itself — see the timed-redirect effect near the mutation's declaration.
+      queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-profile"] });
     },
     onError: (error) => {
       const code = error instanceof Error ? error.message : "NETWORK_ERROR";
@@ -1168,16 +1115,16 @@ function BookingFlow() {
     // "held" here just guards the sticky-footer Continue button from double-advancing while
     // the hold request for the just-tapped slot is still in flight or already failed.
     Boolean(slot) && bookingPhase === "held",
-    // A guest-owned hold (see confirmBooking above) always needs guestInfo complete —
-    // whether the customer is still signed out or has since authenticated inline, since
-    // that's what the guest-confirm call actually reads. Only a hold created while already
-    // signed in (no guestToken) gates on the separate `phone` field instead.
-    user && !hold?.guestToken ? phoneReady : guestInfoReady,
+    // Signed out: the inline-auth UI has its own send/verify buttons, not this footer, so
+    // there's nothing for Continue to gate here until `user` exists.
+    Boolean(user) && phoneReady && nameReady,
+    // Payment: "Pay at salon" needs no selection today (see the Payment step's own comment).
+    true,
     true,
   ][step];
 
   function next() {
-    if (step < 5) setStep(step + 1);
+    if (step < 6) setStep(step + 1);
   }
 
   // Prices and times always follow the business's own country settings.
@@ -1369,7 +1316,7 @@ function BookingFlow() {
         {tab === "book" && (branchId || !needsBranchChoice) && (
           <>
             {/* Progress */}
-            <ol className="mt-6 grid grid-cols-6 gap-1.5">
+            <ol className="mt-6 grid grid-cols-7 gap-1.5">
               {STEPS.map((label, i) => (
                 <li key={label}>
                   <button
@@ -1725,7 +1672,17 @@ function BookingFlow() {
                           onClick={() => {
                             resetHold();
                             setSlot(s.slot);
-                            createHold.mutate({ staffId, startsAt: s.slot });
+                            // Every booking needs a signed-in customer account -- if the
+                            // visitor isn't authenticated yet, go straight to the inline
+                            // sign-in step instead of creating a hold. The hold is created
+                            // automatically the moment `user` lands (see the effect near
+                            // createHold's declaration), through the same authenticated path
+                            // a returning customer uses.
+                            if (user) {
+                              createHold.mutate({ staffId, startsAt: s.slot });
+                            } else {
+                              setStep(4);
+                            }
                           }}
                           aria-pressed={active}
                           aria-busy={pickingThis}
@@ -1796,15 +1753,17 @@ function BookingFlow() {
                       {needsInlineName && (
                         <div>
                           <label
-                            htmlFor="guest-name"
+                            htmlFor="customer-name"
                             className="mb-1.5 block text-sm font-semibold"
                           >
                             Full name<span className="text-destructive"> *</span>
                           </label>
                           <input
-                            id="guest-name"
-                            value={guestInfo.name}
-                            onChange={(e) => setGuestInfo((g) => ({ ...g, name: e.target.value }))}
+                            id="customer-name"
+                            value={customerDraft.name}
+                            onChange={(e) =>
+                              setCustomerDraft((c) => ({ ...c, name: e.target.value }))
+                            }
                             autoComplete="name"
                             className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
                           />
@@ -1813,34 +1772,11 @@ function BookingFlow() {
                       {needsPhone && (
                         <PhoneField
                           id="booking-phone"
-                          value={isGuestHold ? guestInfo.phone : phone}
-                          onChange={
-                            isGuestHold
-                              ? (next) => setGuestInfo((g) => ({ ...g, phone: next }))
-                              : setPhone
-                          }
+                          value={phone}
+                          onChange={setPhone}
                           label="Phone number"
                           required
                         />
-                      )}
-                      {needsInlineName && (
-                        <div>
-                          <label
-                            htmlFor="guest-email"
-                            className="mb-1.5 block text-sm font-semibold"
-                          >
-                            Email{" "}
-                            <span className="font-semibold text-muted-foreground">(optional)</span>
-                          </label>
-                          <input
-                            id="guest-email"
-                            type="email"
-                            value={guestInfo.email}
-                            onChange={(e) => setGuestInfo((g) => ({ ...g, email: e.target.value }))}
-                            autoComplete="email"
-                            className="min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
-                          />
-                        </div>
                       )}
                     </div>
                   )
@@ -1854,9 +1790,9 @@ function BookingFlow() {
                     {inlineAuthMethod === "phone" ? (
                       <>
                         <PhoneField
-                          id="guest-phone"
-                          value={guestInfo.phone}
-                          onChange={(next) => setGuestInfo((g) => ({ ...g, phone: next }))}
+                          id="auth-phone"
+                          value={customerDraft.phone}
+                          onChange={(next) => setCustomerDraft((c) => ({ ...c, phone: next }))}
                           label="Phone number"
                           required
                           disabled={inlineAuthOtpSent || inlineAuthBusy}
@@ -2034,8 +1970,47 @@ function BookingFlow() {
               </section>
             )}
 
-            {/* Step 6 — booking confirmation */}
+            {/* Step 6 — payment method. "Pay at salon" is the only option that actually
+                collects anything today; no online payment gateway is wired up yet (see
+                DALLTY_FINANCIAL_ARCHITECTURE.md). A business's deposit setting, if any, is
+                shown as information only — the amount actually due is always resolved
+                server-side at confirm time, never trusted from here. */}
             {step === 5 && (
+              <section className="mt-7 animate-fade-up">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div>
+                    <h2 className="text-2xl font-extrabold">Payment</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      How you'll pay for this appointment.
+                    </p>
+                  </div>
+                  <HoldCountdown phase={bookingPhase} secondsLeft={holdSecondsLeft} tb={tb} />
+                </div>
+
+                <div className="mt-5 rounded-3xl glass-soft p-4">
+                  <p className="text-sm font-bold">Payment method</p>
+                  <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl bg-card/70 px-4 py-3">
+                    <span className="text-sm font-semibold">Pay at salon</span>
+                    <Check className="size-4 text-primary" />
+                  </div>
+                  {business?.require_deposit && Number(business.deposit_percent) > 0 && (
+                    <p className="mt-2 text-xs font-semibold text-muted-foreground">
+                      This shop requires a {business.deposit_percent}% deposit (about{" "}
+                      {formatMoney(
+                        ((promo ? promo.final : basePrice) * Number(business.deposit_percent)) /
+                          100,
+                        currency,
+                        lang,
+                      )}
+                      ), collected in person. The exact amount is confirmed at the salon.
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Step 7 — booking confirmation */}
+            {step === 6 && (
               <section className="mt-7 animate-fade-up">
                 {!bookingResult ? (
                   <>
@@ -2085,9 +2060,10 @@ function BookingFlow() {
                           onClick={async () => {
                             await supabase.auth.signOut();
                             // The existing hold was created under the now-signed-out
-                            // identity, so it can't be confirmed as a guest -- release it
-                            // and send the customer back to pick a fresh (guest) slot
-                            // rather than surface a second, confusing auth error.
+                            // (privileged) identity, so it can't be confirmed as-is --
+                            // release it and send the customer back to pick a fresh slot,
+                            // which will correctly ask them to sign in with a real customer
+                            // account this time.
                             resetHold();
                             setBookingErrorCode(null);
                             setStep(3);
@@ -2187,166 +2163,15 @@ function BookingFlow() {
                         </p>
                       )}
                     </div>
-
-                    {/* Payment method — "Pay at salon" is the only option that actually
-                        collects anything today; no online payment gateway is wired up yet
-                        (see DALLTY_FINANCIAL_ARCHITECTURE.md). A business's deposit setting,
-                        if any, is shown as information only — the amount actually due is
-                        always resolved server-side at confirm time, never trusted from here. */}
-                    <div className="mt-4 rounded-3xl glass-soft p-4">
-                      <p className="text-sm font-bold">Payment</p>
-                      <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl bg-card/70 px-4 py-3">
-                        <span className="text-sm font-semibold">Pay at salon</span>
-                        <Check className="size-4 text-primary" />
-                      </div>
-                      {business?.require_deposit && Number(business.deposit_percent) > 0 && (
-                        <p className="mt-2 text-xs font-semibold text-muted-foreground">
-                          This shop requires a {business.deposit_percent}% deposit (about{" "}
-                          {formatMoney(
-                            ((promo ? promo.final : basePrice) * Number(business.deposit_percent)) /
-                              100,
-                            currency,
-                            lang,
-                          )}
-                          ), collected in person. The exact amount is confirmed at the salon.
-                        </p>
-                      )}
-                    </div>
                   </>
-                ) : (
-                  <div className="rounded-3xl glass p-6 text-center">
-                    <p className="text-2xl font-extrabold">🎉 Your booking has been confirmed.</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Booking reference:{" "}
-                      <span className="font-mono font-bold text-foreground">
-                        {bookingResult.reference}
-                      </span>
-                    </p>
-
-                    {emailAccountCheck === "checking" && (
-                      <p className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="size-4 animate-spin" /> Checking your details…
-                      </p>
-                    )}
-
-                    {emailAccountCheck === "existing" && (
-                      <div className="mt-5">
-                        <p className="text-sm font-bold">
-                          We found an existing Dallty account with this email.
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Log in to track your bookings, manage appointments, and earn loyalty
-                          points.
-                        </p>
-                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
-                          <Link
-                            to="/auth"
-                            search={{
-                              mode: "signin",
-                              email: guestInfo.email.trim(),
-                              next: "/bookings",
-                            }}
-                            className="press inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-bold text-primary-foreground sm:flex-none"
-                          >
-                            Log In
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigate({
-                                to: "/business/$businessSlug",
-                                params: { businessSlug },
-                                search: { tab: "overview" },
-                              })
-                            }
-                            className="press min-h-12 flex-1 rounded-2xl glass-soft px-6 text-sm font-bold sm:flex-none"
-                          >
-                            Maybe Later
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {emailAccountCheck === "new" && (
-                      <div className="mt-5">
-                        <p className="text-sm font-bold">
-                          We've sent you an email to create your Dallty account.
-                        </p>
-                        <ul className="mx-auto mt-3 max-w-xs space-y-1.5 text-start text-sm text-muted-foreground">
-                          <li>• Track your bookings</li>
-                          <li>• Earn loyalty points</li>
-                          <li>• Book faster next time</li>
-                          <li>• Receive appointment reminders</li>
-                          <li>• Access exclusive offers</li>
-                        </ul>
-                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
-                          <Link
-                            to="/auth"
-                            search={{
-                              mode: "signup",
-                              email: guestInfo.email.trim(),
-                              next: "/bookings",
-                            }}
-                            className="press inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-bold text-primary-foreground sm:flex-none"
-                          >
-                            Create Account
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigate({
-                                to: "/business/$businessSlug",
-                                params: { businessSlug },
-                                search: { tab: "overview" },
-                              })
-                            }
-                            className="press min-h-12 flex-1 rounded-2xl glass-soft px-6 text-sm font-bold sm:flex-none"
-                          >
-                            Maybe Later
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {emailAccountCheck === "none" && (
-                      <div className="mt-5">
-                        <p className="text-sm text-muted-foreground">
-                          Create a free Dallty account to track your bookings, receive reminders,
-                          and earn loyalty points.
-                        </p>
-                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
-                          <Link
-                            to="/auth"
-                            search={{ mode: "signup", next: "/bookings" }}
-                            className="press inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary px-6 text-sm font-bold text-primary-foreground sm:flex-none"
-                          >
-                            Create Account
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigate({
-                                to: "/business/$businessSlug",
-                                params: { businessSlug },
-                                search: { tab: "overview" },
-                              })
-                            }
-                            className="press min-h-12 flex-1 rounded-2xl glass-soft px-6 text-sm font-bold sm:flex-none"
-                          >
-                            Maybe Later
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                ) : null}
               </section>
             )}
           </>
         )}
       </main>
 
-      {/* Sticky action bar — hidden once the success card takes over on step 6 */}
+      {/* Sticky action bar — hidden once the full-screen success takeover fires */}
       {tab === "book" && !bookingResult && (branchId || !needsBranchChoice) && (
         <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-3xl glass p-3">
@@ -2359,7 +2184,7 @@ function BookingFlow() {
                 Back
               </button>
             )}
-            {step < 5 ? (
+            {step < 6 ? (
               <button
                 type="button"
                 disabled={!canContinue}
@@ -2372,9 +2197,7 @@ function BookingFlow() {
               <button
                 type="button"
                 disabled={
-                  confirmBooking.isPending ||
-                  bookingPhase !== "held" ||
-                  (user ? !phoneReady : !guestInfoReady)
+                  confirmBooking.isPending || bookingPhase !== "held" || !phoneReady || !nameReady
                 }
                 onClick={() => confirmBooking.mutate()}
                 className="press flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-lime text-base font-bold text-lime-foreground disabled:opacity-60"
