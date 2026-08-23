@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { LogoMark } from "@/components/dallty/logo";
+import wordmarkUrl from "@/assets/dallty-wordmark.png";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -132,7 +133,7 @@ export function NavMenu({ lang: langProp }: NavProps) {
           <SheetHeader className="space-y-0 text-start">
             <SheetTitle className="flex items-center gap-2.5">
               <LogoMark className="size-9 shrink-0" />
-              <span className="truncate text-lg font-extrabold">{t("brand")}</span>
+              <img src={wordmarkUrl} alt={t("brand")} className="h-6 w-auto object-contain" />
             </SheetTitle>
           </SheetHeader>
 
@@ -250,9 +251,7 @@ export function SiteHeader({ lang: langProp }: NavProps) {
         <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <LogoMark className="size-9 shrink-0 sm:size-10" />
           <div className="min-w-0">
-            <p className="truncate text-base font-extrabold leading-tight sm:text-lg">
-              {t("brand")}
-            </p>
+            <img src={wordmarkUrl} alt={t("brand")} className="h-5 w-auto object-contain sm:h-6" />
             <p className="truncate text-[0.7rem] text-muted-foreground sm:text-xs">
               {t("tagline")}
             </p>

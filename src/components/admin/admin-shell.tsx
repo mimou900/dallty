@@ -48,6 +48,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { LogoMark } from "@/components/dallty/logo";
+import wordmarkUrl from "@/assets/dallty-wordmark.png";
 import { useLocale, type Lang } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import { preloadNamespaces } from "@/lib/i18n/loader";
@@ -640,7 +641,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <Link to="/" className="flex items-center gap-3 px-5 py-5">
           <LogoMark className="size-10" />
           <span>
-            <span className="block text-base font-extrabold leading-tight">Dallty</span>
+            <img src={wordmarkUrl} alt="Dallty" className="h-5 w-auto object-contain" />
             <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {tCommon("brand_business_subtitle")}
             </span>

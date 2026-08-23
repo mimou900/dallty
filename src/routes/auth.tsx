@@ -19,7 +19,7 @@ import { setOtpPending, setRememberMe } from "@/lib/session";
 import { ensureSessionAfterSignUp } from "@/lib/auth-session";
 import { resolveLandingForSession } from "@/lib/post-login";
 import { friendlyError } from "@/lib/friendly-error";
-import { LogoMark } from "@/components/dallty/logo";
+import { Logo } from "@/components/dallty/logo";
 import { LanguageSwitcher } from "@/components/dallty/language-switcher";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
@@ -534,8 +534,7 @@ function AuthPage() {
             </button>
           ) : (
             <Link to="/" className="flex items-center gap-3">
-              <LogoMark className="size-11" />
-              <span className="text-lg font-extrabold">Dallty</span>
+              <Logo markClassName="size-11" className="gap-3" />
             </Link>
           )}
           <LanguageSwitcher />

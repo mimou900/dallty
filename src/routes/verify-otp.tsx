@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { requestOtp, verifyOtp } from "@/lib/otp.functions";
 import { clearOtpPending } from "@/lib/session";
 import { resolveLandingForSession } from "@/lib/post-login";
-import { LogoMark } from "@/components/dallty/logo";
+import { Logo } from "@/components/dallty/logo";
 import { OtpCodeInput } from "@/components/dallty/otp-code-input";
 
 const searchSchema = z.object({
@@ -147,8 +147,7 @@ function VerifyOtpPage() {
       </div>
       <main className="w-full max-w-md rounded-4xl glass p-7 sm:p-9">
         <Link to="/" className="mb-7 flex items-center gap-3">
-          <LogoMark className="size-11" />
-          <span className="text-lg font-extrabold">Dallty</span>
+          <Logo markClassName="size-11" className="gap-3" />
         </Link>
 
         <h1 className="flex items-center gap-2 text-3xl font-extrabold">
