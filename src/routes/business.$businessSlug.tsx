@@ -141,6 +141,35 @@ const STEPS = ["Service", "Specialist", "Date", "Time", "Your Info", "Payment", 
  * an unrecognized code (including a bare network failure) falls back to a generic message
  * rather than leaking internals.
  */
+/**
+ * Pulls a clean BOOKING_ERROR_CODES string out of a rejected mutation. The server throws
+ * plain `new Error("HOLD_EXPIRED")`-style codes, but depending on how the response crossed
+ * the server-fn RPC boundary, `error.message` sometimes arrives as a JSON-stringified
+ * payload (`{"message":"HOLD_EXPIRED",...}`) instead of the bare code — when that happened,
+ * the raw JSON blob never matched any switch case, silently fell through to the
+ * "NETWORK_ERROR" default below, and showed "check your internet" for what was actually a
+ * real, specific booking error (expired hold, unavailable slot, etc.) with the customer
+ * still fully connected. Unwrap one layer of JSON before giving up.
+ */
+function extractBookingErrorCode(error: unknown): string {
+  // A real fetch-layer failure — the request never reached the server at all — is the one
+  // case "check your internet" is actually true for.
+  if (error instanceof TypeError && /fetch|network|load failed/i.test(error.message)) {
+    return "NETWORK_ERROR";
+  }
+  const raw = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed) as { message?: unknown };
+      if (typeof parsed.message === "string" && parsed.message) return parsed.message;
+    } catch {
+      /* not JSON — use the raw string as-is */
+    }
+  }
+  return trimmed || "UNKNOWN_ERROR";
+}
+
 function bookingErrorMessage(
   code: string,
   tb: (key: NamespaceKeyMap["booking"]) => string,
@@ -999,7 +1028,7 @@ function BookingFlow() {
       setStep(4);
     },
     onError: (error) => {
-      const code = error instanceof Error ? error.message : "NETWORK_ERROR";
+      const code = extractBookingErrorCode(error);
       setBookingErrorCode(code);
       setBookingPhase(
         code === "SLOT_UNAVAILABLE"
@@ -1080,7 +1109,7 @@ function BookingFlow() {
       queryClient.invalidateQueries({ queryKey: ["booking-profile"] });
     },
     onError: (error) => {
-      const code = error instanceof Error ? error.message : "NETWORK_ERROR";
+      const code = extractBookingErrorCode(error);
       setBookingErrorCode(code);
       setAutoConfirm(false);
       if (code === "HOLD_EXPIRED") {
