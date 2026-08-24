@@ -4,6 +4,13 @@ import { Phone } from "lucide-react";
 import { useCountries, getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import { digitsOnly, isValidNational, nationalPhoneError, toE164 } from "@/lib/phone";
 import { telHref } from "@/lib/phone";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/dallty/select";
 
 export type PhoneFieldValue = { countryCode: string; national: string };
 
@@ -44,19 +51,22 @@ export function PhoneField({
         {required ? <span className="text-destructive"> *</span> : null}
       </label>
       <div className="flex gap-2" dir="ltr">
-        <select
-          aria-label="Country code"
+        <Select
           value={country.iso_code}
-          onChange={(e) => onChange({ ...value, countryCode: e.target.value })}
+          onValueChange={(v) => onChange({ ...value, countryCode: v })}
           disabled={disabled}
-          className="min-h-12 shrink-0 rounded-2xl bg-card/70 px-3 text-base font-semibold outline-none ring-ring focus:ring-2 disabled:opacity-60"
         >
-          {(countries.data ?? [country]).map((c) => (
-            <option key={c.iso_code} value={c.iso_code}>
-              {c.flag} {c.calling_code}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger aria-label="Country code" className="w-auto shrink-0 px-3 font-semibold">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(countries.data ?? [country]).map((c) => (
+              <SelectItem key={c.iso_code} value={c.iso_code}>
+                {c.flag} {c.calling_code}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <input
           id={id}
           type="tel"

@@ -10,6 +10,16 @@ import { ensureSessionAfterSignUp } from "@/lib/auth-session";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { checkSignupPassword } from "@/lib/account.functions";
 import { checkEmailDomainAllowed } from "@/lib/email-trust.functions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/dallty/select";
+
+/** Radix Select can't take an empty-string item value, so "no selection" needs a sentinel. */
+const UNSET = "__unset__";
 
 export const Route = createFileRoute("/staff/signup")({
   ssr: false,
@@ -294,18 +304,24 @@ function JoinPanel() {
         >
           <label className="text-sm font-bold">
             Business you work at
-            <select
-              value={businessId}
-              onChange={(e) => setBusinessId(e.target.value)}
-              className="mt-1 w-full rounded-2xl glass-soft px-4 py-2.5 text-sm font-medium"
+            <Select
+              value={businessId || UNSET}
+              onValueChange={(v) => setBusinessId(v === UNSET ? "" : v)}
             >
-              <option value="">Select a business…</option>
-              {(businesses.data ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} — {s.area}, {s.city}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select a business…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNSET} disabled>
+                  Select a business…
+                </SelectItem>
+                {(businesses.data ?? []).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name} — {s.area}, {s.city}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="text-sm font-bold">
             Your role

@@ -24,6 +24,13 @@ import { BusinessCard } from "@/components/dallty/business-card";
 import { SearchSkeleton } from "@/components/dallty/skeletons";
 import { LogoMark } from "@/components/dallty/logo";
 import { LanguageSwitcher } from "@/components/dallty/language-switcher";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/dallty/select";
 import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
 import { useUserLocation, haversineKm } from "@/hooks/use-user-location";
 import { getTravelTimes } from "@/lib/geo.functions";
@@ -78,6 +85,9 @@ export const Route = createFileRoute("/search")({
   }),
   component: SearchPage,
 });
+
+/** Radix Select can't take an empty-string item value, so "no filter" needs a sentinel. */
+const ALL = "__all__";
 
 function SearchPage() {
   const params = Route.useSearch();
@@ -336,62 +346,62 @@ function SearchPage() {
               <SelectField
                 icon={<Globe className="size-4" />}
                 label={t("filter_country")}
+                placeholder={t("filter_all_countries")}
                 value={params.country}
                 onChange={(v) => update({ country: v, state: "", city: "" })}
               >
-                <option value="">{t("filter_all_countries")}</option>
                 {countryOptions.map((c) => (
-                  <option key={c.iso_code} value={c.iso_code}>
+                  <SelectItem key={c.iso_code} value={c.iso_code}>
                     {c.flag} {translate(c, lang)}
-                  </option>
+                  </SelectItem>
                 ))}
               </SelectField>
 
               <SelectField
                 icon={<MapIcon className="size-4" />}
                 label={t("filter_state")}
+                placeholder={
+                  params.country ? t("filter_all_states") : t("filter_pick_country_first")
+                }
                 value={params.state}
                 disabled={!params.country}
                 onChange={(v) => update({ state: v, city: "" })}
               >
-                <option value="">
-                  {params.country ? t("filter_all_states") : t("filter_pick_country_first")}
-                </option>
                 {stateOptions.map((p) => (
-                  <option key={p.value} value={p.value}>
+                  <SelectItem key={p.value} value={p.value}>
                     {p.label}
-                  </option>
+                  </SelectItem>
                 ))}
               </SelectField>
 
               <SelectField
                 icon={<MapPin className="size-4" />}
                 label={t("filter_city")}
+                placeholder={
+                  params.country ? t("filter_all_cities") : t("filter_pick_country_first")
+                }
                 value={params.city}
                 disabled={!params.country}
                 onChange={(v) => update({ city: v })}
               >
-                <option value="">
-                  {params.country ? t("filter_all_cities") : t("filter_pick_country_first")}
-                </option>
                 {cityOptions.map((c) => (
-                  <option key={c.value} value={c.value}>
+                  <SelectItem key={c.value} value={c.value}>
                     {c.label}
-                  </option>
+                  </SelectItem>
                 ))}
               </SelectField>
 
               <SelectField
                 icon={<Store className="size-4" />}
                 label={t("filter_shop_type")}
+                placeholder={t("filter_all_shop_types")}
                 value={params.type}
                 onChange={(v) => update({ type: v })}
               >
-                <option value="">{t("filter_all_shop_types")}</option>
                 {BUSINESS_TYPES.map((type) => (
-                  <option key={type} value={type}>
+                  <SelectItem key={type} value={type}>
                     {type}
-                  </option>
+                  </SelectItem>
                 ))}
               </SelectField>
 
@@ -586,6 +596,7 @@ function Toggle({
 function SelectField({
   icon,
   label,
+  placeholder,
   value,
   onChange,
   disabled,
@@ -593,14 +604,15 @@ function SelectField({
 }: {
   icon: React.ReactNode;
   label: string;
+  placeholder: string;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <label
-      className={`flex flex-col gap-1 rounded-2xl bg-card/80 px-4 py-2 ring-1 ring-border/60 transition focus-within:ring-2 focus-within:ring-primary ${
+    <div
+      className={`rounded-2xl bg-card/80 px-4 py-2 ring-1 ring-border/60 transition focus-within:ring-2 focus-within:ring-primary ${
         disabled ? "opacity-60" : ""
       }`}
     >
@@ -608,15 +620,22 @@ function SelectField({
         {icon}
         {label}
       </span>
-      <select
-        value={value}
+      <Select
+        value={value || ALL}
+        onValueChange={(v) => onChange(v === ALL ? "" : v)}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={label}
-        className="min-h-7 w-full truncate bg-transparent text-sm font-semibold outline-none"
       >
-        {children}
-      </select>
-    </label>
+        <SelectTrigger
+          aria-label={label}
+          className="min-h-7 w-full rounded-none bg-transparent p-0 text-sm font-semibold ring-0 focus:ring-0 [&>svg]:size-3.5"
+        >
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>{placeholder}</SelectItem>
+          {children}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

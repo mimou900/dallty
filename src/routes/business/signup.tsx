@@ -5,6 +5,13 @@ import { toast } from "sonner";
 import { useCountries, getCountryByCode, getDefaultCountry } from "@/lib/reference-data";
 import { citiesFor } from "@/lib/arab-cities";
 import { PhoneField, type PhoneFieldValue } from "@/components/dallty/phone-field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/dallty/select";
 import { guessCountryCode, isValidNational, toE164 } from "@/lib/phone";
 import {
   CalendarClock,
@@ -759,11 +766,10 @@ function BusinessSignupPage() {
                   </Field>
 
                   <Field label="Country" error={errors.country}>
-                    <select
-                      className={inputClass}
+                    <Select
                       value={b.countryCode}
-                      onChange={(e) => {
-                        const c = getCountryByCode(e.target.value) ?? getDefaultCountry();
+                      onValueChange={(v) => {
+                        const c = getCountryByCode(v) ?? getDefaultCountry();
                         setB((prev) => ({
                           ...prev,
                           countryCode: c.iso_code,
@@ -772,12 +778,17 @@ function BusinessSignupPage() {
                         }));
                       }}
                     >
-                      {(countries.data ?? []).map((c) => (
-                        <option key={c.iso_code} value={c.iso_code}>
-                          {c.flag} {c.default_name} · {c.currency_code}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(countries.data ?? []).map((c) => (
+                          <SelectItem key={c.iso_code} value={c.iso_code}>
+                            {c.flag} {c.default_name} · {c.currency_code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
 
                   <Field label="City" error={errors.city}>
