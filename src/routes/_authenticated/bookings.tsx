@@ -63,6 +63,10 @@ type BookingRow = {
   ends_at: string;
   status: string;
   total_price: number;
+  reference: string;
+  discount_amount: number;
+  original_price: number | null;
+  payment_status: string;
   businesses: {
     name: string;
     slug: string;
@@ -86,6 +90,26 @@ type WaitlistRow = {
   businesses: { name: string; slug: string } | null;
   services: { name: string } | null;
   staff: { full_name: string } | null;
+};
+
+const PAYMENT_LABEL: Record<string, string> = {
+  unpaid: "Pay at salon",
+  payment_pending: "Payment pending",
+  paid: "Paid",
+  refunded: "Refunded",
+  deposit_required: "Deposit required",
+  deposit_pending: "Deposit pending",
+  deposit_paid: "Deposit paid",
+};
+
+const PAYMENT_TONE: Record<string, string> = {
+  paid: "bg-primary/10 text-primary",
+  deposit_paid: "bg-primary/10 text-primary",
+  refunded: "bg-muted text-muted-foreground",
+  payment_pending: "bg-gold/15 text-gold",
+  deposit_pending: "bg-gold/15 text-gold",
+  deposit_required: "bg-gold/15 text-gold",
+  unpaid: "bg-secondary text-foreground",
 };
 
 function mapsHref(business: BookingRow["businesses"]) {
@@ -156,7 +180,7 @@ function BookingsPage() {
       const query = supabase
         .from("bookings")
         .select(
-          "id, business_id, starts_at, ends_at, status, total_price, businesses(name, slug, area, currency, timezone, address, city, maps_url, phone), services(name, duration_minutes), staff(full_name)",
+          "id, business_id, starts_at, ends_at, status, total_price, reference, discount_amount, original_price, payment_status, businesses(name, slug, area, currency, timezone, address, city, maps_url, phone), services(name, duration_minutes), staff(full_name)",
         )
         .order("starts_at", { ascending: true });
       const { data, error } =
@@ -480,6 +504,9 @@ function Section({
                 <p className="truncate text-sm text-muted-foreground">
                   {b.businesses?.name} · {b.staff?.full_name}
                 </p>
+                {b.reference && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">#{b.reference}</p>
+                )}
               </div>
               <span className="shrink-0 rounded-full bg-secondary px-3 py-1 text-xs font-bold capitalize">
                 {b.status}
@@ -492,9 +519,23 @@ function Section({
             </p>
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-lg font-extrabold">
-                  {formatMoney(b.total_price, b.businesses?.currency ?? undefined)}
-                </span>
+                <div className="flex flex-wrap items-baseline gap-2">
+                  {b.original_price != null && b.original_price > b.total_price && (
+                    <span className="text-sm text-muted-foreground line-through">
+                      {formatMoney(b.original_price, b.businesses?.currency ?? undefined)}
+                    </span>
+                  )}
+                  <span className="text-lg font-extrabold">
+                    {formatMoney(b.total_price, b.businesses?.currency ?? undefined)}
+                  </span>
+                  {b.status !== "cancelled" && PAYMENT_LABEL[b.payment_status] && (
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${PAYMENT_TONE[b.payment_status] ?? "bg-secondary text-foreground"}`}
+                    >
+                      {PAYMENT_LABEL[b.payment_status]}
+                    </span>
+                  )}
+                </div>
                 {b.status === "pending" && (
                   <button
                     type="button"
