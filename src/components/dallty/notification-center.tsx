@@ -2,7 +2,20 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
-import { Bell, BellOff, Check, Loader2 } from "lucide-react";
+import {
+  Bell,
+  BellRing,
+  CalendarCheck,
+  CalendarClock,
+  CalendarX,
+  Check,
+  CheckCircle2,
+  CircleX,
+  Clock3,
+  Loader2,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,6 +34,39 @@ type NotificationRow = {
   created_at: string;
   deep_link: string | null;
 };
+
+type Tone = "primary" | "gold" | "destructive" | "lime" | "muted";
+
+const TONE_CLASSES: Record<Tone, string> = {
+  primary: "bg-primary/10 text-primary",
+  gold: "bg-gold/15 text-gold",
+  destructive: "bg-destructive/10 text-destructive",
+  lime: "bg-lime/20 text-lime-foreground",
+  muted: "bg-muted text-muted-foreground",
+};
+
+/** Icon + tone per notification `kind` (see notify_booking_audience() and friends in the
+ * Postgres triggers) — falls back to a plain bell for anything not mapped, so a future kind
+ * never renders broken. */
+const KIND_VISUALS: Record<string, { icon: LucideIcon; tone: Tone }> = {
+  booking_created: { icon: CalendarCheck, tone: "primary" },
+  booking_confirmed: { icon: CalendarCheck, tone: "primary" },
+  booking_completed: { icon: CheckCircle2, tone: "primary" },
+  booking_cancelled: { icon: CalendarX, tone: "destructive" },
+  booking_no_show: { icon: CircleX, tone: "destructive" },
+  booking_rescheduled: { icon: CalendarClock, tone: "gold" },
+  booking_reminder: { icon: BellRing, tone: "gold" },
+  booking_pending_confirmation: { icon: Clock3, tone: "gold" },
+  waitlist_pending_confirmation: { icon: Clock3, tone: "gold" },
+  waitlist_auto_booked: { icon: CalendarCheck, tone: "primary" },
+  waitlist_slot_open: { icon: Sparkles, tone: "lime" },
+  staff_request_approved: { icon: CheckCircle2, tone: "primary" },
+  staff_request_rejected: { icon: CircleX, tone: "destructive" },
+};
+
+function visualFor(kind: string) {
+  return KIND_VISUALS[kind] ?? { icon: Bell, tone: "muted" as Tone };
+}
 
 /** Bell + panel: bottom sheet on mobile, popover on desktop. */
 export function NotificationCenter({ className = "" }: { className?: string }) {
@@ -145,39 +191,51 @@ export function NotificationCenter({ className = "" }: { className?: string }) {
           <Loader2 className="size-4 animate-spin" /> {t("loading")}
         </p>
       ) : items.length === 0 ? (
-        <div className="grid place-items-center gap-2 px-3 py-10 text-center">
-          <BellOff className="size-6 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        <div className="grid place-items-center gap-3 px-3 py-12 text-center">
+          <div className="grid size-14 place-items-center rounded-full bg-primary/10 text-primary">
+            <BellRing className="size-6" />
+          </div>
+          <p className="text-sm font-semibold text-foreground">{t("empty")}</p>
         </div>
       ) : (
-        items.map((n) => (
-          <article
-            key={n.id}
-            role={n.deep_link ? "button" : undefined}
-            tabIndex={n.deep_link ? 0 : undefined}
-            onClick={() => openNotification(n)}
-            onKeyDown={(e) => {
-              if (n.deep_link && (e.key === "Enter" || e.key === " ")) openNotification(n);
-            }}
-            className={`rounded-2xl border px-3 py-3 ${n.deep_link ? "cursor-pointer" : ""} ${
-              n.read_at ? "border-border/60 bg-card/40" : "border-primary/30 bg-primary/5"
-            }`}
-          >
-            <div className="flex items-start gap-2">
-              {!n.read_at && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />}
-              <div className="min-w-0">
-                <p className="text-sm font-bold leading-snug">{n.title}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{n.body}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {formatDistanceToNow(new Date(n.created_at), {
-                    addSuffix: true,
-                    locale: dateFnsLocaleFor(lang),
-                  })}
-                </p>
+        items.map((n) => {
+          const { icon: Icon, tone } = visualFor(n.kind);
+          return (
+            <article
+              key={n.id}
+              role={n.deep_link ? "button" : undefined}
+              tabIndex={n.deep_link ? 0 : undefined}
+              onClick={() => openNotification(n)}
+              onKeyDown={(e) => {
+                if (n.deep_link && (e.key === "Enter" || e.key === " ")) openNotification(n);
+              }}
+              className={`relative rounded-2xl border px-3 py-3 ${n.deep_link ? "cursor-pointer" : ""} ${
+                n.read_at ? "border-border/60 bg-card/40" : "border-primary/20 bg-primary/[0.04]"
+              }`}
+            >
+              {!n.read_at && (
+                <span className="absolute start-1.5 top-1.5 size-1.5 rounded-full bg-primary" />
+              )}
+              <div className="flex items-start gap-3">
+                <div
+                  className={`grid size-9 shrink-0 place-items-center rounded-full ${TONE_CLASSES[tone]}`}
+                >
+                  <Icon className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold leading-snug">{n.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{n.body}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {formatDistanceToNow(new Date(n.created_at), {
+                      addSuffix: true,
+                      locale: dateFnsLocaleFor(lang),
+                    })}
+                  </p>
+                </div>
               </div>
-            </div>
-          </article>
-        ))
+            </article>
+          );
+        })
       )}
     </div>
   );
