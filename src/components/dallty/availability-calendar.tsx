@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { addDays, format, isSameDay } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 export type DayStatus = "open" | "limited" | "full" | "closed" | "timeoff";
 
@@ -40,7 +40,10 @@ const DOT: Record<DayStatus, string> = {
  * customer knows what is bookable before tapping anything.
  */
 export function AvailabilityCalendar({
-  days = 14,
+  days = 30,
+  windowOffset = 0,
+  onPrevWindow,
+  onNextWindow,
   data,
   loading,
   value,
@@ -48,6 +51,10 @@ export function AvailabilityCalendar({
   ready,
 }: {
   days?: number;
+  /** Days already paged past today via "next 30 days" — 0 means the window starts today. */
+  windowOffset?: number;
+  onPrevWindow?: () => void;
+  onNextWindow?: () => void;
   data: DayAvailability[];
   loading: boolean;
   value: string;
@@ -56,8 +63,8 @@ export function AvailabilityCalendar({
   ready: boolean;
 }) {
   const dates = useMemo(
-    () => Array.from({ length: days }, (_, i) => addDays(new Date(), i)),
-    [days],
+    () => Array.from({ length: days }, (_, i) => addDays(new Date(), windowOffset + i)),
+    [days, windowOffset],
   );
 
   const byDay = useMemo(() => {
@@ -126,6 +133,28 @@ export function AvailabilityCalendar({
           );
         })}
       </div>
+
+      {(onPrevWindow || onNextWindow) && (
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={onPrevWindow}
+            disabled={windowOffset === 0}
+            className="press flex min-h-10 items-center gap-1 rounded-2xl glass-soft px-3.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronLeft className="size-4 rtl:rotate-180" />
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={onNextWindow}
+            className="press flex min-h-10 items-center gap-1 rounded-2xl glass-soft px-3.5 text-xs font-bold"
+          >
+            Next {days} days
+            <ChevronRight className="size-4 rtl:rotate-180" />
+          </button>
+        </div>
+      )}
 
       {ready && !loading && selected && (
         <p

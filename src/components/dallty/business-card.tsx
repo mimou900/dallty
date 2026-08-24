@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Car, Footprints, MapPin, Star, Zap } from "lucide-react";
+import { BadgeCheck, Car, Footprints, MapPin, Star, Zap } from "lucide-react";
 import type { Lang, Business } from "@/lib/dallty-content";
 import { useTranslation } from "@/lib/i18n/hooks";
 import { FavoriteButton } from "@/components/dallty/favorite-button";
@@ -64,7 +64,15 @@ export function BusinessCard({
             params={{ businessSlug: business.slug }}
             className="min-w-0 outline-none focus-visible:underline"
           >
-            <h2 className="truncate text-lg font-bold hover:underline">{s.name}</h2>
+            <h2 className="flex items-center gap-1.5 truncate text-lg font-bold hover:underline">
+              <span className="truncate">{s.name}</span>
+              {business.verified && (
+                <BadgeCheck
+                  className="size-4 shrink-0 text-primary"
+                  aria-label="Verified by Dallty"
+                />
+              )}
+            </h2>
             <p className="truncate text-sm text-muted-foreground">{s.tags}</p>
           </Link>
           <span className="flex shrink-0 items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-sm font-semibold">

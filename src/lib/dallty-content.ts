@@ -17,6 +17,7 @@ export type Business = {
   price: string;
   open: boolean;
   instant: boolean;
+  verified?: boolean;
 };
 
 export const businesses: Business[] = [

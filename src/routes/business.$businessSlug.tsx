@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createFileRoute, Link, useBlocker, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useBlocker, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueries, useQueryClient, useMutation } from "@tanstack/react-query";
 import { addDays, format } from "date-fns";
 import { z } from "zod";
@@ -220,6 +220,7 @@ function BusinessProblem({ title }: { title: string }) {
 function BookingFlow() {
   const { businessSlug } = Route.useParams();
   const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
   const { data: categories } = useCategories();
@@ -246,6 +247,13 @@ function BookingFlow() {
   const [staffId, setStaffId] = useState<string | null>(null);
   const [day, setDay] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [slot, setSlot] = useState<string | null>(null);
+  // How far ahead the date picker's "next 30 days" paging has moved past today. Reset
+  // whenever the specialist/service changes so a new selection starts back at today
+  // instead of stranding the customer on a page from an unrelated availability window.
+  const [dayWindowOffset, setDayWindowOffset] = useState(0);
+  useEffect(() => {
+    setDayWindowOffset(0);
+  }, [staffId, serviceId]);
   // Set when the customer left to sign in with a slot already chosen.
   const [autoConfirm, setAutoConfirm] = useState(false);
   const restored = useRef(false);
@@ -534,11 +542,16 @@ function BookingFlow() {
    * Refetches instantly whenever the specialist or service changes.
    */
   const dayAvailabilityQuery = useQuery({
-    queryKey: ["day-availability", staffId, serviceId, branchId],
+    queryKey: ["day-availability", staffId, serviceId, branchId, dayWindowOffset],
     enabled: Boolean(staffId && serviceId && branchId),
     queryFn: async () =>
       (await getStaffDayAvailability({
-        data: { staffId: staffId!, branchId: branchId!, serviceId: serviceId!, days: 14 },
+        data: {
+          staffId: staffId!,
+          branchId: branchId!,
+          serviceId: serviceId!,
+          days: dayWindowOffset + 30,
+        },
       })) as DayAvailability[],
   });
 
@@ -552,9 +565,11 @@ function BookingFlow() {
     selectedDayInfo.status === "open" ||
     selectedDayInfo.status === "limited";
 
-  // Land the customer on the first bookable date instead of a dead day.
+  // Land the customer on the first bookable date instead of a dead day — only on the
+  // initial load for this staff/service pair, never after a manual "next 30 days" page
+  // (dayWindowOffset > 0), which would otherwise silently yank them back to page one.
   useEffect(() => {
-    if (!dayStatuses.length) return;
+    if (dayWindowOffset > 0 || !dayStatuses.length) return;
     const current = dayStatuses.find((d) => d.day === day);
     if (current && (current.status === "open" || current.status === "limited")) return;
     const first = dayStatuses.find((d) => d.status === "open" || d.status === "limited");
@@ -1310,18 +1325,24 @@ function BookingFlow() {
 
       <header className="sticky top-0 z-40 px-4 pt-4">
         <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-3xl glass px-4 py-3">
-          <Link
-            to="/"
-            aria-label="Back to home"
+          <button
+            type="button"
+            onClick={() =>
+              router.history.canGoBack() ? router.history.back() : navigate({ to: "/" })
+            }
+            aria-label="Back"
             className="grid size-11 shrink-0 place-items-center rounded-2xl glass-soft"
           >
             <ArrowLeft className="size-5 rtl:rotate-180" />
-          </Link>
+          </button>
           <div className="min-w-0">
             <h1 className="flex items-center gap-1.5 truncate text-base font-extrabold">
               <span className="truncate">{business?.name ?? "Loading…"}</span>
               {business?.is_verified ? (
-                <BadgeCheck className="size-4 shrink-0 text-gold" aria-label="Verified by Dallty" />
+                <BadgeCheck
+                  className="size-4 shrink-0 text-primary"
+                  aria-label="Verified by Dallty"
+                />
               ) : null}
             </h1>
             <p className="truncate text-xs text-muted-foreground">
@@ -1640,10 +1661,14 @@ function BookingFlow() {
               <section className="mt-7 animate-fade-up">
                 <h2 className="text-2xl font-extrabold">Pick a date</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {staffMember ? `Next two weeks with ${staffMember.full_name}` : "Next two weeks"}
+                  {staffMember ? `With ${staffMember.full_name}` : "Choose a day"}
                 </p>
                 <div className="mt-4">
                   <AvailabilityCalendar
+                    days={30}
+                    windowOffset={dayWindowOffset}
+                    onPrevWindow={() => setDayWindowOffset((o) => Math.max(0, o - 30))}
+                    onNextWindow={() => setDayWindowOffset((o) => o + 30)}
                     data={dayStatuses}
                     loading={dayAvailabilityQuery.isLoading}
                     ready={Boolean(staffId && serviceId)}
@@ -2356,7 +2381,7 @@ function BookingFlow() {
       {tab === "book" && !bookingResult && (branchId || !needsBranchChoice) && (
         <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-3xl glass p-3">
-            {step > 0 && (
+            {step > 0 && step < 4 && (
               <button
                 type="button"
                 onClick={() => setStep(step - 1)}

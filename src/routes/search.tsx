@@ -284,7 +284,6 @@ function SearchPage() {
               <label className="flex min-h-12 w-full min-w-0 items-center gap-3 rounded-2xl bg-card/85 px-4 ring-1 ring-border/60 transition focus-within:ring-2 focus-within:ring-primary">
                 <Search className="size-5 shrink-0 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <input
-                  autoFocus
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
