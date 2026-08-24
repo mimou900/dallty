@@ -66,6 +66,10 @@ export const changeMyPassword = createServerFn({ method: "POST" })
       password: data.password,
     });
     if (error) throw new Error(sanitizeDbError(error));
+    await supabaseAdmin
+      .from("profiles")
+      .update({ password_set_at: new Date().toISOString() })
+      .eq("id", context.userId);
     return { ok: true, policy };
   });
 
@@ -344,6 +348,10 @@ export const confirmPasswordChange = createServerFn({ method: "POST" })
       password: data.newPassword,
     });
     if (error) throw new Error(sanitizeDbError(error));
+    await supabaseAdmin
+      .from("profiles")
+      .update({ password_set_at: new Date().toISOString() })
+      .eq("id", context.userId);
 
     const userAgent = getRequest()?.headers.get("user-agent") ?? null;
     const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);

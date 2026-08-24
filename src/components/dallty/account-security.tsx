@@ -59,12 +59,19 @@ export function AccountSecurity() {
   const [emailStep, setEmailStep] = useState<"idle" | "verify-old" | "verify-new">("idle");
   const [emailCode, setEmailCode] = useState("");
 
+  // Add a first email — phone-only accounts have no old address to prove ownership of,
+  // so this is Supabase's own native email-confirmation link, not the OTP-code system
+  // above (which the change-email flow uses to prove the *old* address first).
+  const [addEmailStep, setAddEmailStep] = useState<"idle" | "input" | "sent">("idle");
+  const [addEmailValue, setAddEmailValue] = useState("");
+
   // Change password
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordOtpPending, setPasswordOtpPending] = useState(false);
   const [passwordCode, setPasswordCode] = useState("");
+  const [recoveryEmailSent, setRecoveryEmailSent] = useState(false);
 
   // Change phone — "idle" shows the current status; changing an already-verified number
   // gates through "email-otp" first (proves account ownership via a channel that's never the
@@ -108,6 +115,11 @@ export function AccountSecurity() {
   const phoneVerified =
     Boolean(user?.phone_confirmed_at) && Boolean(savedPhone) && user?.phone === savedPhone;
   const providers = (user?.app_metadata?.providers as string[] | undefined) ?? [];
+  // auth.users.encrypted_password is non-null even for phone/email-OTP-only accounts
+  // (confirmed empirically — Supabase writes a placeholder hash regardless), so it can't
+  // tell us whether this person ever actually chose a password. password_set_at is our
+  // own signal, set the moment either password-setting path succeeds.
+  const hasPassword = Boolean(profileQuery.data?.password_set_at);
 
   async function requestEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -200,6 +212,26 @@ export function AccountSecurity() {
     }
   }
 
+  /** Same recovery-link mechanism as the sign-in page's "Forgot password?" — the one
+   * path that can set a password with no current password to check, so it doubles as
+   * "set up a first password" for an account that has never had one. */
+  async function sendPasswordRecoveryEmail() {
+    if (!user?.email) return;
+    setBusy("password-recovery");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setRecoveryEmailSent(true);
+      toast.success("Check your email for a secure link");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send email");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function resendEmailVerification() {
     if (!user?.email) return;
     setBusy("verify-email");
@@ -213,6 +245,25 @@ export function AccountSecurity() {
       toast.success("Verification email sent");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not send email");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function submitAddEmail(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = addEmailValue.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      return toast.error("Enter a valid email address");
+    }
+    setBusy("add-email");
+    try {
+      const { error } = await supabase.auth.updateUser({ email: trimmed });
+      if (error) throw error;
+      setAddEmailStep("sent");
+      toast.success("Check your inbox to confirm this address");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not add email");
     } finally {
       setBusy(null);
     }
@@ -354,27 +405,67 @@ export function AccountSecurity() {
           Verification
         </h2>
         <div className="mt-4 space-y-3">
-          <div className="flex items-center gap-3 rounded-2xl glass-soft p-4">
-            {emailVerified ? (
-              <BadgeCheck className="size-5 shrink-0 text-primary" />
-            ) : (
-              <ShieldAlert className="size-5 shrink-0 text-gold" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold">{user?.email ?? "No email"}</p>
-              <p className="text-xs text-muted-foreground">
-                {emailVerified ? "Email verified" : "Email not verified yet"}
-              </p>
+          <div className="rounded-2xl glass-soft p-4">
+            <div className="flex items-center gap-3">
+              {emailVerified ? (
+                <BadgeCheck className="size-5 shrink-0 text-primary" />
+              ) : (
+                <ShieldAlert className="size-5 shrink-0 text-gold" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold">
+                  {user?.email || (addEmailStep === "sent" ? addEmailValue : "No email")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {user?.email
+                    ? emailVerified
+                      ? "Email verified"
+                      : "Email not verified yet"
+                    : addEmailStep === "sent"
+                      ? "Check your inbox to confirm"
+                      : "Add an email for account recovery and a password"}
+                </p>
+              </div>
+              {!user?.email && addEmailStep === "idle" && (
+                <button
+                  type="button"
+                  onClick={() => setAddEmailStep("input")}
+                  className="press shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
+                >
+                  Add email
+                </button>
+              )}
+              {!emailVerified && user?.email && (
+                <button
+                  type="button"
+                  onClick={resendEmailVerification}
+                  disabled={busy === "verify-email"}
+                  className="press shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  Resend
+                </button>
+              )}
             </div>
-            {!emailVerified && user?.email && (
-              <button
-                type="button"
-                onClick={resendEmailVerification}
-                disabled={busy === "verify-email"}
-                className="press shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60"
-              >
-                Resend
-              </button>
+            {!user?.email && addEmailStep === "input" && (
+              <form onSubmit={submitAddEmail} className="mt-3 flex gap-2">
+                <input
+                  type="email"
+                  value={addEmailValue}
+                  onChange={(e) => setAddEmailValue(e.target.value)}
+                  placeholder="you@example.com"
+                  aria-label="Email address"
+                  autoComplete="email"
+                  autoFocus
+                  className={`${inputClass} flex-1`}
+                />
+                <button
+                  type="submit"
+                  disabled={busy === "add-email"}
+                  className="press shrink-0 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  {busy === "add-email" ? <Loader2 className="size-4 animate-spin" /> : "Send"}
+                </button>
+              </form>
             )}
           </div>
 
@@ -601,9 +692,36 @@ export function AccountSecurity() {
       {/* Password */}
       <section className="rounded-3xl glass p-5">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-          Change password
+          {hasPassword ? "Change password" : "Set a password"}
         </h2>
-        {passwordOtpPending ? (
+        {!user?.email ? (
+          <p className="mt-4 text-sm text-muted-foreground">
+            Add and verify an email address above to set up a password for this account.
+          </p>
+        ) : !hasPassword ? (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              This account has never had a password — you've always signed in with a code. We'll
+              email you a secure link to set one.
+            </p>
+            {recoveryEmailSent ? (
+              <p className="flex items-center gap-2 rounded-2xl bg-primary/10 px-4 py-3 text-sm font-semibold text-primary">
+                <ShieldCheck className="size-4 shrink-0" />
+                Check {user.email} for a link to set your password.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={sendPasswordRecoveryEmail}
+                disabled={busy === "password-recovery"}
+                className="press flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+              >
+                {busy === "password-recovery" && <Loader2 className="size-4 animate-spin" />}
+                Email me a secure link
+              </button>
+            )}
+          </div>
+        ) : passwordOtpPending ? (
           <div className="mt-4 space-y-3">
             <p className="text-sm text-muted-foreground">
               Enter the code we sent to your email to finish changing your password.
@@ -695,6 +813,14 @@ export function AccountSecurity() {
                 <ShieldCheck className="size-4" />
               )}
               Update password
+            </button>
+            <button
+              type="button"
+              onClick={sendPasswordRecoveryEmail}
+              disabled={busy === "password-recovery"}
+              className="w-full text-center text-xs font-semibold text-muted-foreground underline underline-offset-4 disabled:opacity-60"
+            >
+              {recoveryEmailSent ? `Link sent to ${user.email}` : "Forgot your password?"}
             </button>
           </form>
         )}

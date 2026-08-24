@@ -1,0 +1,11 @@
+-- Nothing in this app can tell "this account has a real, user-chosen password" from
+-- Supabase's own auth.users row -- encrypted_password is non-null/non-empty even for
+-- accounts that only ever signed in via phone/email OTP (confirmed against a real OTP-only
+-- test account: 60-char bcrypt hash present despite the user never having set one).
+-- GoTrue writes some placeholder hash regardless. Tracking it ourselves, set the moment a
+-- password is actually established through either password-setting path
+-- (changeMyPassword for the forgot/first-password recovery-link flow, confirmPasswordChange
+-- for the authenticated current-password-gated change), is the only reliable signal --
+-- lets the profile page show "Set a password" vs "Change password" honestly instead of
+-- guessing.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_set_at timestamptz;
