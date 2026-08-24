@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Gift, Loader2, Save, Sparkles, Wallet } from "lucide-react";
+import { ArrowRight, Camera, Loader2, Save, Star, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { formatMoney } from "@/lib/countries";
 import { signedUrl, uploadTo } from "@/lib/storage";
 import { prepareImageForUpload } from "@/lib/image-upload";
 import { SERVICE_CATEGORIES } from "@/lib/admin";
@@ -25,6 +24,10 @@ const SKIN_TYPES = ["Normal", "Dry", "Oily", "Combination", "Sensitive"];
 const GENDERS = ["Female", "Male", "Prefer not to say"];
 /** Radix Select can't take an empty-string item value, so "no selection" needs a sentinel. */
 const UNSET = "__unset__";
+
+function numberFormat(n: number) {
+  return new Intl.NumberFormat("en").format(n);
+}
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -46,6 +49,39 @@ export const Route = createFileRoute("/_authenticated/profile")({
   }),
   component: ProfilePage,
 });
+
+/** Single tapered ray, pointing up from the origin — echoes the pin mark's flick accent. */
+const RAY_PATH = "M0,0 C-16,-22 -19,-62 -5,-88 Q0,-96 5,-88 C19,-62 16,-22 0,0 Z";
+
+/** Large ambient glow behind the wallet card content — blurred into a soft backdrop
+ *  rather than shown as crisp shapes. */
+function BrandBurst({ className }: { className?: string }) {
+  return (
+    <svg viewBox="-100 -100 200 200" className={className} aria-hidden>
+      <defs>
+        <linearGradient
+          id="wallet-burst"
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="-100"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0%" stopColor="var(--lime)" stopOpacity="0" />
+          <stop offset="100%" stopColor="var(--lime)" stopOpacity="0.85" />
+        </linearGradient>
+      </defs>
+      {[-52, -22, 3, 28, 58].map((angle, i) => (
+        <path
+          key={angle}
+          transform={`rotate(${angle}) scale(${[0.78, 1, 0.88, 0.7, 0.92][i]})`}
+          d={RAY_PATH}
+          fill="url(#wallet-burst)"
+        />
+      ))}
+    </svg>
+  );
+}
 
 function Field({ children, title }: { title: string; children: React.ReactNode }) {
   return (
@@ -173,28 +209,61 @@ function ProfilePage() {
       subtitle="Keep your details and preferences up to date."
       width="max-w-2xl"
     >
-      <section className="relative mt-6 overflow-hidden rounded-4xl bg-(image:--gradient-primary) p-6 text-primary-foreground shadow-elevation-high">
-        <div aria-hidden className="glow-blob -end-16 -top-20 size-64 opacity-30" />
-        <div aria-hidden className="glow-blob -bottom-24 -start-10 size-56 opacity-20" />
-        <p className="relative flex items-center gap-1.5 text-[0.7rem] font-bold uppercase tracking-wider text-primary-foreground/60">
-          <Sparkles className="size-3.5" />
-          Dallty wallet
-        </p>
-        <div className="relative mt-4 flex items-end justify-between gap-4">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-primary-foreground/70">
-              <Wallet className="size-3.5" />
-              Balance
-            </p>
-            <p className="mt-1 truncate text-3xl font-extrabold text-lime">{formatMoney(0)}</p>
+      <section className="relative mt-6 overflow-hidden rounded-4xl bg-(image:--gradient-primary) p-6 text-primary-foreground shadow-elevation-high sm:p-7">
+        <BrandBurst className="pointer-events-none absolute -start-14 -bottom-16 size-64 opacity-70 blur-2xl sm:size-72" />
+        <BrandBurst className="pointer-events-none absolute -end-20 top-0 size-48 rotate-[42deg] opacity-50 blur-2xl" />
+
+        <div className="relative grid grid-cols-2">
+          <div className="flex items-start gap-2.5 border-e border-primary-foreground/15 pe-4 sm:gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary-foreground/10 sm:size-11">
+              <Wallet className="size-4.5 text-lime sm:size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[0.65rem] font-bold uppercase tracking-wider text-primary-foreground/80">
+                Balance
+              </p>
+              <p className="mt-0.5 flex items-baseline gap-1">
+                <span className="text-xl font-extrabold text-background sm:text-2xl">
+                  {numberFormat(0)}
+                </span>
+                <span className="text-[0.65rem] font-extrabold text-lime">DZD</span>
+              </p>
+              <p className="mt-1 text-[0.65rem] leading-snug text-primary-foreground/70">
+                Available balance
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 text-end">
-            <p className="flex items-center justify-end gap-1.5 text-xs font-semibold text-primary-foreground/70">
-              Loyalty points
-              <Gift className="size-3.5" />
-            </p>
-            <p className="mt-1 truncate text-3xl font-extrabold text-gold">0</p>
+
+          <div className="flex items-start gap-2.5 ps-4 sm:gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary-foreground/10 sm:size-11">
+              <Star className="size-4.5 text-pink sm:size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[0.65rem] font-bold uppercase tracking-wider text-primary-foreground/80">
+                Loyalty points
+              </p>
+              <p className="mt-0.5 flex items-baseline gap-1">
+                <span className="text-xl font-extrabold text-background sm:text-2xl">
+                  {numberFormat(0)}
+                </span>
+                <span className="text-[0.65rem] font-extrabold text-pink">PTS</span>
+              </p>
+              <p className="mt-1 text-[0.65rem] leading-snug text-primary-foreground/70">
+                Keep booking, get rewarded!
+              </p>
+            </div>
           </div>
+        </div>
+
+        <div className="relative mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={() => toast.info("Rewards are coming soon.")}
+            className="press flex items-center gap-1.5 rounded-full border border-lime/40 px-4 py-2 text-xs font-bold text-lime"
+          >
+            View rewards
+            <ArrowRight className="size-3.5 rtl:rotate-180" />
+          </button>
         </div>
       </section>
 
