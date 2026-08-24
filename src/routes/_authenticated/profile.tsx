@@ -7,8 +7,13 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { signedUrl, uploadTo } from "@/lib/storage";
+import { SERVICE_CATEGORIES } from "@/lib/admin";
 import { ClientShell } from "@/components/dallty/client-shell";
 import { AccountSecurity } from "@/components/dallty/account-security";
+
+const HAIR_TYPES = ["Straight", "Wavy", "Curly", "Coily"];
+const SKIN_TYPES = ["Normal", "Dry", "Oily", "Combination", "Sensitive"];
+const GENDERS = ["Female", "Male", "Prefer not to say"];
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -45,7 +50,16 @@ function ProfilePage() {
   const queryClient = useQueryClient();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [form, setForm] = useState({ full_name: "" });
+  const [form, setForm] = useState({
+    full_name: "",
+    hair_type: "",
+    skin_type: "",
+    allergies: "",
+    beauty_notes: "",
+    birthday: "",
+    gender: "",
+    favorite_categories: [] as string[],
+  });
 
   const profileQuery = useQuery({
     queryKey: ["profile", user?.id],
@@ -65,7 +79,16 @@ function ProfilePage() {
 
   useEffect(() => {
     if (!profile) return;
-    setForm({ full_name: profile.full_name ?? "" });
+    setForm({
+      full_name: profile.full_name ?? "",
+      hair_type: profile.hair_type ?? "",
+      skin_type: profile.skin_type ?? "",
+      allergies: profile.allergies ?? "",
+      beauty_notes: profile.beauty_notes ?? "",
+      birthday: profile.birthday ?? "",
+      gender: profile.gender ?? "",
+      favorite_categories: profile.favorite_categories ?? [],
+    });
     signedUrl("avatars", profile.avatar_url).then(setAvatarUrl);
   }, [profile]);
 
@@ -73,7 +96,16 @@ function ProfilePage() {
     mutationFn: async () => {
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: form.full_name.trim() })
+        .update({
+          full_name: form.full_name.trim(),
+          hair_type: form.hair_type || null,
+          skin_type: form.skin_type || null,
+          allergies: form.allergies.trim() || null,
+          beauty_notes: form.beauty_notes.trim() || null,
+          birthday: form.birthday || null,
+          gender: form.gender || null,
+          favorite_categories: form.favorite_categories,
+        })
         .eq("id", user!.id);
       if (error) throw error;
     },
@@ -172,6 +204,114 @@ function ProfilePage() {
             maxLength={100}
             className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
           />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field title="Birthday">
+            <input
+              type="date"
+              value={form.birthday}
+              onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+              max={new Date().toISOString().slice(0, 10)}
+              className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
+            />
+          </Field>
+          <Field title="Gender">
+            <select
+              value={form.gender}
+              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+              className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
+            >
+              <option value="">Not set</option>
+              {GENDERS.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field title="Hair type">
+            <select
+              value={form.hair_type}
+              onChange={(e) => setForm({ ...form, hair_type: e.target.value })}
+              className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
+            >
+              <option value="">Not set</option>
+              {HAIR_TYPES.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field title="Skin type">
+            <select
+              value={form.skin_type}
+              onChange={(e) => setForm({ ...form, skin_type: e.target.value })}
+              className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
+            >
+              <option value="">Not set</option>
+              {SKIN_TYPES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+
+        <Field title="Allergies">
+          <textarea
+            value={form.allergies}
+            onChange={(e) => setForm({ ...form, allergies: e.target.value })}
+            maxLength={300}
+            rows={2}
+            placeholder="e.g. fragrance, latex, certain dyes — shared with the salon at booking"
+            className="w-full resize-none rounded-2xl bg-card/70 px-4 py-3 text-base outline-none ring-ring focus:ring-2"
+          />
+        </Field>
+
+        <Field title="Beauty notes">
+          <textarea
+            value={form.beauty_notes}
+            onChange={(e) => setForm({ ...form, beauty_notes: e.target.value })}
+            maxLength={300}
+            rows={2}
+            placeholder="Anything a specialist should know before your visit"
+            className="w-full resize-none rounded-2xl bg-card/70 px-4 py-3 text-base outline-none ring-ring focus:ring-2"
+          />
+        </Field>
+
+        <Field title="I'm usually looking for">
+          <div className="flex flex-wrap gap-2">
+            {SERVICE_CATEGORIES.map((cat) => {
+              const active = form.favorite_categories.includes(cat);
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      favorite_categories: active
+                        ? form.favorite_categories.filter((c) => c !== cat)
+                        : [...form.favorite_categories, cat],
+                    })
+                  }
+                  className={`press rounded-full px-3.5 py-2 text-sm font-semibold capitalize ${
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card/70 text-foreground ring-1 ring-border"
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
         </Field>
 
         <button
