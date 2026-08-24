@@ -3,7 +3,7 @@ import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { supabase } from "@/integrations/supabase/client";
 import { setOtpPending } from "@/lib/session";
-import { BootSplash } from "@/components/dallty/boot-splash";
+import { RouteSkeleton } from "@/components/dallty/route-skeleton";
 
 /**
  * `assertSuperAdmin`/`assertCanManageBusiness` (src/lib/platform.server.ts,
@@ -42,11 +42,12 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    // Branded full-screen loader for any loader (the root's i18n preload,
-    // or a slow page loader) that takes a moment — delayed so a fast,
-    // already-cached navigation never flashes it, held for a minimum
-    // stretch once shown so it never flickers in and out.
-    defaultPendingComponent: BootSplash,
+    // Generic content-shaped skeleton for any route's loader (the root's i18n
+    // preload, or a slow page loader) that takes a moment — delayed so a
+    // fast, already-cached navigation never flashes it, held for a minimum
+    // stretch once shown so it never flickers in and out. The home route
+    // overrides this with its own branded BootSplash (see routes/index.tsx).
+    defaultPendingComponent: RouteSkeleton,
     defaultPendingMs: 150,
     defaultPendingMinMs: 400,
   });

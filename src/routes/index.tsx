@@ -32,8 +32,13 @@ import { SiteHeader } from "@/components/dallty/site-nav";
 import { useCountries, translate } from "@/lib/reference-data";
 import { citiesFor, provincesFor } from "@/lib/arab-cities";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
+import { BootSplash } from "@/components/dallty/boot-splash";
 
 export const Route = createFileRoute("/")({
+  // Only the home route gets the full branded splash while pending (first cold load,
+  // mainly) — every other route falls back to the router's generic RouteSkeleton so a
+  // shared link straight into e.g. a business page doesn't show home-page branding.
+  pendingComponent: BootSplash,
   head: () => ({
     meta: [
       { title: "Dallty — Find. Book. Relax." },
