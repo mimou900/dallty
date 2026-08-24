@@ -18,7 +18,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { takeNextPath } from "@/lib/next-path";
 import { Toaster } from "@/components/ui/sonner";
 import { ConnectionBanner } from "@/components/dallty/connection-banner";
-import { LocaleProvider, dirFor, langFromSearch, localizedPath } from "@/lib/i18n";
+import { LocaleProvider, DEFAULT_LANG, dirFor, langFromSearch, localizedPath } from "@/lib/i18n";
+import { preloadNamespaces } from "@/lib/i18n/loader";
+import { ACTIVE_NAMESPACES } from "@/lib/i18n/namespaces";
 
 function NotFoundComponent() {
   return (
@@ -81,6 +83,21 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Awaited before the route tree renders — both during SSR and on every
+  // client navigation — so every screen's translations are already in cache
+  // by first paint. Without this, each page's first mount shows raw i18n
+  // keys until its own useTranslation() effect finishes loading (see
+  // src/lib/i18n/hooks.ts). Namespace fetches are cheap (~15KB total) and
+  // preloadNamespaces() no-ops anything already cached, so this only ever
+  // costs real time on the very first navigation.
+  beforeLoad: async ({ location }) => {
+    const lang = langFromSearch(location.search) ?? DEFAULT_LANG;
+    try {
+      await preloadNamespaces(lang, ACTIVE_NAMESPACES);
+    } catch (error) {
+      console.error("[i18n] failed to preload namespaces", error);
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
