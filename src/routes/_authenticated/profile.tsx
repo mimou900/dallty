@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Loader2, Save } from "lucide-react";
+import { Camera, Gift, Loader2, Save, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { formatMoney } from "@/lib/countries";
 import { signedUrl, uploadTo } from "@/lib/storage";
 import { prepareImageForUpload } from "@/lib/image-upload";
 import { SERVICE_CATEGORIES } from "@/lib/admin";
@@ -197,6 +198,23 @@ function ProfilePage() {
         <div className="min-w-0">
           <p className="truncate text-lg font-extrabold">{form.full_name || "Add your name"}</p>
           <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
+        </div>
+      </section>
+
+      <section className="mt-5 grid grid-cols-2 gap-3 rounded-3xl bg-(image:--gradient-lime) p-5 shadow-(--shadow-glow-lime)">
+        <div>
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-lime-foreground/70">
+            <Wallet className="size-3.5" />
+            Balance
+          </p>
+          <p className="mt-1 text-2xl font-extrabold text-lime-foreground">{formatMoney(0)}</p>
+        </div>
+        <div className="border-s border-lime-foreground/15 ps-3">
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-lime-foreground/70">
+            <Gift className="size-3.5" />
+            Loyalty points
+          </p>
+          <p className="mt-1 text-2xl font-extrabold text-lime-foreground">0</p>
         </div>
       </section>
 
