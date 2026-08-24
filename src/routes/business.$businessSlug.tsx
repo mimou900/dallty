@@ -34,6 +34,7 @@ import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { FavoriteButton } from "@/components/dallty/favorite-button";
 import { BusinessReviews } from "@/components/dallty/business-reviews";
 import { BusinessOverview } from "@/components/dallty/business-overview";
+import { StaffDetailDrawer } from "@/components/dallty/staff-detail-drawer";
 import { BusinessPageSkeleton } from "@/components/dallty/skeletons";
 import {
   AvailabilityCalendar,
@@ -286,6 +287,8 @@ function BookingFlow() {
   // Set when the customer left to sign in with a slot already chosen.
   const [autoConfirm, setAutoConfirm] = useState(false);
   const restored = useRef(false);
+  // Team-member full-profile drawer, opened from the Overview tab's "Team" section.
+  const [staffDrawerId, setStaffDrawerId] = useState<string | null>(null);
 
   // Coming back from sign-in, OR just recovering from a plain refresh/dropped connection
   // while already signed in: pick the booking up as close as possible to where it was left,
@@ -1254,6 +1257,7 @@ function BookingFlow() {
 
   return (
     <div className="relative min-h-dvh pb-32">
+      <StaffDetailDrawer staffId={staffDrawerId} onClose={() => setStaffDrawerId(null)} />
       {exitBlocker.status === "blocked" && (
         <div
           className="fixed inset-0 z-[100] grid place-items-center bg-foreground/50 px-6 backdrop-blur-sm animate-fade-up"
@@ -1423,7 +1427,8 @@ function BookingFlow() {
           <BusinessOverview
             business={business as never}
             services={(servicesQuery.data ?? []) as never}
-            staffCount={(staffQuery.data ?? []).length}
+            staff={(staffQuery.data ?? []) as never}
+            onOpenStaff={setStaffDrawerId}
             categories={categories ?? []}
             lang={lang}
             onBook={(id) => {

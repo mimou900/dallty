@@ -39,6 +39,13 @@ type ServiceRow = {
   discount_price: number | string | null;
 };
 
+type StaffRow = {
+  id: string;
+  full_name: string;
+  title: string;
+  avatar_url: string | null;
+};
+
 function shortTime(value: string) {
   const [h, m] = value.split(":");
   const hour = Number(h);
@@ -50,14 +57,16 @@ function shortTime(value: string) {
 export function BusinessOverview({
   business,
   services,
-  staffCount,
+  staff,
+  onOpenStaff,
   categories,
   lang,
   onBook,
 }: {
   business: BusinessRow;
   services: ServiceRow[];
-  staffCount: number;
+  staff: StaffRow[];
+  onOpenStaff: (staffId: string) => void;
   categories: Category[];
   lang: string;
   onBook: (serviceId?: string) => void;
@@ -142,7 +151,7 @@ export function BusinessOverview({
           {services.length}
         </Fact>
         <Fact icon={<Users className="size-4" />} label="Specialists">
-          {staffCount}
+          {staff.length}
         </Fact>
       </section>
 
@@ -211,6 +220,38 @@ export function BusinessOverview({
           </div>
         )}
       </section>
+
+      {/* Team */}
+      {staff.length > 0 && (
+        <section>
+          <h3 className="text-xl font-extrabold">Meet the team</h3>
+          <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+            {staff.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => onOpenStaff(m.id)}
+                className="press w-28 shrink-0 rounded-3xl glass p-3 text-center"
+              >
+                {m.avatar_url ? (
+                  <img
+                    src={m.avatar_url}
+                    alt={m.full_name}
+                    loading="lazy"
+                    className="size-16 rounded-2xl object-cover mx-auto"
+                  />
+                ) : (
+                  <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-primary/10 text-lg font-extrabold text-primary">
+                    {m.full_name.slice(0, 1)}
+                  </div>
+                )}
+                <p className="mt-2 truncate text-xs font-bold">{m.full_name}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{m.title}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Hours + location */}
       <section className="grid gap-4 sm:grid-cols-2">
