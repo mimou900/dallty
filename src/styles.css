@@ -186,6 +186,27 @@
   }
 }
 
+/* Home hero backdrop: a slow, continuous rotation carrying 2-3 large blurred,
+   off-center color blobs in a soft orbit — the same technique behind Fresha's
+   homepage backdrop (confirmed by inspecting it: two nested divs rotating
+   90-95s per turn, each holding a heavily gaussian-blurred blob offset from
+   center, so the blob drifts across the canvas as the wrapper spins rather
+   than visibly "spinning" itself). Pure transform, GPU-cheap, frozen by the
+   global reduced-motion rule below like every other ambient animation here.
+   Usage: <div className="spotlight-orbit" style={{ animationDuration }}>
+            <div className="spotlight-blob" style={{ background, ... }} />
+          </div>
+   sized/positioned/colored per call site via inline style or utility classes
+   on the blob — this keyframe only owns the rotation. */
+@keyframes spotlight-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* App-boot splash: a slow breathing scale+fade on the mark, so it reads as
    "working" rather than frozen during the (usually sub-second) window before
    translations are ready. */
@@ -516,6 +537,23 @@
   filter: blur(48px);
   animation: float-glow 16s var(--motion-ease) infinite;
   pointer-events: none;
+}
+
+/* See the spotlight-rotate keyframe above for the technique this pair implements.
+   .spotlight-orbit is the rotating wrapper (size it to the visible backdrop area);
+   .spotlight-blob is the actual soft color shape inside it, offset from center via
+   inset/margin so the rotation reads as drift, not spin. */
+@utility spotlight-orbit {
+  position: absolute;
+  inset: 0;
+  animation: spotlight-rotate 100s linear infinite;
+  pointer-events: none;
+}
+
+@utility spotlight-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
 }
 
 /*

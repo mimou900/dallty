@@ -1,14 +1,10 @@
-import type React from "react";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronDown,
   Eye,
   Flower2,
-  Globe,
   MapPin,
-  Map as MapIcon,
-  SlidersHorizontal,
   Store,
   Hand,
   Scissors,
@@ -18,9 +14,15 @@ import {
   X,
 } from "lucide-react";
 
-import heroImage from "@/assets/hero-salon.jpg";
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/dallty/select";
 import type { Business } from "@/lib/dallty-content";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
@@ -30,9 +32,12 @@ import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesse
 import { landingForRoles } from "@/lib/post-login";
 import { SiteHeader } from "@/components/dallty/site-nav";
 import { useCountries, translate } from "@/lib/reference-data";
-import { citiesFor, provincesFor } from "@/lib/arab-cities";
+import { citiesFor } from "@/lib/arab-cities";
 import { BUSINESS_TYPES } from "@/lib/business-schema";
 import { BootSplash } from "@/components/dallty/boot-splash";
+
+/** Radix Select can't take an empty-string item value, so "no filter" needs a sentinel. */
+const ALL = "__all__";
 
 export const Route = createFileRoute("/")({
   // Only the home route gets the full branded splash while pending (first cold load,
@@ -80,7 +85,6 @@ function Index() {
   const [stateName, setStateName] = useState("");
   const [city, setCity] = useState("");
   const [shopType, setShopType] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const navigate = useNavigate();
 
@@ -118,18 +122,6 @@ function Index() {
     const codes = new Set((liveBusinesses ?? []).map((s) => s.countryCode).filter(Boolean));
     return (countries.data ?? []).filter((c) => codes.has(c.iso_code));
   }, [liveBusinesses, countries.data]);
-
-  const stateOptions = useMemo(() => {
-    const listed = [
-      ...new Set(
-        (liveBusinesses ?? [])
-          .filter((s) => (!country || s.countryCode === country) && s.state)
-          .map((s) => s.state),
-      ),
-    ].sort();
-    const known = provincesFor(country);
-    return listed.map((p) => ({ en: p, ar: known.find((k) => k.en === p)?.ar ?? p }));
-  }, [liveBusinesses, country]);
 
   const cityOptions = useMemo(() => {
     const listed = [
@@ -189,52 +181,49 @@ function Index() {
       <SiteHeader lang={lang} />
 
       <main className="mx-auto max-w-6xl px-4 pb-32 md:pb-24">
-        {/* Hero */}
-        <section className="mt-4 animate-fade-up sm:mt-6">
-          <div className="relative isolate overflow-hidden rounded-4xl">
-            <img
-              src={heroImage}
-              alt="Luxury salon interior with emerald and gold details"
-              width={1600}
-              height={1104}
-              className="absolute inset-0 -z-10 size-full object-cover"
-            />
+        {/* Hero — no photo, no headline: a full-bleed, continuously drifting color
+            backdrop (three independently-timed spotlight orbits in brand
+            lime/gold/mint — the same technique behind Fresha's homepage
+            background, confirmed by inspecting it, reused in Dallty's own
+            palette) with the search card floating directly on top, exactly
+            like Fresha's layout. */}
+        <section className="relative -mx-4 animate-fade-up overflow-hidden px-4 pb-2 pt-6 sm:pt-10">
+          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+            <div className="spotlight-orbit" style={{ animationDuration: "100s" }}>
+              <div
+                className="spotlight-blob -top-[10%] start-[10%] size-[28rem] opacity-60"
+                style={{ backgroundColor: "var(--lime)" }}
+              />
+            </div>
             <div
-              aria-hidden
-              className="absolute inset-0 -z-10 bg-gradient-to-t from-foreground/95 via-foreground/55 to-foreground/15"
-            />
-            <div
-              aria-hidden
-              className="absolute -top-24 end-[-10%] -z-10 size-[26rem] rounded-full bg-gold/25 blur-3xl"
-            />
-
-            <div className="flex min-h-[19rem] flex-col justify-end gap-3 p-5 pb-12 sm:min-h-[26rem] sm:p-10 sm:pb-16">
-              <span className="inline-flex w-fit items-center gap-2 rounded-full glass-dark px-3 py-1.5 text-[0.7rem] font-bold tracking-wide sm:text-xs">
-                <Sparkles className="size-3.5 shrink-0 text-gold" />
-                {t("hero_badge")}
-              </span>
-              <h1 className="text-display max-w-2xl text-background">{t("hero_title")}</h1>
-              <p className="max-w-xl text-sm text-background/85 sm:text-lg">{t("hero_sub")}</p>
+              className="spotlight-orbit"
+              style={{ animationDuration: "130s", animationDirection: "reverse" }}
+            >
+              <div
+                className="spotlight-blob -bottom-[20%] end-[8%] size-[26rem] opacity-50"
+                style={{ backgroundColor: "var(--gold)" }}
+              />
+            </div>
+            <div className="spotlight-orbit" style={{ animationDuration: "80s" }}>
+              <div
+                className="spotlight-blob top-[10%] end-[30%] size-72 opacity-40"
+                style={{ backgroundColor: "var(--primary)" }}
+              />
             </div>
           </div>
 
-          {/* Search card — sits under the hero on every size so nothing is clipped */}
-          <div className="relative z-10 -mt-6 rounded-3xl glass p-3 shadow-xl sm:-mt-10 sm:mx-6 sm:p-4">
+          {/* Search card — three always-visible stacked fields + full-width CTA,
+              matching Fresha's search form structure exactly. */}
+          <div className="relative z-10 mx-auto max-w-md rounded-4xl bg-card p-4 shadow-elevation-high sm:p-5">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 runSearch();
               }}
-              className="group relative grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3"
+              className="space-y-2.5"
             >
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-gradient-to-r from-primary/30 via-gold/25 to-sky/25 opacity-0 blur-lg transition-opacity duration-300 group-focus-within:opacity-100"
-              />
-              <label className="flex min-h-14 min-w-0 items-center gap-3 rounded-2xl bg-card/85 px-3 py-3 ring-1 ring-border/60 transition duration-300 focus-within:ring-2 focus-within:ring-primary sm:px-4">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-accent-foreground transition-colors group-focus-within:bg-primary group-focus-within:text-primary-foreground">
-                  <Search className="size-4.5" />
-                </span>
+              <label className="flex min-h-14 min-w-0 items-center gap-3 rounded-2xl bg-muted/60 px-4 ring-1 ring-transparent transition focus-within:ring-2 focus-within:ring-primary">
+                <Search className="size-5 shrink-0 text-muted-foreground" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -247,112 +236,60 @@ function Index() {
                     type="button"
                     onClick={() => setQuery("")}
                     aria-label={t("search_clear")}
-                    className="grid size-8 shrink-0 place-items-center rounded-full glass-soft"
+                    className="grid size-7 shrink-0 place-items-center rounded-full bg-card"
                   >
-                    <X className="size-4" />
+                    <X className="size-3.5" />
                   </button>
                 ) : null}
               </label>
+
+              <Select value={city || ALL} onValueChange={(v) => setCity(v === ALL ? "" : v)}>
+                <SelectTrigger className="min-h-14 rounded-2xl bg-muted/60 px-4 text-base ring-1 ring-transparent focus:ring-2 [&>svg]:hidden">
+                  <span className="flex min-w-0 flex-1 items-center gap-3">
+                    <MapPin className="size-5 shrink-0 text-muted-foreground" />
+                    <SelectValue placeholder={t("filter_city")} />
+                  </span>
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>{t("filter_all_cities")}</SelectItem>
+                  {cityOptions.map((c) => (
+                    <SelectItem key={c.en} value={c.en}>
+                      {lang === "ar" ? c.ar : c.en}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={shopType || ALL}
+                onValueChange={(v) => setShopType(v === ALL ? "" : v)}
+              >
+                <SelectTrigger className="min-h-14 rounded-2xl bg-muted/60 px-4 text-base ring-1 ring-transparent focus:ring-2 [&>svg]:hidden">
+                  <span className="flex min-w-0 flex-1 items-center gap-3">
+                    <Store className="size-5 shrink-0 text-muted-foreground" />
+                    <SelectValue placeholder={t("filter_shop_type")} />
+                  </span>
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>{t("filter_all_shop_types")}</SelectItem>
+                  {BUSINESS_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <button
                 type="submit"
-                className="press flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-lime px-8 text-base font-bold text-lime-foreground shadow-lg transition-transform hover:scale-[1.02]"
+                className="press flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-lime text-base font-bold text-lime-foreground shadow-lg"
               >
                 <Search className="size-5" />
                 {t("search_btn")}
               </button>
             </form>
-
-            {/* Filters — collapsed on mobile, always open from sm up */}
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              aria-expanded={filtersOpen}
-              className="press mt-2.5 flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl bg-card/85 px-4 text-sm font-bold ring-1 ring-border/60 sm:hidden"
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <SlidersHorizontal className="size-4 shrink-0 text-primary" />
-                <span className="truncate">
-                  {activeChips.length ? activeChips.join(" · ") : t("filter_by_location_type")}
-                </span>
-              </span>
-              <ChevronDown
-                className={`size-4 shrink-0 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {/* Country → State → City → Shop type */}
-            <div
-              className={`${filtersOpen ? "grid" : "hidden"} mt-2.5 gap-2 sm:mt-3 sm:grid sm:grid-cols-2 lg:grid-cols-4`}
-            >
-              <SelectField
-                icon={<Globe className="size-4" />}
-                label={t("filter_country")}
-                value={country}
-                onChange={(v) => {
-                  setCountry(v);
-                  setStateName("");
-                  setCity("");
-                }}
-              >
-                <option value="">{t("filter_all_countries")}</option>
-                {countryOptions.map((c) => (
-                  <option key={c.iso_code} value={c.iso_code}>
-                    {c.flag} {translate(c, lang)}
-                  </option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                icon={<MapIcon className="size-4" />}
-                label={t("filter_state")}
-                value={stateName}
-                disabled={!country}
-                onChange={(v) => {
-                  setStateName(v);
-                  setCity("");
-                }}
-              >
-                <option value="">
-                  {country ? t("filter_all_states") : t("filter_pick_country_first")}
-                </option>
-                {stateOptions.map((p) => (
-                  <option key={p.en} value={p.en}>
-                    {lang === "ar" ? p.ar : p.en}
-                  </option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                icon={<MapPin className="size-4" />}
-                label={t("filter_city")}
-                value={city}
-                disabled={!country}
-                onChange={setCity}
-              >
-                <option value="">
-                  {country ? t("filter_all_cities") : t("filter_pick_country_first")}
-                </option>
-                {cityOptions.map((c) => (
-                  <option key={c.en} value={c.en}>
-                    {lang === "ar" ? c.ar : c.en}
-                  </option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                icon={<Store className="size-4" />}
-                label={t("filter_shop_type")}
-                value={shopType}
-                onChange={setShopType}
-              >
-                <option value="">{t("filter_all_shop_types")}</option>
-                {BUSINESS_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </SelectField>
-            </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
@@ -610,43 +547,5 @@ function Index() {
         ]}
       />
     </div>
-  );
-}
-
-function SelectField({
-  icon,
-  label,
-  value,
-  onChange,
-  disabled,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <label
-      className={`flex flex-col gap-1 rounded-2xl bg-card/80 px-4 py-2 ring-1 ring-border/60 transition focus-within:ring-2 focus-within:ring-primary ${
-        disabled ? "opacity-60" : ""
-      }`}
-    >
-      <span className="flex items-center gap-1.5 text-[0.7rem] font-bold uppercase tracking-wide text-muted-foreground">
-        {icon}
-        {label}
-      </span>
-      <select
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={label}
-        className="min-h-7 w-full truncate bg-transparent text-sm font-semibold outline-none"
-      >
-        {children}
-      </select>
-    </label>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Gift, Loader2, Save, Wallet } from "lucide-react";
+import { Camera, Gift, Loader2, Save, Sparkles, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -12,10 +12,19 @@ import { prepareImageForUpload } from "@/lib/image-upload";
 import { SERVICE_CATEGORIES } from "@/lib/admin";
 import { ClientShell } from "@/components/dallty/client-shell";
 import { AccountSecurity } from "@/components/dallty/account-security";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/dallty/select";
 
 const HAIR_TYPES = ["Straight", "Wavy", "Curly", "Coily"];
 const SKIN_TYPES = ["Normal", "Dry", "Oily", "Combination", "Sensitive"];
 const GENDERS = ["Female", "Male", "Prefer not to say"];
+/** Radix Select can't take an empty-string item value, so "no selection" needs a sentinel. */
+const UNSET = "__unset__";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -164,7 +173,32 @@ function ProfilePage() {
       subtitle="Keep your details and preferences up to date."
       width="max-w-2xl"
     >
-      <section className="mt-6 flex items-center gap-4 rounded-3xl glass p-5">
+      <section className="relative mt-6 overflow-hidden rounded-4xl bg-(image:--gradient-primary) p-6 text-primary-foreground shadow-elevation-high">
+        <div aria-hidden className="glow-blob -end-16 -top-20 size-64 opacity-30" />
+        <div aria-hidden className="glow-blob -bottom-24 -start-10 size-56 opacity-20" />
+        <p className="relative flex items-center gap-1.5 text-[0.7rem] font-bold uppercase tracking-wider text-primary-foreground/60">
+          <Sparkles className="size-3.5" />
+          Dallty wallet
+        </p>
+        <div className="relative mt-4 flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-primary-foreground/70">
+              <Wallet className="size-3.5" />
+              Balance
+            </p>
+            <p className="mt-1 truncate text-3xl font-extrabold text-lime">{formatMoney(0)}</p>
+          </div>
+          <div className="min-w-0 text-end">
+            <p className="flex items-center justify-end gap-1.5 text-xs font-semibold text-primary-foreground/70">
+              Loyalty points
+              <Gift className="size-3.5" />
+            </p>
+            <p className="mt-1 truncate text-3xl font-extrabold text-gold">0</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-5 flex items-center gap-4 rounded-3xl glass p-5">
         <div className="relative">
           {avatarUrl ? (
             <img
@@ -201,23 +235,6 @@ function ProfilePage() {
         </div>
       </section>
 
-      <section className="mt-5 grid grid-cols-2 gap-3 rounded-3xl bg-(image:--gradient-lime) p-5 shadow-(--shadow-glow-lime)">
-        <div>
-          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-lime-foreground/70">
-            <Wallet className="size-3.5" />
-            Balance
-          </p>
-          <p className="mt-1 text-2xl font-extrabold text-lime-foreground">{formatMoney(0)}</p>
-        </div>
-        <div className="border-s border-lime-foreground/15 ps-3">
-          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-lime-foreground/70">
-            <Gift className="size-3.5" />
-            Loyalty points
-          </p>
-          <p className="mt-1 text-2xl font-extrabold text-lime-foreground">0</p>
-        </div>
-      </section>
-
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -245,49 +262,61 @@ function ProfilePage() {
             />
           </Field>
           <Field title="Gender">
-            <select
-              value={form.gender}
-              onChange={(e) => setForm({ ...form, gender: e.target.value })}
-              className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
+            <Select
+              value={form.gender || UNSET}
+              onValueChange={(v) => setForm({ ...form, gender: v === UNSET ? "" : v })}
             >
-              <option value="">Not set</option>
-              {GENDERS.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNSET}>Not set</SelectItem>
+                {GENDERS.map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {g}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <Field title="Hair type">
-            <select
-              value={form.hair_type}
-              onChange={(e) => setForm({ ...form, hair_type: e.target.value })}
-              className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
+            <Select
+              value={form.hair_type || UNSET}
+              onValueChange={(v) => setForm({ ...form, hair_type: v === UNSET ? "" : v })}
             >
-              <option value="">Not set</option>
-              {HAIR_TYPES.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNSET}>Not set</SelectItem>
+                {HAIR_TYPES.map((h) => (
+                  <SelectItem key={h} value={h}>
+                    {h}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Field title="Skin type">
-            <select
-              value={form.skin_type}
-              onChange={(e) => setForm({ ...form, skin_type: e.target.value })}
-              className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
+            <Select
+              value={form.skin_type || UNSET}
+              onValueChange={(v) => setForm({ ...form, skin_type: v === UNSET ? "" : v })}
             >
-              <option value="">Not set</option>
-              {SKIN_TYPES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNSET}>Not set</SelectItem>
+                {SKIN_TYPES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
 
