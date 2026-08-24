@@ -124,17 +124,26 @@ export function BusinessAbout({ business }: { business: Business }) {
     ? (business.faq as { q?: string; a?: string }[]).filter((f) => f.q && f.a)
     : [];
 
+  // business.description itself is already shown by BusinessOverview right below the
+  // quick-facts grid — nothing here duplicates it.
+  const hasContent =
+    business.owner_story ||
+    business.video_tour_url ||
+    business.instagram_url ||
+    business.tiktok_url ||
+    gallery.length > 0 ||
+    business.amenities.length > 0 ||
+    business.languages.length > 0 ||
+    business.awards.length > 0 ||
+    business.certifications.length > 0 ||
+    business.brands.length > 0 ||
+    business.cancellation_policy ||
+    business.house_rules ||
+    faq.length > 0;
+  if (!hasContent) return null;
+
   return (
     <section className="mt-7 animate-fade-up space-y-6">
-      {business.description && (
-        <div className="rounded-3xl glass p-5">
-          <h2 className="text-lg font-extrabold">About</h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            {business.description}
-          </p>
-        </div>
-      )}
-
       {business.owner_story && (
         <div className="rounded-3xl glass p-5">
           <h2 className="text-lg font-extrabold">Owner's story</h2>
@@ -229,7 +238,10 @@ export function BusinessAbout({ business }: { business: Business }) {
             {business.amenities.map((key) => {
               const Icon = AMENITY_ICONS[key] ?? Info;
               return (
-                <div key={key} className="flex items-center gap-2.5 rounded-2xl glass-soft px-4 py-3">
+                <div
+                  key={key}
+                  className="flex items-center gap-2.5 rounded-2xl glass-soft px-4 py-3"
+                >
                   <Icon className="size-4 shrink-0 text-primary" />
                   <span className="text-sm font-semibold">
                     {AMENITY_LABELS[key] ?? key.replace(/_/g, " ")}

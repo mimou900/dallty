@@ -34,6 +34,7 @@ import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { FavoriteButton } from "@/components/dallty/favorite-button";
 import { BusinessReviews } from "@/components/dallty/business-reviews";
 import { BusinessOverview } from "@/components/dallty/business-overview";
+import { BusinessAbout } from "@/components/dallty/business-about";
 import { StaffDetailDrawer } from "@/components/dallty/staff-detail-drawer";
 import { BusinessPageSkeleton } from "@/components/dallty/skeletons";
 import {
@@ -251,6 +252,11 @@ function BookingFlow() {
   const { businessSlug } = Route.useParams();
   const navigate = useNavigate();
   const router = useRouter();
+  // Whether this page has app history behind it in this tab, i.e. the customer clicked
+  // here from somewhere in Dallty rather than opening a shared link directly. A direct
+  // link gets a quieter, shareable-looking header (no language switcher/rating pill) —
+  // there's no "back into the app" for it to lead back to anyway.
+  const cameFromApp = router.history.canGoBack();
   const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
   const { data: categories } = useCategories();
@@ -1383,16 +1389,21 @@ function BookingFlow() {
             </p>
           </div>
 
-          {business && (
+          {business && cameFromApp && (
             <span className="ms-auto flex shrink-0 items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-sm font-semibold">
               <Star className="size-4 fill-gold text-gold" />
               {Number(business.rating).toFixed(1)}
             </span>
           )}
           {business && user && (
-            <FavoriteButton kind="business" targetId={business.id} label={business.name} />
+            <FavoriteButton
+              kind="business"
+              targetId={business.id}
+              label={business.name}
+              className={cameFromApp ? undefined : "ms-auto"}
+            />
           )}
-          <LanguageSwitcher variant="icon" />
+          {cameFromApp && <LanguageSwitcher variant="icon" />}
         </div>
 
         <div
@@ -1443,6 +1454,7 @@ function BookingFlow() {
             }}
           />
         )}
+        {tab === "overview" && business && <BusinessAbout business={business as never} />}
         {tab === "reviews" && business && (
           <BusinessReviews businessId={business.id} isOwner={business.owner_id === user?.id} />
         )}
