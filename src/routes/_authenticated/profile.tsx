@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { signedUrl, uploadTo } from "@/lib/storage";
+import { prepareImageForUpload } from "@/lib/image-upload";
 import { SERVICE_CATEGORIES } from "@/lib/admin";
 import { ClientShell } from "@/components/dallty/client-shell";
 import { AccountSecurity } from "@/components/dallty/account-security";
@@ -118,9 +119,18 @@ function ProfilePage() {
 
   async function handleAvatar(file: File) {
     if (!user) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose a photo");
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      toast.error("That photo is too large — try one under 30MB");
+      return;
+    }
     setUploading(true);
     try {
-      const path = await uploadTo("avatars", user.id, file);
+      const optimized = await prepareImageForUpload(file, { maxDimension: 1024 });
+      const path = await uploadTo("avatars", user.id, optimized);
       const { error } = await supabase
         .from("profiles")
         .update({ avatar_url: path })

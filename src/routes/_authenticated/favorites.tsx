@@ -99,7 +99,6 @@ function FavoritesPage() {
 
   return (
     <ClientShell title="Favorites" subtitle="Salons, specialists and services you saved.">
-
       {empty && (
         <div className="mt-8 rounded-3xl glass p-8 text-center">
           <Heart className="mx-auto size-8 text-rose" />
@@ -130,7 +129,7 @@ function FavoritesPage() {
                   className="flex min-w-0 flex-1 items-center gap-3"
                 >
                   <img
-                    src={business.image_url ?? "/salons/placeholder.jpg"}
+                    src={business.image_url ?? "/salons/hair.jpg"}
                     alt={business.name}
                     loading="lazy"
                     className="size-16 rounded-2xl object-cover"
@@ -165,7 +164,9 @@ function FavoritesPage() {
                   className="min-w-0 flex-1"
                 >
                   <span className="block truncate text-sm font-extrabold">{member.full_name}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{member.title}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {member.title}
+                  </span>
                 </Link>
                 <FavoriteButton kind="staff" targetId={member.id} label={member.full_name} />
               </div>
@@ -229,7 +230,7 @@ function FavoritesPage() {
                   className="w-40 shrink-0 rounded-3xl glass p-3"
                 >
                   <img
-                    src={business.image_url ?? "/salons/placeholder.jpg"}
+                    src={business.image_url ?? "/salons/hair.jpg"}
                     alt={business.name}
                     loading="lazy"
                     className="h-24 w-full rounded-2xl object-cover"

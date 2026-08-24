@@ -3,12 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
+  BadgeCheck,
   BellRing,
   CalendarClock,
   CalendarDays,
   Info,
   MapPin,
   Phone,
+  Receipt,
   RotateCcw,
   Star,
   X,
@@ -33,6 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 
 export const Route = createFileRoute("/_authenticated/bookings")({
   // Owners/staff/admins manage appointments in their own dashboard — never here.
@@ -43,6 +46,12 @@ export const Route = createFileRoute("/_authenticated/bookings")({
     const landing = await resolveLanding(userId);
     if (landing !== "/bookings") throw redirect({ to: landing, replace: true });
   },
+  // `?open=<bookingId>` auto-opens that booking's detail drawer — the target every
+  // notification's deep_link points at (see notify_booking_audience() /
+  // notify_waitlist_on_free_slot()), since there's no separate /bookings/:id route.
+  validateSearch: (search: Record<string, unknown>): { open?: string } => ({
+    open: typeof search.open === "string" ? search.open : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Your bookings — Dallty" },
@@ -87,6 +96,8 @@ type BookingRow = {
     city?: string | null;
     maps_url?: string | null;
     phone?: string | null;
+    image_url?: string | null;
+    is_verified?: boolean;
   } | null;
   services: { id: string; name: string; duration_minutes: number } | null;
   staff: { id: string; full_name: string } | null;
@@ -135,11 +146,18 @@ function BookingsPage() {
   const { user, primaryRole, roles } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { open: openParam } = Route.useSearch();
   const { t } = useTranslation("booking");
   const isManager = primaryRole !== "client";
   const [pendingCancel, setPendingCancel] = useState<BookingRow | null>(null);
   const cancelling = Boolean(pendingCancel);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const managedBusinesses = useManagedBusinesses();
+
+  function closeDetail() {
+    setDetailId(null);
+    if (openParam) navigate({ to: "/bookings", search: {}, replace: true });
+  }
 
   // Business accounts manage appointments in their own dashboard, not here.
   // Business owners with no business yet resume the creation wizard instead
@@ -190,7 +208,7 @@ function BookingsPage() {
       const query = supabase
         .from("bookings")
         .select(
-          "id, business_id, starts_at, ends_at, status, total_price, reference, discount_amount, original_price, payment_status, businesses(name, slug, area, currency, timezone, address, city, maps_url, phone), services(id, name, duration_minutes), staff(id, full_name)",
+          "id, business_id, starts_at, ends_at, status, total_price, reference, discount_amount, original_price, payment_status, businesses(name, slug, area, currency, timezone, address, city, maps_url, phone, image_url, is_verified), services(id, name, duration_minutes), staff(id, full_name)",
         )
         .order("starts_at", { ascending: true });
       const { data, error } =
@@ -258,7 +276,14 @@ function BookingsPage() {
     queryClient.invalidateQueries({ queryKey: ["my-waitlist"] });
   }
 
+  // Deep link from a notification ("?open=<id>") auto-opens that booking's drawer once
+  // the list has loaded far enough to actually contain it.
+  useEffect(() => {
+    if (openParam) setDetailId(openParam);
+  }, [openParam]);
+
   const bookings = bookingsQuery.data ?? [];
+  const detailBooking = bookings.find((b) => b.id === detailId) ?? null;
   const upcoming = bookings.filter(
     (b) => new Date(b.starts_at) >= new Date() && b.status !== "cancelled",
   );
@@ -372,6 +397,7 @@ function BookingsPage() {
               items={upcoming}
               onUpdate={updateStatus}
               onRequestCancel={setPendingCancel}
+              onOpenDetail={setDetailId}
               isManager={isManager}
             />
             <Section
@@ -379,6 +405,7 @@ function BookingsPage() {
               items={past}
               onUpdate={updateStatus}
               onRequestCancel={setPendingCancel}
+              onOpenDetail={setDetailId}
               isManager={isManager}
               muted
             />
@@ -479,6 +506,13 @@ function BookingsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <BookingDetailDrawer
+          booking={detailBooking}
+          open={Boolean(detailId)}
+          onClose={closeDetail}
+          onRequestCancel={setPendingCancel}
+        />
       </div>
     </ClientShell>
   );
@@ -489,6 +523,7 @@ function Section({
   items,
   onUpdate,
   onRequestCancel,
+  onOpenDetail,
   isManager,
   muted,
 }: {
@@ -496,6 +531,7 @@ function Section({
   items: BookingRow[];
   onUpdate: (id: string, status: "confirmed" | "cancelled") => void;
   onRequestCancel: (booking: BookingRow) => void;
+  onOpenDetail: (id: string) => void;
   isManager: boolean;
   muted?: boolean;
 }) {
@@ -507,7 +543,16 @@ function Section({
       </h2>
       <div className="space-y-3">
         {items.map((b) => (
-          <article key={b.id} className={`rounded-3xl glass p-5 ${muted ? "opacity-70" : ""}`}>
+          <article
+            key={b.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => onOpenDetail(b.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") onOpenDetail(b.id);
+            }}
+            className={`cursor-pointer rounded-3xl glass p-5 ${muted ? "opacity-70" : ""}`}
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <h3 className="truncate text-base font-extrabold">{b.services?.name}</h3>
@@ -527,51 +572,190 @@ function Section({
               {format(new Date(b.starts_at), "EEE d MMM · HH:mm")} –{" "}
               {format(new Date(b.ends_at), "HH:mm")}
             </p>
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-wrap items-baseline gap-2">
-                  {b.original_price != null && b.original_price > b.total_price && (
-                    <span className="text-sm text-muted-foreground line-through">
-                      {formatMoney(b.original_price, b.businesses?.currency ?? undefined)}
-                    </span>
-                  )}
-                  <span className="text-lg font-extrabold">
-                    {formatMoney(b.total_price, b.businesses?.currency ?? undefined)}
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-baseline gap-2">
+                {b.original_price != null && b.original_price > b.total_price && (
+                  <span className="text-sm text-muted-foreground line-through">
+                    {formatMoney(b.original_price, b.businesses?.currency ?? undefined)}
                   </span>
-                  {b.status !== "cancelled" && PAYMENT_LABEL[b.payment_status] && (
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${PAYMENT_TONE[b.payment_status] ?? "bg-secondary text-foreground"}`}
-                    >
-                      {PAYMENT_LABEL[b.payment_status]}
-                    </span>
-                  )}
-                </div>
-                {b.status === "pending" && (
-                  <button
-                    type="button"
-                    onClick={() => onUpdate(b.id, "confirmed")}
-                    className="min-h-10 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
+                )}
+                <span className="text-lg font-extrabold">
+                  {formatMoney(b.total_price, b.businesses?.currency ?? undefined)}
+                </span>
+                {b.status !== "cancelled" && PAYMENT_LABEL[b.payment_status] && (
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${PAYMENT_TONE[b.payment_status] ?? "bg-secondary text-foreground"}`}
                   >
-                    {isManager ? "Confirm" : "Confirm slot"}
-                  </button>
+                    {PAYMENT_LABEL[b.payment_status]}
+                  </span>
                 )}
               </div>
-              {b.businesses?.phone && (
+              {b.status === "pending" && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdate(b.id, "confirmed");
+                  }}
+                  className="min-h-10 shrink-0 rounded-2xl bg-primary px-4 text-sm font-bold text-primary-foreground"
+                >
+                  {isManager ? "Confirm" : "Confirm slot"}
+                </button>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const DRAWER_ACTION =
+  "flex min-h-11 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold";
+
+function BookingDetailDrawer({
+  booking,
+  open,
+  onClose,
+  onRequestCancel,
+}: {
+  booking: BookingRow | null;
+  open: boolean;
+  onClose: () => void;
+  onRequestCancel: (booking: BookingRow) => void;
+}) {
+  return (
+    <Drawer open={open} onOpenChange={(next) => !next && onClose()}>
+      <DrawerContent className="mt-6 h-[92dvh] rounded-t-3xl border-border bg-background p-0">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="press absolute end-3 top-3 z-10 grid size-10 place-items-center rounded-full bg-secondary text-foreground"
+        >
+          <X className="size-5" />
+        </button>
+        <DrawerTitle className="sr-only">Booking details</DrawerTitle>
+        {booking && (
+          <div className="flex h-full flex-col overflow-y-auto">
+            <div className="relative h-40 shrink-0 overflow-hidden bg-muted">
+              <img
+                src={booking.businesses?.image_url || "/salons/hair.jpg"}
+                alt={booking.businesses?.name ?? ""}
+                className="size-full object-cover"
+              />
+              <div aria-hidden className="photo-scrim absolute inset-0" />
+              <div className="absolute inset-x-0 bottom-0 p-4">
+                <span className="rounded-full bg-card/90 px-3 py-1 text-xs font-bold capitalize text-foreground">
+                  {booking.status}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-5 p-5 pb-8">
+              <div>
+                <h2 className="flex items-center gap-1.5 text-xl font-extrabold">
+                  {booking.services?.name}
+                  {booking.businesses?.is_verified && (
+                    <BadgeCheck
+                      className="size-4 shrink-0 text-primary"
+                      aria-label="Verified by Dallty"
+                    />
+                  )}
+                </h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {booking.businesses?.name} · {booking.staff?.full_name}
+                </p>
+                {booking.reference && (
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Receipt className="size-3.5" />
+                    Reference #{booking.reference}
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-2xl bg-muted/60 p-4">
+                <p className="flex items-center gap-2 text-sm font-bold">
+                  <CalendarDays className="size-4 text-primary" />
+                  {format(new Date(booking.starts_at), "EEEE d MMMM · HH:mm")} –{" "}
+                  {format(new Date(booking.ends_at), "HH:mm")}
+                </p>
+                {(booking.businesses?.address || booking.businesses?.area) && (
+                  <p className="mt-1.5 flex items-start gap-2 text-sm text-muted-foreground">
+                    <MapPin className="mt-0.5 size-4 shrink-0" />
+                    {[
+                      booking.businesses?.address,
+                      booking.businesses?.area,
+                      booking.businesses?.city,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-border/60 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Invoice
+                </p>
+                <div className="mt-3 space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{booking.services?.name}</span>
+                    <span className="font-semibold">
+                      {formatMoney(
+                        booking.original_price ?? booking.total_price,
+                        booking.businesses?.currency ?? undefined,
+                      )}
+                    </span>
+                  </div>
+                  {booking.discount_amount > 0 && (
+                    <div className="flex items-center justify-between text-primary">
+                      <span>Discount</span>
+                      <span className="font-semibold">
+                        -
+                        {formatMoney(
+                          booking.discount_amount,
+                          booking.businesses?.currency ?? undefined,
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between border-t border-border/60 pt-2 text-base font-extrabold">
+                    <span>Total</span>
+                    <span>
+                      {formatMoney(booking.total_price, booking.businesses?.currency ?? undefined)}
+                    </span>
+                  </div>
+                  {PAYMENT_LABEL[booking.payment_status] && (
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-muted-foreground">Payment</span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${PAYMENT_TONE[booking.payment_status] ?? "bg-secondary text-foreground"}`}
+                      >
+                        {PAYMENT_LABEL[booking.payment_status]}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {booking.businesses?.phone && (
                 <a
-                  href={`tel:${b.businesses.phone}`}
+                  href={`tel:${booking.businesses.phone}`}
                   className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-extrabold text-primary-foreground"
                 >
                   <Phone className="size-4" />
-                  Call business
+                  Call salon
                 </a>
               )}
+
               <div className="grid grid-cols-2 gap-2">
-                {mapsHref(b.businesses) && (
+                {mapsHref(booking.businesses) && (
                   <a
-                    href={mapsHref(b.businesses)!}
+                    href={mapsHref(booking.businesses)!}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
+                    className={DRAWER_ACTION}
                   >
                     <MapPin className="size-4" />
                     Location
@@ -579,49 +763,54 @@ function Section({
                 )}
                 <Link
                   to="/business/$businessSlug"
-                  params={{ businessSlug: b.businesses?.slug ?? "" }}
-                  className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
+                  params={{ businessSlug: booking.businesses?.slug ?? "" }}
+                  className={DRAWER_ACTION}
                 >
                   <Info className="size-4" />
                   Business details
                 </Link>
-                {b.status !== "cancelled" && b.status !== "completed" && (
+                {booking.status !== "cancelled" && booking.status !== "completed" && (
                   <>
                     <Link
                       to="/reschedule/$bookingId"
-                      params={{ bookingId: b.id }}
-                      className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
+                      params={{ bookingId: booking.id }}
+                      className={DRAWER_ACTION}
                     >
                       <CalendarClock className="size-4" />
                       Reschedule
                     </Link>
                     <button
                       type="button"
-                      onClick={() => onRequestCancel(b)}
-                      className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold text-destructive"
+                      onClick={() => onRequestCancel(booking)}
+                      className={`${DRAWER_ACTION} text-destructive`}
                     >
                       <X className="size-4" />
                       Cancel
                     </button>
                   </>
                 )}
-                {(b.status === "completed" || b.status === "cancelled") && b.services && (
+                {(booking.status === "completed" || booking.status === "cancelled") &&
+                  booking.services && (
+                    <Link
+                      to="/business/$businessSlug"
+                      params={{ businessSlug: booking.businesses?.slug ?? "" }}
+                      search={{
+                        book: true,
+                        service: booking.services.id,
+                        staff: booking.staff?.id,
+                      }}
+                      className={DRAWER_ACTION}
+                    >
+                      <RotateCcw className="size-4" />
+                      Book again
+                    </Link>
+                  )}
+                {booking.status === "completed" && (
                   <Link
                     to="/business/$businessSlug"
-                    params={{ businessSlug: b.businesses?.slug ?? "" }}
-                    search={{ book: true, service: b.services.id, staff: b.staff?.id }}
-                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
-                  >
-                    <RotateCcw className="size-4" />
-                    Book again
-                  </Link>
-                )}
-                {b.status === "completed" && (
-                  <Link
-                    to="/business/$businessSlug"
-                    params={{ businessSlug: b.businesses?.slug ?? "" }}
+                    params={{ businessSlug: booking.businesses?.slug ?? "" }}
                     search={{ tab: "reviews" }}
-                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
+                    className={DRAWER_ACTION}
                   >
                     <Star className="size-4" />
                     Leave a review
@@ -629,9 +818,9 @@ function Section({
                 )}
               </div>
             </div>
-          </article>
-        ))}
-      </div>
-    </section>
+          </div>
+        )}
+      </DrawerContent>
+    </Drawer>
   );
 }

@@ -14,12 +14,13 @@ import {
   Clock3,
   Loader2,
   Sparkles,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { dateFnsLocaleFor, useLocale } from "@/lib/i18n";
@@ -156,6 +157,7 @@ export function NotificationCenter({ className = "" }: { className?: string }) {
   const trigger = (
     <button
       type="button"
+      onClick={markAllRead}
       aria-label={unread > 0 ? `${t("title")}: ${unread} ${t("unread")}` : t("title")}
       className={`press relative grid size-10 shrink-0 place-items-center rounded-2xl border border-border bg-card text-foreground ${className}`}
     >
@@ -242,20 +244,24 @@ export function NotificationCenter({ className = "" }: { className?: string }) {
 
   return (
     <>
-      {/* Mobile: bottom sheet, thumb friendly */}
+      {/* Mobile: near-fullscreen drawer, drag-to-dismiss (vaul) or the close button */}
       <div className="md:hidden">
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>{trigger}</SheetTrigger>
-          <SheetContent
-            side="bottom"
-            className="max-h-[80dvh] rounded-t-3xl border-border bg-background px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3"
-          >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-border" />
-            <SheetTitle className="sr-only">{t("title")}</SheetTitle>
-            {header}
-            <div className="max-h-[60dvh] overflow-y-auto pb-2">{list}</div>
-          </SheetContent>
-        </Sheet>
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerTrigger asChild>{trigger}</DrawerTrigger>
+          <DrawerContent className="mt-6 h-[92dvh] rounded-t-3xl border-border bg-background px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+              className="press absolute end-3 top-3 grid size-10 place-items-center rounded-full bg-secondary text-foreground"
+            >
+              <X className="size-5" />
+            </button>
+            <DrawerTitle className="sr-only">{t("title")}</DrawerTitle>
+            <div className="mt-2 pe-12">{header}</div>
+            <div className="flex-1 overflow-y-auto pb-2">{list}</div>
+          </DrawerContent>
+        </Drawer>
       </div>
 
       {/* Desktop: popover anchored to the bell */}

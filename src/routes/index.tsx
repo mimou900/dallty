@@ -21,7 +21,7 @@ import {
 import heroImage from "@/assets/hero-salon.jpg";
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
-import { businesses, type Business } from "@/lib/dallty-content";
+import type { Business } from "@/lib/dallty-content";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
@@ -144,9 +144,7 @@ function Index() {
   }, [liveBusinesses, country, stateName]);
 
   const results = useMemo(() => {
-    const list: Business[] = placeFiltered
-      ? (liveBusinesses ?? [])
-      : (liveBusinesses ?? businesses);
+    const list: Business[] = liveBusinesses ?? [];
     const placed = (list as LiveBusiness[]).filter(
       (s) =>
         (!country || s.countryCode === country) &&
@@ -163,7 +161,7 @@ function Index() {
     return withCategory.filter(
       (s) => s.en.name.toLowerCase().includes(name) || s.ar.name.toLowerCase().includes(name),
     );
-  }, [liveBusinesses, query, activeCategory, country, stateName, city, shopType, placeFiltered]);
+  }, [liveBusinesses, query, activeCategory, country, stateName, city, shopType]);
 
   const activeChips = useMemo(
     () =>

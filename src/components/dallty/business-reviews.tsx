@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { signedUrl, uploadTo } from "@/lib/storage";
+import { prepareImageForUpload } from "@/lib/image-upload";
 
 type Review = {
   id: string;
@@ -152,7 +153,9 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
   const saveReview = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Sign in to review");
-      const uploaded = await Promise.all(files.map((f) => uploadTo("review-photos", user.id, f)));
+      const uploaded = await Promise.all(
+        files.map(async (f) => uploadTo("review-photos", user.id, await prepareImageForUpload(f))),
+      );
 
       if (editingId) {
         const current = reviews.find((r) => r.id === editingId);
@@ -313,7 +316,9 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
           />
           <label className="press mt-3 flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold">
             <ImagePlus className="size-4" />
-            {files.length ? `${files.length} photo${files.length > 1 ? "s" : ""} selected` : "Add photos"}
+            {files.length
+              ? `${files.length} photo${files.length > 1 ? "s" : ""} selected`
+              : "Add photos"}
             <input
               type="file"
               accept="image/*"
