@@ -91,12 +91,24 @@ export const Route = createFileRoute("/business/$businessSlug")({
   },
   validateSearch: (
     search: Record<string, unknown>,
-  ): { book?: boolean; tab?: "overview" | "book" | "reviews" } => ({
+  ): {
+    book?: boolean;
+    tab?: "overview" | "book" | "reviews";
+    service?: string;
+    staff?: string;
+  } => ({
     book: search.book === true || search.book === "true" ? true : undefined,
     tab:
       search.tab === "overview" || search.tab === "book" || search.tab === "reviews"
         ? search.tab
         : undefined,
+    // "Book again" from a past appointment (see bookings.tsx) — pre-selects the same
+    // service/specialist, never trusted further than that: the normal Service/Specialist
+    // steps still just highlight whichever of these matches a real, currently-bookable
+    // option, so a stale or deleted id from an old booking silently falls back to no
+    // selection instead of ever being sent straight to the server.
+    service: typeof search.service === "string" ? search.service : undefined,
+    staff: typeof search.staff === "string" ? search.staff : undefined,
   }),
   errorComponent: () => <BusinessProblem title="We couldn't load this shop" />,
   notFoundComponent: () => <BusinessProblem title="This shop is no longer available" />,
@@ -215,7 +227,12 @@ function BookingFlow() {
   const { t } = useTranslation("common");
   const { t: tb } = useTranslation("booking");
 
-  const { book: bookIntent, tab: tabParam } = Route.useSearch();
+  const {
+    book: bookIntent,
+    tab: tabParam,
+    service: rebookServiceId,
+    staff: rebookStaffId,
+  } = Route.useSearch();
   // Tab lives in the URL so deep links, refreshes and the back button all work.
   const tab: TabId = tabParam ?? (bookIntent ? "book" : "overview");
   const setTab = (id: TabId) =>
@@ -240,7 +257,15 @@ function BookingFlow() {
     if (authLoading || restored.current) return;
     restored.current = true;
     const pending = readPendingBooking(businessSlug);
-    if (!pending) return;
+    if (!pending) {
+      if (rebookServiceId) {
+        setServiceId(rebookServiceId);
+        if (rebookStaffId) setStaffId(rebookStaffId);
+        setTab("book");
+        setStep(rebookStaffId ? 2 : 1);
+      }
+      return;
+    }
     if (pending.serviceId) setServiceId(pending.serviceId);
     if (pending.staffId) setStaffId(pending.staffId);
     if (pending.day) setDay(pending.day);
@@ -274,7 +299,7 @@ function BookingFlow() {
       clearPendingBooking();
       toast.info("Picked up where you left off — review and confirm.");
     }
-  }, [businessSlug, authLoading, user]);
+  }, [businessSlug, authLoading, user, rebookServiceId, rebookStaffId]);
 
   function stashBooking() {
     savePendingBooking({

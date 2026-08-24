@@ -2,7 +2,17 @@ import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-ro
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { BellRing, CalendarClock, CalendarDays, Info, MapPin, Phone, X } from "lucide-react";
+import {
+  BellRing,
+  CalendarClock,
+  CalendarDays,
+  Info,
+  MapPin,
+  Phone,
+  RotateCcw,
+  Star,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { formatMoney } from "@/lib/countries";
@@ -78,8 +88,8 @@ type BookingRow = {
     maps_url?: string | null;
     phone?: string | null;
   } | null;
-  services: { name: string; duration_minutes: number } | null;
-  staff: { full_name: string } | null;
+  services: { id: string; name: string; duration_minutes: number } | null;
+  staff: { id: string; full_name: string } | null;
 };
 
 type WaitlistRow = {
@@ -180,7 +190,7 @@ function BookingsPage() {
       const query = supabase
         .from("bookings")
         .select(
-          "id, business_id, starts_at, ends_at, status, total_price, reference, discount_amount, original_price, payment_status, businesses(name, slug, area, currency, timezone, address, city, maps_url, phone), services(name, duration_minutes), staff(full_name)",
+          "id, business_id, starts_at, ends_at, status, total_price, reference, discount_amount, original_price, payment_status, businesses(name, slug, area, currency, timezone, address, city, maps_url, phone), services(id, name, duration_minutes), staff(id, full_name)",
         )
         .order("starts_at", { ascending: true });
       const { data, error } =
@@ -594,6 +604,28 @@ function Section({
                       Cancel
                     </button>
                   </>
+                )}
+                {(b.status === "completed" || b.status === "cancelled") && b.services && (
+                  <Link
+                    to="/business/$businessSlug"
+                    params={{ businessSlug: b.businesses?.slug ?? "" }}
+                    search={{ book: true, service: b.services.id, staff: b.staff?.id }}
+                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
+                  >
+                    <RotateCcw className="size-4" />
+                    Book again
+                  </Link>
+                )}
+                {b.status === "completed" && (
+                  <Link
+                    to="/business/$businessSlug"
+                    params={{ businessSlug: b.businesses?.slug ?? "" }}
+                    search={{ tab: "reviews" }}
+                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-2xl glass-soft px-3 text-sm font-semibold"
+                  >
+                    <Star className="size-4" />
+                    Leave a review
+                  </Link>
                 )}
               </div>
             </div>
