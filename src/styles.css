@@ -586,15 +586,15 @@
 @keyframes atmosphere-drift {
   0% {
     transform: translate(-5%, -4%) scale(1);
-    opacity: 0.25;
+    opacity: 0.5;
   }
   50% {
     transform: translate(6%, 5%) scale(1.18);
-    opacity: 0.5;
+    opacity: 0.85;
   }
   100% {
     transform: translate(-5%, -4%) scale(1);
-    opacity: 0.25;
+    opacity: 0.5;
   }
 }
 

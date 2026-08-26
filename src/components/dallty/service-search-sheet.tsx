@@ -15,31 +15,36 @@ function CategoryIcon({ name }: { name: string }) {
   return <Icon className="size-5" />;
 }
 
-/**
- * Full-screen service search — browse Dallty's real, DB-backed category taxonomy
- * (`categories` table, the same one business owners pick from at signup) when the
- * input is empty, or live-filter real businesses by name once the visitor types.
- * There is no per-individual-service catalog in the backend (no "Haircut"/"Manicure"
- * master list to search across businesses), so this deliberately searches at the
- * category + business-name level rather than inventing a finer taxonomy.
- */
-export function ServiceSearchSheet({
-  open,
-  query,
-  onQueryChange,
-  onClose,
-  onSelectCategory,
-  onSelectBusiness,
-  onSubmitQuery,
-}: {
-  open: boolean;
+type BodyProps = {
   query: string;
   onQueryChange: (q: string) => void;
-  onClose: () => void;
   onSelectCategory: (category: Category) => void;
   onSelectBusiness: (businessSlug: string) => void;
   onSubmitQuery: (q: string) => void;
-}) {
+  autoFocus?: boolean;
+  /** Compact popover body caps its own list height and scrolls internally instead of
+   *  taking over the page — the full-screen sheet instead lets its parent scroll. */
+  maxListHeight?: string;
+};
+
+/**
+ * Shared body for both the mobile full-screen sheet and the desktop popover — browse
+ * Dallty's real, DB-backed category taxonomy (`categories` table, the same one
+ * business owners pick from at signup) when the input is empty, or live-filter real
+ * businesses by name once the visitor types. There is no per-individual-service
+ * catalog in the backend (no "Haircut"/"Manicure" master list to search across
+ * businesses), so this deliberately searches at the category + business-name level
+ * rather than inventing a finer taxonomy.
+ */
+function ServiceSearchBody({
+  query,
+  onQueryChange,
+  onSelectCategory,
+  onSelectBusiness,
+  onSubmitQuery,
+  autoFocus,
+  maxListHeight,
+}: BodyProps) {
   const { lang } = useLocale();
   const categories = useCategories();
   const { data: liveBusinesses } = useLiveBusinesses();
@@ -52,29 +57,8 @@ export function ServiceSearchSheet({
       .slice(0, 8);
   }, [liveBusinesses, query]);
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-(--z-overlay) flex flex-col bg-cream text-cream-foreground"
-      role="dialog"
-      aria-modal
-    >
-      <header
-        className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 pb-3"
-        style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Back"
-          className="press grid size-10 shrink-0 place-items-center rounded-full bg-muted/60"
-        >
-          <ArrowLeft className="size-5 rtl:rotate-180" />
-        </button>
-        <h1 className="text-h3 truncate">Search</h1>
-      </header>
-
+    <>
       <div className="shrink-0 p-4 pb-2">
         <form
           onSubmit={(e) => {
@@ -88,14 +72,17 @@ export function ServiceSearchSheet({
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
               placeholder="Search by service or business"
-              autoFocus
+              autoFocus={autoFocus}
               className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
             />
           </label>
         </form>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
+      <div
+        className="flex-1 overflow-y-auto px-2 pb-4"
+        style={maxListHeight ? { maxHeight: maxListHeight } : undefined}
+      >
         {query.trim() ? (
           <>
             <p className="px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -165,6 +152,58 @@ export function ServiceSearchSheet({
           </>
         )}
       </div>
+    </>
+  );
+}
+
+type FlowProps = {
+  query: string;
+  onQueryChange: (q: string) => void;
+  onSelectCategory: (category: Category) => void;
+  onSelectBusiness: (businessSlug: string) => void;
+  onSubmitQuery: (q: string) => void;
+};
+
+/** Mobile/tablet — full-screen takeover, back arrow + title, page itself scrolls. */
+export function ServiceSearchSheet({
+  open,
+  onClose,
+  ...body
+}: FlowProps & { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-(--z-overlay) flex flex-col bg-cream text-cream-foreground"
+      role="dialog"
+      aria-modal
+    >
+      <header
+        className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 pb-3"
+        style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Back"
+          className="press grid size-10 shrink-0 place-items-center rounded-full bg-muted/60"
+        >
+          <ArrowLeft className="size-5 rtl:rotate-180" />
+        </button>
+        <h1 className="text-h3 truncate">Search</h1>
+      </header>
+
+      <ServiceSearchBody {...body} autoFocus />
+    </div>
+  );
+}
+
+/** Desktop — compact panel meant to sit inside a Popover anchored to the Service
+ *  field, not a phone-sized screen. */
+export function ServiceSearchPanel(props: FlowProps) {
+  return (
+    <div className="flex max-h-[28rem] w-[26rem] flex-col overflow-hidden rounded-3xl">
+      <ServiceSearchBody {...props} maxListHeight="20rem" />
     </div>
   );
 }

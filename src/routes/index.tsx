@@ -5,13 +5,15 @@ import { Eye, Flower2, Gem, Hand, Scissors, Smartphone, Sparkles, Waves } from "
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
 import { HomeSearchBar } from "@/components/dallty/home-search-bar";
-import { ServiceSearchSheet } from "@/components/dallty/service-search-sheet";
+import { ServiceSearchSheet, ServiceSearchPanel } from "@/components/dallty/service-search-sheet";
 import {
   LocationPickerSheet,
+  LocationPickerPanel,
   type LocationSelection,
 } from "@/components/dallty/location-picker-sheet";
 import {
   DateTimePickerSheet,
+  DateTimePickerPanel,
   type DateTimeSelection,
 } from "@/components/dallty/datetime-picker-sheet";
 import type { Business } from "@/lib/dallty-content";
@@ -19,6 +21,7 @@ import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { useAuth } from "@/hooks/use-auth";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { haversineKm, useUserLocation } from "@/hooks/use-user-location";
 import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
 import { landingForRoles } from "@/lib/post-login";
@@ -118,6 +121,11 @@ function Index() {
   const navigate = useNavigate();
   const geo = useUserLocation();
   const country = getDefaultCountry().iso_code;
+  // Mobile gets the full-screen sheet flows (item 21 of the redesign brief); desktop
+  // gets the same 3 flows as anchored popovers instead — never a phone-sized panel
+  // on a desktop viewport. Tablet is treated as mobile for now (still a real,
+  // working full-screen flow, just not the dedicated "large bottom sheet" variant).
+  const isDesktop = useBreakpoint() === "desktop";
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [serviceState, setServiceState] = useState<ServiceState>(null);
@@ -223,16 +231,6 @@ function Index() {
     return placed;
   }, [liveBusinesses, locationState, activeCategory, serviceState, geo.coords]);
 
-  const activeChips = useMemo(
-    () =>
-      [
-        locationState?.kind === "place" ? locationState.commune || locationState.wilaya : "",
-        serviceState?.label ?? "",
-        dtLabel ?? "",
-      ].filter(Boolean) as string[],
-    [locationState, serviceState, dtLabel],
-  );
-
   function clearAllFilters() {
     setActiveCategory(null);
     setServiceState(null);
@@ -245,120 +243,169 @@ function Index() {
       dir={dirFor(lang)}
       className="relative min-h-dvh overflow-x-hidden bg-cream text-cream-foreground"
     >
-      <SiteHeader lang={lang} />
+      {/* Header + hero share one atmospheric surface: the backdrop is a sibling of
+          both, absolutely positioned to this wrapper (sized by its content — header
+          height + hero height), so the navbar floats as translucent glass *inside*
+          the same living background instead of sitting on a separate plain strip
+          above a differently-colored hero. Nothing below this wrapper is affected —
+          it's sized to its own content, not the viewport. */}
+      <div className="relative">
+        {/* Atmosphere — soft diffused *light*, not colored blocks. Each field is a
+            radial-gradient fading to transparent, blurred, and independently
+            animated (see atmosphere-drift in styles.css: transform + opacity, 11-20s,
+            staggered so the drift is genuinely noticeable within a few seconds).
+            Colors are single-strength in the gradient itself (no baked-in alpha
+            stacked on top of the animated opacity — an earlier pass double-dampened
+            both together and the result was nearly invisible); Deep Green stays the
+            most restrained since it's structurally dark, lime/pink/white read as
+            soft light even near full strength because they're bright to begin with.
+            Vertical depth: white/cream dominate near the navbar, color builds
+            through the middle, then the (now much shorter) bottom-fade dissolves
+            everything back to solid Cream in just the final stretch of the hero —
+            a fade that used to eat 65% of the hero's height, hiding most of the
+            lower blob, now covers ~28%. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div
+            className="atmosphere-blob top-[5%] end-[8%] size-72 sm:size-96 lg:size-[32rem]"
+            style={{
+              backgroundImage: "radial-gradient(circle, oklch(1 0 0 / 0.55) 0%, transparent 68%)",
+              animationDuration: "11s",
+            }}
+          />
+          <div
+            className="atmosphere-blob top-[20%] start-[-12%] size-[26rem] sm:size-[34rem] lg:size-[46rem]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle, oklch(from var(--lime) l c h / 0.5) 0%, transparent 70%)",
+              animationDuration: "14s",
+              animationDelay: "-4s",
+            }}
+          />
+          <div
+            className="atmosphere-blob top-[10%] end-[-12%] size-[22rem] sm:size-[28rem] lg:size-[38rem]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle, oklch(from var(--primary) l c h / 0.28) 0%, transparent 70%)",
+              animationDuration: "20s",
+              animationDelay: "-9s",
+            }}
+          />
+          <div
+            className="atmosphere-blob bottom-[-5%] start-[18%] size-[26rem] sm:size-[32rem] lg:size-[44rem]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle, oklch(from var(--pink) l c h / 0.5) 0%, transparent 70%)",
+              animationDuration: "17s",
+              animationDelay: "-2s",
+            }}
+          />
+          <div className="absolute inset-x-0 bottom-0 h-[28%] bg-gradient-to-b from-transparent via-cream/50 to-cream" />
+        </div>
+
+        <SiteHeader lang={lang} />
+
+        <div className="mx-auto max-w-6xl px-4">
+          {/* Hero — spacious, editorial, Fresha-inspired: huge open space, a bold
+              centered headline, and the floating search as the visual centerpiece. */}
+          <section className="relative animate-fade-up pb-4 pt-8 sm:pt-14 lg:pb-8 lg:pt-20">
+            <h1 className="text-display mx-auto max-w-3xl text-center text-primary">
+              {t("hero_title")}
+            </h1>
+            <p className="text-body-lg mx-auto mt-4 max-w-xl text-balance text-center text-cream-foreground/70">
+              {t("hero_sub")}
+            </p>
+
+            <div className="mt-8 sm:mt-10 lg:mt-12">
+              <HomeSearchBar
+                serviceLabel={serviceState?.label ?? null}
+                locationLabel={locationLabel}
+                dateTimeLabel={dtLabel}
+                resultCount={results.length}
+                onOpenService={() => setServiceSheetOpen(true)}
+                onOpenLocation={() => setLocationSheetOpen(true)}
+                onOpenDateTime={() => setDateTimeSheetOpen(true)}
+                onClearService={() => setServiceState(null)}
+                onClearLocation={() => setLocationState(null)}
+                onClearDateTime={() => setDateTimeState(null)}
+                onClearAll={clearAllFilters}
+                onSearch={runSearch}
+                servicePopover={
+                  isDesktop
+                    ? {
+                        open: serviceSheetOpen,
+                        onOpenChange: setServiceSheetOpen,
+                        panel: (
+                          <ServiceSearchPanel
+                            query={serviceQuery}
+                            onQueryChange={setServiceQuery}
+                            onSelectCategory={selectCategory}
+                            onSelectBusiness={(slug) => {
+                              setServiceSheetOpen(false);
+                              void navigate({
+                                to: "/business/$businessSlug",
+                                params: { businessSlug: slug },
+                              });
+                            }}
+                            onSubmitQuery={(q) => {
+                              setServiceState({ label: q, query: q });
+                              setServiceSheetOpen(false);
+                            }}
+                          />
+                        ),
+                      }
+                    : undefined
+                }
+                locationPopover={
+                  isDesktop
+                    ? {
+                        open: locationSheetOpen,
+                        onOpenChange: setLocationSheetOpen,
+                        panel: (
+                          <LocationPickerPanel
+                            geo={geo}
+                            onSelect={setLocationState}
+                            onDone={() => setLocationSheetOpen(false)}
+                          />
+                        ),
+                      }
+                    : undefined
+                }
+                dateTimePopover={
+                  isDesktop
+                    ? {
+                        open: dateTimeSheetOpen,
+                        onOpenChange: setDateTimeSheetOpen,
+                        panel: (
+                          <DateTimePickerPanel
+                            initial={dateTimeState}
+                            onApply={setDateTimeState}
+                            onDone={() => setDateTimeSheetOpen(false)}
+                          />
+                        ),
+                      }
+                    : undefined
+                }
+              />
+            </div>
+
+            <div className="relative mt-8 grid grid-cols-3 gap-2 sm:mt-10 sm:gap-3">
+              {(tArray("stats") as [string, string][]).map(([value, label]) => (
+                <div
+                  key={label}
+                  className="rounded-3xl border border-border/30 bg-white/70 px-2 py-4 text-center shadow-elevation-low sm:px-4 sm:py-5"
+                >
+                  <p className="text-lg font-extrabold text-primary sm:text-2xl">{value}</p>
+                  <p className="text-[0.7rem] leading-tight text-muted-foreground sm:text-sm">
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
 
       <main className="mx-auto max-w-6xl px-4 pb-32 md:pb-24">
-        {/* Hero — spacious, editorial, Fresha-inspired: huge open space, a bold
-            centered headline, and the floating search as the visual centerpiece,
-            all sitting on a slowly drifting atmospheric backdrop (see the
-            atmosphere-blob utility in styles.css — independent, heavily diffused
-            gradient fields, not a spinning shape). */}
-        <section className="relative -mx-4 animate-fade-up overflow-hidden px-4 pb-2 pt-10 sm:pt-16">
-          {/* Atmosphere — soft diffused *light*, not colored blocks: each field is a
-              radial-gradient fading straight to transparent, kept to a low opacity
-              ceiling (see atmosphere-drift in styles.css) so Cream stays the color the
-              hero actually reads as, lime/pink/green only ever a gentle glow on top of
-              it. Durations are deliberately short (11-20s) and staggered so the drift
-              is genuinely noticeable within a few seconds without feeling busy. A
-              bottom fade (last child, paints over the blobs) dissolves the whole
-              atmosphere into solid Cream well before the hero ends, so there's no
-              visible seam where the categories section begins. */}
-          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-            <div
-              className="atmosphere-blob -top-[20%] start-[-15%] size-[30rem] sm:size-[38rem]"
-              style={{
-                backgroundImage: "radial-gradient(circle, var(--lime) 0%, transparent 70%)",
-                animationDuration: "14s",
-              }}
-            />
-            <div
-              className="atmosphere-blob top-[10%] end-[-15%] size-[26rem] sm:size-[34rem]"
-              style={{
-                backgroundImage: "radial-gradient(circle, var(--primary) 0%, transparent 70%)",
-                animationDuration: "20s",
-                animationDelay: "-6s",
-              }}
-            />
-            <div
-              className="atmosphere-blob bottom-[-10%] start-[10%] size-[26rem] sm:size-[32rem]"
-              style={{
-                backgroundImage: "radial-gradient(circle, var(--pink) 0%, transparent 70%)",
-                animationDuration: "17s",
-                animationDelay: "-3s",
-              }}
-            />
-            <div
-              className="atmosphere-blob top-[30%] end-[10%] size-64 sm:size-80"
-              style={{
-                backgroundImage: "radial-gradient(circle, var(--cream) 0%, transparent 65%)",
-                animationDuration: "11s",
-                animationDelay: "-9s",
-                opacity: 0.6,
-              }}
-            />
-            <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-b from-transparent via-cream/70 to-cream" />
-          </div>
-
-          <h1 className="text-display mx-auto max-w-3xl text-center text-primary">
-            {t("hero_title")}
-          </h1>
-          <p className="text-body-lg mx-auto mt-4 max-w-xl text-balance text-center text-cream-foreground/70">
-            {t("hero_sub")}
-          </p>
-
-          <div className="mt-8 sm:mt-10">
-            <HomeSearchBar
-              serviceLabel={serviceState?.label ?? null}
-              locationLabel={locationLabel}
-              dateTimeLabel={dtLabel}
-              onOpenService={() => setServiceSheetOpen(true)}
-              onOpenLocation={() => setLocationSheetOpen(true)}
-              onOpenDateTime={() => setDateTimeSheetOpen(true)}
-              onClearService={() => setServiceState(null)}
-              onClearLocation={() => setLocationState(null)}
-              onClearDateTime={() => setDateTimeState(null)}
-              onSearch={runSearch}
-            />
-          </div>
-
-          {activeChips.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
-                {results.length} {t("shops_match")}
-              </span>
-              {activeChips.map((chip) => (
-                <span
-                  key={chip}
-                  className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-foreground"
-                >
-                  {chip}
-                </span>
-              ))}
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="rounded-full glass-soft px-3 py-1 text-xs font-bold"
-              >
-                {t("search_clear")}
-              </button>
-            </div>
-          )}
-
-          <div className="relative mt-8 grid grid-cols-3 gap-2 sm:mt-10 sm:gap-3">
-            {(tArray("stats") as [string, string][]).map(([value, label]) => (
-              <div
-                key={label}
-                className="rounded-3xl border border-border/30 bg-white/70 px-2 py-4 text-center shadow-elevation-low sm:px-4 sm:py-5"
-              >
-                <p className="text-lg font-extrabold text-primary sm:text-2xl">{value}</p>
-                <p className="text-[0.7rem] leading-tight text-muted-foreground sm:text-sm">
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* Categories — plain Cream canvas from here down (no hero atmosphere): white
             cards with pale-green icon circles, not tinted-green surfaces, per the
             brand hierarchy (Cream/white dominant, green/lime/pink used sparingly). */}
@@ -568,8 +615,10 @@ function Index() {
         ]}
       />
 
+      {/* Mobile/tablet only — desktop uses the anchored popovers wired into
+          HomeSearchBar above instead, never these phone-sized full-screen takeovers. */}
       <ServiceSearchSheet
-        open={serviceSheetOpen}
+        open={serviceSheetOpen && !isDesktop}
         query={serviceQuery}
         onQueryChange={setServiceQuery}
         onClose={() => setServiceSheetOpen(false)}
@@ -584,14 +633,14 @@ function Index() {
       />
 
       <LocationPickerSheet
-        open={locationSheetOpen}
+        open={locationSheetOpen && !isDesktop}
         geo={geo}
         onClose={() => setLocationSheetOpen(false)}
         onSelect={setLocationState}
       />
 
       <DateTimePickerSheet
-        open={dateTimeSheetOpen}
+        open={dateTimeSheetOpen && !isDesktop}
         initial={dateTimeState}
         onClose={() => setDateTimeSheetOpen(false)}
         onApply={setDateTimeState}
