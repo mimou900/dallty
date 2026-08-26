@@ -290,19 +290,6 @@
   --cream: oklch(0.97 0.01 93.5);
   --cream-foreground: oklch(0.2 0.024 160);
 
-  /* Homepage hero atmosphere glow colors — plain oklch with the alpha baked directly
-     into the value (NOT `oklch(from var(--x) l c h / a)` relative-color syntax,
-     which several browsers/renderers silently fail to parse: an unsupported color
-     function makes the whole `background-image` declaration invalid, so the
-     background-image is dropped entirely rather than erroring — the hero looked
-     completely flat for exactly this reason before this fix). Base hues match
-     --lime/--primary/--pink/white; only used by the atmosphere-blob instances in
-     src/routes/index.tsx. */
-  --lime-glow: oklch(0.8462 0.1986 118.84 / 0.5);
-  --primary-glow: oklch(0.3811 0.0771 161.08 / 0.28);
-  --pink-glow: oklch(0.7613 0.1982 338.76 / 0.5);
-  --white-glow: oklch(1 0 0 / 0.55);
-
   --gold: oklch(0.78 0.115 85);
   --gold-foreground: oklch(0.28 0.05 85);
   /* Lime — primary action / energy (brand #C0DD00). CTA buttons only. */
@@ -419,11 +406,6 @@
      light patch. */
   --cream: var(--background);
   --cream-foreground: var(--foreground);
-
-  --lime-glow: oklch(0.82 0.19 119 / 0.5);
-  --primary-glow: oklch(0.72 0.13 161 / 0.28);
-  --pink-glow: oklch(0.78 0.19 339 / 0.5);
-  --white-glow: oklch(1 0 0 / 0.35);
 
   --gold: oklch(0.82 0.12 85);
   --gold-foreground: oklch(0.22 0.04 85);
@@ -590,37 +572,334 @@
 }
 
 /*
- * Homepage hero atmosphere — several huge, heavily-diffused *light* fields
- * (radial-gradient fading to transparent, not a solid-color + blur shape) that
- * independently drift/expand/contract/fade, overlapping so the hero reads as
- * one living wash of light rather than "colored blobs." Each instance sets
- * its own short (11-20s) animation-duration/delay inline so they never sync
- * up — fast enough to visibly notice within a few seconds, still slow/eased
- * enough to feel premium rather than busy. Kept far more restrained than the
- * old version (opacity capped at ~0.5, colors applied as a radial-gradient
- * background-image per instance) specifically so Cream stays the dominant
- * color the hero reads as, with green/lime/pink only as soft accent glow.
+ * Homepage hero atmosphere (see src/components/dallty/hero-atmosphere.tsx).
+ *
+ * v6 — rebuilt once an actual Fresha reference screenshot was available (prior
+ * rounds worked from text descriptions of it and overbuilt a 6-zone mesh that
+ * doesn't match what the reference actually shows). The real reference is much
+ * simpler: a DIAGONAL two-corner wash — one cool tone upper-left, pink
+ * lower-right — with a large, dominant white/cream field in between and around
+ * the content. Translated to Dallty as lime (upper-left) and pink
+ * (lower-right), a subtle deep-green whisper for brand depth, plus a bridging
+ * field between the two corners.
+ *
+ * v7 — the bridging/center field is explicitly NOT white: Cream is meant to be
+ * the hero's static base (set on the page root, not animated here), showing
+ * through naturally in the gaps between color fields, rather than competing
+ * with a separate moving bright layer. `atmosphere-drift-lavender-a/b` (same
+ * paths as the old white-a/white-b, just renamed and recolored) now render as
+ * a very subtle pastel-lavender tone — chromatically between the cool lime
+ * corner and the warm pink corner, so it reads as a soft transition rather
+ * than a competing third zone.
+ *
+ * v8 — split each pink/lime/green field's motion into TWO independent
+ * animations (a per-field `atmosphere-pos-*` transform-only keyframe, plus
+ * the shared `atmosphere-dominance` opacity-only keyframe below), applied via
+ * comma-separated animation-name/duration/delay/timing-function so they run
+ * concurrently on the same element without conflicting. Before this, each
+ * field's own opacity wandered independently, so pink and lime/green could —
+ * by chance — both dip low at the same moment, reading as a dead/flat beat.
+ * Now pink fields all run `atmosphere-dominance` in one phase and lime/green
+ * fields run the exact same keyframe shifted by exactly half its period,
+ * which mathematically guarantees they're always anti-phase (see the comment
+ * directly above `@keyframes atmosphere-dominance`): whichever family is
+ * fading, the other is rising, and they cross through a balanced middle
+ * rather than a shared trough. Position keeps its own, different, un-synced
+ * duration per field (per-field spatial movement is independent of the
+ * shared color-dominance cycle).
+ *
+ * Only `transform` (translate3d + scale + a light rotate) and `opacity` are
+ * animated (GPU-friendly, no layout thrash); blur/position/size stay static
+ * per instance. `rotate()` has no visible effect on a flat-color circular blob
+ * today but costs nothing and holds if the shape ever changes. Percentage
+ * translate is relative to each element's own (large) box, so the same
+ * keyframe travels proportionally on both mobile and desktop sizes.
  */
-@keyframes atmosphere-drift {
+@keyframes atmosphere-pos-lime-a {
   0% {
-    transform: translate(-5%, -4%) scale(1);
-    opacity: 0.5;
+    transform: translate3d(-20%, -14%, 0) scale(0.92) rotate(-6deg);
   }
-  50% {
-    transform: translate(6%, 5%) scale(1.18);
-    opacity: 0.85;
+  12% {
+    transform: translate3d(-6%, -22%, 0) scale(1.02) rotate(2deg);
+  }
+  24% {
+    transform: translate3d(10%, -16%, 0) scale(1.08) rotate(6deg);
+  }
+  36% {
+    transform: translate3d(24%, -4%, 0) scale(0.98) rotate(-3deg);
+  }
+  48% {
+    transform: translate3d(30%, 12%, 0) scale(1.1) rotate(5deg);
+  }
+  60% {
+    transform: translate3d(18%, 26%, 0) scale(1) rotate(-4deg);
+  }
+  72% {
+    transform: translate3d(2%, 30%, 0) scale(0.94) rotate(3deg);
+  }
+  84% {
+    transform: translate3d(-14%, 16%, 0) scale(1.05) rotate(-2deg);
+  }
+  92% {
+    transform: translate3d(-20%, 0%, 0) scale(0.96) rotate(4deg);
   }
   100% {
-    transform: translate(-5%, -4%) scale(1);
-    opacity: 0.5;
+    transform: translate3d(-20%, -14%, 0) scale(0.92) rotate(-6deg);
+  }
+}
+
+@keyframes atmosphere-pos-lime-b {
+  0% {
+    transform: translate3d(-16%, 18%, 0) scale(1) rotate(3deg);
+  }
+  14% {
+    transform: translate3d(-4%, 6%, 0) scale(1.08) rotate(-2deg);
+  }
+  28% {
+    transform: translate3d(-18%, -10%, 0) scale(0.94) rotate(5deg);
+  }
+  42% {
+    transform: translate3d(6%, -22%, 0) scale(1.05) rotate(-4deg);
+  }
+  57% {
+    transform: translate3d(22%, -6%, 0) scale(0.96) rotate(2deg);
+  }
+  71% {
+    transform: translate3d(14%, 14%, 0) scale(1.1) rotate(-3deg);
+  }
+  86% {
+    transform: translate3d(-4%, 22%, 0) scale(0.98) rotate(4deg);
+  }
+  100% {
+    transform: translate3d(-16%, 18%, 0) scale(1) rotate(3deg);
+  }
+}
+
+@keyframes atmosphere-pos-green-a {
+  0% {
+    transform: translate3d(16%, -14%, 0) scale(1) rotate(-4deg);
+  }
+  13% {
+    transform: translate3d(4%, -26%, 0) scale(1.08) rotate(3deg);
+  }
+  26% {
+    transform: translate3d(-14%, -20%, 0) scale(0.94) rotate(-2deg);
+  }
+  40% {
+    transform: translate3d(-26%, -4%, 0) scale(1.06) rotate(5deg);
+  }
+  53% {
+    transform: translate3d(-20%, 14%, 0) scale(0.96) rotate(-3deg);
+  }
+  67% {
+    transform: translate3d(-4%, 24%, 0) scale(1.1) rotate(2deg);
+  }
+  80% {
+    transform: translate3d(12%, 16%, 0) scale(0.92) rotate(-5deg);
+  }
+  92% {
+    transform: translate3d(20%, 2%, 0) scale(1.04) rotate(4deg);
+  }
+  100% {
+    transform: translate3d(16%, -14%, 0) scale(1) rotate(-4deg);
+  }
+}
+
+@keyframes atmosphere-pos-pink-a {
+  0% {
+    transform: translate3d(22%, 18%, 0) scale(0.95) rotate(4deg);
+  }
+  13% {
+    transform: translate3d(6%, 26%, 0) scale(1.08) rotate(-3deg);
+  }
+  26% {
+    transform: translate3d(-18%, 14%, 0) scale(0.92) rotate(2deg);
+  }
+  40% {
+    transform: translate3d(-28%, -6%, 0) scale(1.06) rotate(-5deg);
+  }
+  53% {
+    transform: translate3d(-20%, -22%, 0) scale(0.96) rotate(3deg);
+  }
+  67% {
+    transform: translate3d(-4%, -28%, 0) scale(1.1) rotate(-2deg);
+  }
+  80% {
+    transform: translate3d(14%, -12%, 0) scale(0.94) rotate(4deg);
+  }
+  92% {
+    transform: translate3d(20%, 4%, 0) scale(1.04) rotate(-3deg);
+  }
+  100% {
+    transform: translate3d(22%, 18%, 0) scale(0.95) rotate(4deg);
+  }
+}
+
+@keyframes atmosphere-pos-pink-b {
+  0% {
+    transform: translate3d(18%, -16%, 0) scale(1) rotate(-3deg);
+  }
+  14% {
+    transform: translate3d(28%, -2%, 0) scale(1.08) rotate(4deg);
+  }
+  28% {
+    transform: translate3d(16%, 14%, 0) scale(0.94) rotate(-2deg);
+  }
+  42% {
+    transform: translate3d(0%, 20%, 0) scale(1.05) rotate(3deg);
+  }
+  57% {
+    transform: translate3d(-18%, 10%, 0) scale(0.96) rotate(-4deg);
+  }
+  71% {
+    transform: translate3d(-24%, -8%, 0) scale(1.06) rotate(2deg);
+  }
+  86% {
+    transform: translate3d(-6%, -20%, 0) scale(0.98) rotate(-3deg);
+  }
+  100% {
+    transform: translate3d(18%, -16%, 0) scale(1) rotate(-3deg);
+  }
+}
+
+@keyframes atmosphere-pos-pink-c {
+  0% {
+    transform: translate3d(24%, -6%, 0) scale(0.96) rotate(4deg);
+  }
+  15% {
+    transform: translate3d(10%, 10%, 0) scale(1.06) rotate(-3deg);
+  }
+  30% {
+    transform: translate3d(-8%, 18%, 0) scale(0.92) rotate(5deg);
+  }
+  45% {
+    transform: translate3d(-24%, 8%, 0) scale(1.08) rotate(-4deg);
+  }
+  60% {
+    transform: translate3d(-28%, -8%, 0) scale(0.98) rotate(3deg);
+  }
+  75% {
+    transform: translate3d(-14%, -20%, 0) scale(1.1) rotate(-2deg);
+  }
+  90% {
+    transform: translate3d(8%, -16%, 0) scale(0.94) rotate(4deg);
+  }
+  100% {
+    transform: translate3d(24%, -6%, 0) scale(0.96) rotate(4deg);
+  }
+}
+
+/*
+ * Shared dominance envelope — see the design comment above @keyframes
+ * atmosphere-pos-lime-a's block header (top of this section) for the full
+ * rationale. Every pink field runs this SAME keyframe at (roughly) phase 0;
+ * every lime/green field runs it at phase = exactly half its own duration
+ * (via a -19s delay against a 38s duration). Because the envelope is
+ * symmetric (rises from a floor, peaks, returns to the same floor), shifting
+ * one group by exactly half the period guarantees they're always
+ * anti-phase: when pink is at its floor (weakest), lime/green is at its
+ * ceiling (strongest), and vice versa — they cross through the MIDDLE
+ * together rather than both bottoming out together. The floor (0.42) is
+ * still clearly visible at each field's own tuned alpha, never near-zero, so
+ * neither family ever reads as "gone."
+ */
+@keyframes atmosphere-dominance {
+  0% {
+    opacity: 0.42;
+  }
+  14% {
+    opacity: 0.55;
+  }
+  28% {
+    opacity: 0.72;
+  }
+  42% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
+  58% {
+    opacity: 0.9;
+  }
+  72% {
+    opacity: 0.72;
+  }
+  86% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0.42;
+  }
+}
+
+@keyframes atmosphere-drift-lavender-a {
+  0% {
+    transform: translate3d(-10%, -8%, 0) scale(1) rotate(0deg);
+    opacity: 0.8;
+  }
+  14% {
+    transform: translate3d(4%, -16%, 0) scale(1.06) rotate(1deg);
+    opacity: 0.95;
+  }
+  28% {
+    transform: translate3d(14%, -4%, 0) scale(0.96) rotate(-1deg);
+    opacity: 0.85;
+  }
+  42% {
+    transform: translate3d(10%, 10%, 0) scale(1.08) rotate(1deg);
+    opacity: 0.92;
+  }
+  57% {
+    transform: translate3d(-4%, 16%, 0) scale(0.94) rotate(-1deg);
+    opacity: 0.78;
+  }
+  71% {
+    transform: translate3d(-14%, 6%, 0) scale(1.04) rotate(1deg);
+    opacity: 0.88;
+  }
+  86% {
+    transform: translate3d(-12%, -6%, 0) scale(0.98) rotate(-1deg);
+    opacity: 0.82;
+  }
+  100% {
+    transform: translate3d(-10%, -8%, 0) scale(1) rotate(0deg);
+    opacity: 0.8;
+  }
+}
+
+@keyframes atmosphere-drift-lavender-b {
+  0% {
+    transform: translate3d(6%, -10%, 0) scale(1) rotate(0deg);
+    opacity: 0.55;
+  }
+  20% {
+    transform: translate3d(-8%, -4%, 0) scale(1.05) rotate(1deg);
+    opacity: 0.68;
+  }
+  40% {
+    transform: translate3d(-4%, 8%, 0) scale(0.95) rotate(-1deg);
+    opacity: 0.6;
+  }
+  60% {
+    transform: translate3d(10%, 4%, 0) scale(1.04) rotate(1deg);
+    opacity: 0.65;
+  }
+  80% {
+    transform: translate3d(4%, -6%, 0) scale(0.98) rotate(-1deg);
+    opacity: 0.58;
+  }
+  100% {
+    transform: translate3d(6%, -10%, 0) scale(1) rotate(0deg);
+    opacity: 0.55;
   }
 }
 
 @utility atmosphere-blob {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(60px);
-  animation: atmosphere-drift 14s ease-in-out infinite;
+  animation-iteration-count: infinite;
+  animation-play-state: running;
   pointer-events: none;
   will-change: transform, opacity;
 }

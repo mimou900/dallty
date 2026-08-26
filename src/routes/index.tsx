@@ -4,6 +4,7 @@ import { Eye, Flower2, Gem, Hand, Scissors, Smartphone, Sparkles, Waves } from "
 
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
+import { HeroAtmosphere } from "@/components/dallty/hero-atmosphere";
 import { HomeSearchBar } from "@/components/dallty/home-search-bar";
 import { ServiceSearchSheet, ServiceSearchPanel } from "@/components/dallty/service-search-sheet";
 import {
@@ -249,55 +250,8 @@ function Index() {
           the same living background instead of sitting on a separate plain strip
           above a differently-colored hero. Nothing below this wrapper is affected —
           it's sized to its own content, not the viewport. */}
-      <div className="relative">
-        {/* Atmosphere — soft diffused *light*, not colored blocks. Each field is a
-            radial-gradient fading to transparent, blurred, and independently
-            animated (see atmosphere-drift in styles.css: transform + opacity, 11-20s,
-            staggered so the drift is genuinely noticeable within a few seconds).
-            Colors are single-strength in the gradient itself (no baked-in alpha
-            stacked on top of the animated opacity — an earlier pass double-dampened
-            both together and the result was nearly invisible); Deep Green stays the
-            most restrained since it's structurally dark, lime/pink/white read as
-            soft light even near full strength because they're bright to begin with.
-            Vertical depth: white/cream dominate near the navbar, color builds
-            through the middle, then the (now much shorter) bottom-fade dissolves
-            everything back to solid Cream in just the final stretch of the hero —
-            a fade that used to eat 65% of the hero's height, hiding most of the
-            lower blob, now covers ~28%. */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <div
-            className="atmosphere-blob top-[5%] end-[8%] size-72 sm:size-96 lg:size-[32rem]"
-            style={{
-              backgroundImage: "radial-gradient(circle, var(--white-glow) 0%, transparent 68%)",
-              animationDuration: "11s",
-            }}
-          />
-          <div
-            className="atmosphere-blob top-[20%] start-[-12%] size-[26rem] sm:size-[34rem] lg:size-[46rem]"
-            style={{
-              backgroundImage: "radial-gradient(circle, var(--lime-glow) 0%, transparent 70%)",
-              animationDuration: "14s",
-              animationDelay: "-4s",
-            }}
-          />
-          <div
-            className="atmosphere-blob top-[10%] end-[-12%] size-[22rem] sm:size-[28rem] lg:size-[38rem]"
-            style={{
-              backgroundImage: "radial-gradient(circle, var(--primary-glow) 0%, transparent 70%)",
-              animationDuration: "20s",
-              animationDelay: "-9s",
-            }}
-          />
-          <div
-            className="atmosphere-blob bottom-[-5%] start-[18%] size-[26rem] sm:size-[32rem] lg:size-[44rem]"
-            style={{
-              backgroundImage: "radial-gradient(circle, var(--pink-glow) 0%, transparent 70%)",
-              animationDuration: "17s",
-              animationDelay: "-2s",
-            }}
-          />
-          <div className="absolute inset-x-0 bottom-0 h-[28%] bg-gradient-to-b from-transparent via-cream/50 to-cream" />
-        </div>
+      <div className="relative isolate">
+        <HeroAtmosphere />
 
         <SiteHeader lang={lang} />
 
