@@ -1,6 +1,6 @@
 {
-  "hero_title": "Beauty booking, made effortless.",
-  "hero_sub": "Discover trusted salons, barbers and spas near you. Real availability, instant confirmation, under a minute.",
+  "hero_title": "No more waiting. Just book it.",
+  "hero_sub": "Discover salons, barbers, beauty and wellness services near you, see real availability, and book in seconds.",
   "search_placeholder": "Try “haircut tonight near me”",
   "search_btn": "Search",
   "suggestions": ["Haircut tonight", "Massage near me", "Best barber", "Nails"],
@@ -34,7 +34,9 @@
     "nails": "Nails",
     "spa": "Spa",
     "makeup": "Makeup",
-    "lashes": "Lashes"
+    "lashes": "Lashes",
+    "massage": "Massage",
+    "beauty": "Beauty"
   },
   "business_type_fallback": "Business",
   "details": "Details",

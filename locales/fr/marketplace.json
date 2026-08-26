@@ -1,6 +1,6 @@
 {
-  "hero_title": "La réservation beauté, en toute simplicité.",
-  "hero_sub": "Découvrez des salons, coiffeurs et spas de confiance près de chez vous. Disponibilité réelle, confirmation instantanée, en moins d'une minute.",
+  "hero_title": "Fini l'attente. Réservez, c'est tout.",
+  "hero_sub": "Découvrez des salons, coiffeurs et instituts de beauté et bien-être près de chez vous, avec de vraies disponibilités, en quelques secondes.",
   "search_placeholder": "Essayez « coupe ce soir près de moi »",
   "search_btn": "Rechercher",
   "suggestions": ["Coupe ce soir", "Massage près de moi", "Meilleur coiffeur", "Ongles"],
@@ -34,7 +34,9 @@
     "nails": "Ongles",
     "spa": "Spa",
     "makeup": "Maquillage",
-    "lashes": "Cils"
+    "lashes": "Cils",
+    "massage": "Massage",
+    "beauty": "Beauté"
   },
   "business_type_fallback": "Établissement",
   "details": "Détails",

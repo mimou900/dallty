@@ -572,6 +572,42 @@
 }
 
 /*
+ * Homepage hero atmosphere — several huge, heavily-diffused *light* fields
+ * (radial-gradient fading to transparent, not a solid-color + blur shape) that
+ * independently drift/expand/contract/fade, overlapping so the hero reads as
+ * one living wash of light rather than "colored blobs." Each instance sets
+ * its own short (11-20s) animation-duration/delay inline so they never sync
+ * up — fast enough to visibly notice within a few seconds, still slow/eased
+ * enough to feel premium rather than busy. Kept far more restrained than the
+ * old version (opacity capped at ~0.5, colors applied as a radial-gradient
+ * background-image per instance) specifically so Cream stays the dominant
+ * color the hero reads as, with green/lime/pink only as soft accent glow.
+ */
+@keyframes atmosphere-drift {
+  0% {
+    transform: translate(-5%, -4%) scale(1);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate(6%, 5%) scale(1.18);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-5%, -4%) scale(1);
+    opacity: 0.25;
+  }
+}
+
+@utility atmosphere-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  animation: atmosphere-drift 14s ease-in-out infinite;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/*
  * Photo scrim — guarantees text legibility over a photo background
  * regardless of the photo's own content (explicit requirement: "make sure
  * choose of color make all text appear... do not make the background

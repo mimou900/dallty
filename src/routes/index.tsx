@@ -1,43 +1,30 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  ChevronDown,
-  Eye,
-  Flower2,
-  MapPin,
-  Store,
-  Hand,
-  Scissors,
-  Search,
-  Smartphone,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { Eye, Flower2, Gem, Hand, Scissors, Smartphone, Sparkles, Waves } from "lucide-react";
 
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
+import { HomeSearchBar } from "@/components/dallty/home-search-bar";
+import { ServiceSearchSheet } from "@/components/dallty/service-search-sheet";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/dallty/select";
+  LocationPickerSheet,
+  type LocationSelection,
+} from "@/components/dallty/location-picker-sheet";
+import {
+  DateTimePickerSheet,
+  type DateTimeSelection,
+} from "@/components/dallty/datetime-picker-sheet";
 import type { Business } from "@/lib/dallty-content";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { useAuth } from "@/hooks/use-auth";
+import { haversineKm, useUserLocation } from "@/hooks/use-user-location";
 import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
 import { landingForRoles } from "@/lib/post-login";
 import { SiteHeader } from "@/components/dallty/site-nav";
-import { useCountries, translate } from "@/lib/reference-data";
-import { citiesFor } from "@/lib/arab-cities";
-import { BUSINESS_TYPES } from "@/lib/business-schema";
+import { getDefaultCountry, type Category } from "@/lib/reference-data";
 import { BootSplash } from "@/components/dallty/boot-splash";
-
-/** Radix Select can't take an empty-string item value, so "no filter" needs a sentinel. */
-const ALL = "__all__";
 
 export const Route = createFileRoute("/")({
   // Only the home route gets the full branded splash while pending (first cold load,
@@ -71,7 +58,56 @@ const CATEGORY_DEFS = [
   { key: "spa", en: "Spa", icon: Flower2 },
   { key: "makeup", en: "Makeup", icon: Sparkles },
   { key: "lashes", en: "Lashes", icon: Eye },
+  { key: "massage", en: "Massage", icon: Waves },
+  { key: "beauty", en: "Beauty", icon: Gem },
 ] as const;
+
+// The real DB `categories` table (Hair Salon, Barbershop, Beauty Salon...) is richer
+// and icon-backed, but `businesses.business_type` on live rows is still the flat
+// BUSINESS_TYPES list (Hair studio, Barbershop, Nail studio...) — no shared key joins
+// them. This maps a DB category to the loose keyword that already works against real
+// businessType strings (same substring-match technique the category tiles below use),
+// so picking a real category in the full-screen search actually filters real results
+// instead of silently returning nothing. Categories with no plausible businessType
+// counterpart (Waxing, Eyebrows & Lashes, Laser Hair Removal, Permanent Makeup,
+// Wellness Center) fall back to their closest umbrella rather than matching nothing.
+const CATEGORY_KEYWORD: Record<string, string> = {
+  "Hair Salon": "hair",
+  Barbershop: "barber",
+  "Beauty Salon": "beauty",
+  "Nail Salon": "nail",
+  Spa: "spa",
+  Massage: "spa",
+  Waxing: "beauty",
+  "Makeup Studio": "makeup",
+  "Eyebrows & Lashes": "beauty",
+  "Laser Hair Removal": "skin",
+  Skincare: "skin",
+  "Permanent Makeup": "makeup",
+  "Wellness Center": "spa",
+};
+
+type ServiceState = { label: string; keyword?: string; query?: string } | null;
+
+function periodLabel(period: DateTimeSelection["period"]) {
+  if (period === "morning") return "Morning";
+  if (period === "afternoon") return "Afternoon";
+  if (period === "evening") return "Evening";
+  return null;
+}
+
+function dateTimeLabel(sel: DateTimeSelection | null, todayStr: string, tomorrowStr: string) {
+  if (!sel) return null;
+  const dateStr = sel.date.toDateString();
+  const dayPart =
+    dateStr === todayStr
+      ? "Today"
+      : dateStr === tomorrowStr
+        ? "Tomorrow"
+        : sel.date.toLocaleDateString("en", { day: "numeric", month: "short" });
+  const period = periodLabel(sel.period);
+  return period ? `${dayPart} · ${period}` : dayPart;
+}
 
 function Index() {
   const { lang } = useLocale();
@@ -79,25 +115,56 @@ function Index() {
   const { user, roles } = useAuth();
   const home = landingForRoles(roles);
   const isManager = home !== "/bookings";
-  const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [country, setCountry] = useState("");
-  const [stateName, setStateName] = useState("");
-  const [city, setCity] = useState("");
-  const [shopType, setShopType] = useState("");
-
   const navigate = useNavigate();
+  const geo = useUserLocation();
+  const country = getDefaultCountry().iso_code;
+
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [serviceState, setServiceState] = useState<ServiceState>(null);
+  const [locationState, setLocationState] = useState<LocationSelection | null>(null);
+  const [dateTimeState, setDateTimeState] = useState<DateTimeSelection | null>(null);
+
+  const [serviceSheetOpen, setServiceSheetOpen] = useState(false);
+  const [serviceQuery, setServiceQuery] = useState("");
+  const [locationSheetOpen, setLocationSheetOpen] = useState(false);
+  const [dateTimeSheetOpen, setDateTimeSheetOpen] = useState(false);
+
+  const { data: liveBusinesses } = useLiveBusinesses(country);
+
+  const today = useMemo(() => new Date(), []);
+  const tomorrow = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 1);
+    return d;
+  }, [today]);
+
+  const locationLabel = useMemo(() => {
+    if (!locationState) return null;
+    if (locationState.kind === "current") return "Current location";
+    return locationState.commune
+      ? `${lang === "ar" ? locationState.wilayaAr : locationState.wilaya} · ${
+          lang === "ar" ? locationState.communeAr : locationState.commune
+        }`
+      : lang === "ar"
+        ? locationState.wilayaAr
+        : locationState.wilaya;
+  }, [locationState, lang]);
+
+  const dtLabel = useMemo(
+    () => dateTimeLabel(dateTimeState, today.toDateString(), tomorrow.toDateString()),
+    [dateTimeState, today, tomorrow],
+  );
 
   function runSearch() {
     void navigate({
       to: "/search",
       search: {
-        q: query.trim(),
+        q: serviceState?.query ?? "",
         country,
-        state: stateName,
-        city,
-        type: shopType,
-        sort: "rating" as const,
+        state: locationState?.kind === "place" ? locationState.wilaya : "",
+        city: locationState?.kind === "place" ? locationState.commune : "",
+        type: serviceState?.keyword ?? "",
+        sort: locationState?.kind === "current" ? ("distance" as const) : ("rating" as const),
         instant: false,
         open: false,
       },
@@ -108,222 +175,182 @@ function Index() {
     document.getElementById("nearby")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // Project 14 Phase 2: this was a second, independent copy of the same raw, unbounded,
-  // client-side `supabase.from("businesses")` query already fixed in
-  // src/hooks/use-live-businesses.ts — same audit-confirmed gaps (missing marketplace_status/
-  // deleted_at/is_test checks, no server-side rate limiting). Now shares the same secure,
-  // rate-limited hook instead of duplicating the query.
-  const { data: liveBusinesses } = useLiveBusinesses(country || undefined);
-
-  const placeFiltered = country || stateName || city || shopType;
-  const countries = useCountries();
-
-  const countryOptions = useMemo(() => {
-    const codes = new Set((liveBusinesses ?? []).map((s) => s.countryCode).filter(Boolean));
-    return (countries.data ?? []).filter((c) => codes.has(c.iso_code));
-  }, [liveBusinesses, countries.data]);
-
-  const cityOptions = useMemo(() => {
-    const listed = [
-      ...new Set(
-        (liveBusinesses ?? [])
-          .filter(
-            (s) =>
-              (!country || s.countryCode === country) &&
-              (!stateName || s.state === stateName) &&
-              s.city,
-          )
-          .map((s) => s.city),
-      ),
-    ].sort();
-    const known = citiesFor(country, stateName || undefined);
-    return listed.map((c) => ({ en: c, ar: known.find((k) => k.en === c)?.ar ?? c }));
-  }, [liveBusinesses, country, stateName]);
+  function selectCategory(cat: Category) {
+    const label = cat.translations[lang] ?? cat.default_name;
+    setServiceState({ label, keyword: CATEGORY_KEYWORD[cat.default_name] ?? label.toLowerCase() });
+    setServiceQuery("");
+    setServiceSheetOpen(false);
+  }
 
   const results = useMemo(() => {
     const list: Business[] = liveBusinesses ?? [];
-    const placed = (list as LiveBusiness[]).filter(
-      (s) =>
-        (!country || s.countryCode === country) &&
-        (!stateName || s.state === stateName) &&
-        (!city || s.city === city) &&
-        (!shopType || s.businessType === shopType),
-    );
-    const withCategory = activeCategory
-      ? placed.filter((s) => s.businessType.toLowerCase().includes(activeCategory.toLowerCase()))
-      : placed;
-    const name = query.trim().toLowerCase();
-    if (!name) return withCategory;
-    // Shop-name search only (EN / AR)
-    return withCategory.filter(
-      (s) => s.en.name.toLowerCase().includes(name) || s.ar.name.toLowerCase().includes(name),
-    );
-  }, [liveBusinesses, query, activeCategory, country, stateName, city, shopType]);
+    let placed = (list as LiveBusiness[]).filter((s) => {
+      if (locationState?.kind === "place") {
+        if (s.state !== locationState.wilaya) return false;
+        if (locationState.commune && s.city !== locationState.commune) return false;
+      }
+      return true;
+    });
+    if (activeCategory) {
+      placed = placed.filter((s) =>
+        s.businessType.toLowerCase().includes(activeCategory.toLowerCase()),
+      );
+    }
+    if (serviceState?.keyword) {
+      const kw = serviceState.keyword.toLowerCase();
+      placed = placed.filter((s) => s.businessType.toLowerCase().includes(kw));
+    }
+    if (serviceState?.query) {
+      const q = serviceState.query.toLowerCase();
+      placed = placed.filter(
+        (s) => s.en.name.toLowerCase().includes(q) || s.ar.name.toLowerCase().includes(q),
+      );
+    }
+    if (locationState?.kind === "current" && geo.coords) {
+      const origin = geo.coords;
+      placed = [...placed].sort((a, b) => {
+        const da =
+          a.lat != null && a.lng != null
+            ? haversineKm(origin, { lat: a.lat, lng: a.lng })
+            : Infinity;
+        const db =
+          b.lat != null && b.lng != null
+            ? haversineKm(origin, { lat: b.lat, lng: b.lng })
+            : Infinity;
+        return da - db;
+      });
+    }
+    return placed;
+  }, [liveBusinesses, locationState, activeCategory, serviceState, geo.coords]);
 
   const activeChips = useMemo(
     () =>
       [
-        country
-          ? (() => {
-              const hit = countryOptions.find((c) => c.iso_code === country);
-              return hit ? translate(hit, lang) : country;
-            })()
-          : "",
-        stateName,
-        city,
-        shopType,
+        locationState?.kind === "place" ? locationState.commune || locationState.wilaya : "",
+        serviceState?.label ?? "",
+        dtLabel ?? "",
       ].filter(Boolean) as string[],
-    [country, countryOptions, stateName, city, shopType, lang],
+    [locationState, serviceState, dtLabel],
   );
 
+  function clearAllFilters() {
+    setActiveCategory(null);
+    setServiceState(null);
+    setLocationState(null);
+    setDateTimeState(null);
+  }
+
   return (
-    <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-background">
+    <div
+      dir={dirFor(lang)}
+      className="relative min-h-dvh overflow-x-hidden bg-cream text-cream-foreground"
+    >
       <SiteHeader lang={lang} />
 
       <main className="mx-auto max-w-6xl px-4 pb-32 md:pb-24">
-        {/* Hero — no photo, no headline: a full-bleed, continuously drifting color
-            backdrop (three independently-timed spotlight orbits in brand
-            lime/gold/mint — the same technique behind Fresha's homepage
-            background, confirmed by inspecting it, reused in Dallty's own
-            palette) with the search card floating directly on top, exactly
-            like Fresha's layout. */}
-        <section className="relative -mx-4 animate-fade-up overflow-hidden px-4 pb-2 pt-6 sm:pt-10">
+        {/* Hero — spacious, editorial, Fresha-inspired: huge open space, a bold
+            centered headline, and the floating search as the visual centerpiece,
+            all sitting on a slowly drifting atmospheric backdrop (see the
+            atmosphere-blob utility in styles.css — independent, heavily diffused
+            gradient fields, not a spinning shape). */}
+        <section className="relative -mx-4 animate-fade-up overflow-hidden px-4 pb-2 pt-10 sm:pt-16">
+          {/* Atmosphere — soft diffused *light*, not colored blocks: each field is a
+              radial-gradient fading straight to transparent, kept to a low opacity
+              ceiling (see atmosphere-drift in styles.css) so Cream stays the color the
+              hero actually reads as, lime/pink/green only ever a gentle glow on top of
+              it. Durations are deliberately short (11-20s) and staggered so the drift
+              is genuinely noticeable within a few seconds without feeling busy. A
+              bottom fade (last child, paints over the blobs) dissolves the whole
+              atmosphere into solid Cream well before the hero ends, so there's no
+              visible seam where the categories section begins. */}
           <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-            <div className="spotlight-orbit" style={{ animationDuration: "100s" }}>
-              <div
-                className="spotlight-blob -top-[10%] start-[10%] size-[28rem] opacity-60"
-                style={{ backgroundColor: "var(--lime)" }}
-              />
-            </div>
             <div
-              className="spotlight-orbit"
-              style={{ animationDuration: "130s", animationDirection: "reverse" }}
-            >
-              <div
-                className="spotlight-blob -bottom-[20%] end-[8%] size-[26rem] opacity-50"
-                style={{ backgroundColor: "var(--gold)" }}
-              />
-            </div>
-            <div className="spotlight-orbit" style={{ animationDuration: "80s" }}>
-              <div
-                className="spotlight-blob top-[10%] end-[30%] size-72 opacity-40"
-                style={{ backgroundColor: "var(--primary)" }}
-              />
-            </div>
+              className="atmosphere-blob -top-[20%] start-[-15%] size-[30rem] sm:size-[38rem]"
+              style={{
+                backgroundImage: "radial-gradient(circle, var(--lime) 0%, transparent 70%)",
+                animationDuration: "14s",
+              }}
+            />
+            <div
+              className="atmosphere-blob top-[10%] end-[-15%] size-[26rem] sm:size-[34rem]"
+              style={{
+                backgroundImage: "radial-gradient(circle, var(--primary) 0%, transparent 70%)",
+                animationDuration: "20s",
+                animationDelay: "-6s",
+              }}
+            />
+            <div
+              className="atmosphere-blob bottom-[-10%] start-[10%] size-[26rem] sm:size-[32rem]"
+              style={{
+                backgroundImage: "radial-gradient(circle, var(--pink) 0%, transparent 70%)",
+                animationDuration: "17s",
+                animationDelay: "-3s",
+              }}
+            />
+            <div
+              className="atmosphere-blob top-[30%] end-[10%] size-64 sm:size-80"
+              style={{
+                backgroundImage: "radial-gradient(circle, var(--cream) 0%, transparent 65%)",
+                animationDuration: "11s",
+                animationDelay: "-9s",
+                opacity: 0.6,
+              }}
+            />
+            <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-b from-transparent via-cream/70 to-cream" />
           </div>
 
-          {/* Search card — three always-visible stacked fields + full-width CTA,
-              matching Fresha's search form structure exactly. */}
-          <div className="relative z-10 mx-auto max-w-md rounded-4xl bg-card p-4 shadow-elevation-high sm:p-5">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                runSearch();
-              }}
-              className="space-y-2.5"
-            >
-              <label className="flex min-h-14 min-w-0 items-center gap-3 rounded-2xl bg-muted/60 px-4 ring-1 ring-transparent transition focus-within:ring-2 focus-within:ring-primary">
-                <Search className="size-5 shrink-0 text-muted-foreground" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
-                  placeholder={t("home_search_placeholder")}
-                  aria-label={t("search_btn")}
-                />
-                {query ? (
-                  <button
-                    type="button"
-                    onClick={() => setQuery("")}
-                    aria-label={t("search_clear")}
-                    className="grid size-7 shrink-0 place-items-center rounded-full bg-card"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                ) : null}
-              </label>
+          <h1 className="text-display mx-auto max-w-3xl text-center text-primary">
+            {t("hero_title")}
+          </h1>
+          <p className="text-body-lg mx-auto mt-4 max-w-xl text-balance text-center text-cream-foreground/70">
+            {t("hero_sub")}
+          </p>
 
-              <Select value={city || ALL} onValueChange={(v) => setCity(v === ALL ? "" : v)}>
-                <SelectTrigger className="min-h-14 rounded-2xl bg-muted/60 px-4 text-base ring-1 ring-transparent focus:ring-2 [&>svg]:hidden">
-                  <span className="flex min-w-0 flex-1 items-center gap-3">
-                    <MapPin className="size-5 shrink-0 text-muted-foreground" />
-                    <SelectValue placeholder={t("filter_city")} />
-                  </span>
-                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>{t("filter_all_cities")}</SelectItem>
-                  {cityOptions.map((c) => (
-                    <SelectItem key={c.en} value={c.en}>
-                      {lang === "ar" ? c.ar : c.en}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="mt-8 sm:mt-10">
+            <HomeSearchBar
+              serviceLabel={serviceState?.label ?? null}
+              locationLabel={locationLabel}
+              dateTimeLabel={dtLabel}
+              onOpenService={() => setServiceSheetOpen(true)}
+              onOpenLocation={() => setLocationSheetOpen(true)}
+              onOpenDateTime={() => setDateTimeSheetOpen(true)}
+              onClearService={() => setServiceState(null)}
+              onClearLocation={() => setLocationState(null)}
+              onClearDateTime={() => setDateTimeState(null)}
+              onSearch={runSearch}
+            />
+          </div>
 
-              <Select
-                value={shopType || ALL}
-                onValueChange={(v) => setShopType(v === ALL ? "" : v)}
-              >
-                <SelectTrigger className="min-h-14 rounded-2xl bg-muted/60 px-4 text-base ring-1 ring-transparent focus:ring-2 [&>svg]:hidden">
-                  <span className="flex min-w-0 flex-1 items-center gap-3">
-                    <Store className="size-5 shrink-0 text-muted-foreground" />
-                    <SelectValue placeholder={t("filter_shop_type")} />
-                  </span>
-                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>{t("filter_all_shop_types")}</SelectItem>
-                  {BUSINESS_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <button
-                type="submit"
-                className="press flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-lime text-base font-bold text-lime-foreground shadow-lg"
-              >
-                <Search className="size-5" />
-                {t("search_btn")}
-              </button>
-            </form>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+          {activeChips.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
                 {results.length} {t("shops_match")}
               </span>
               {activeChips.map((chip) => (
                 <span
                   key={chip}
-                  className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground"
+                  className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-foreground"
                 >
                   {chip}
                 </span>
               ))}
-              {placeFiltered ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCountry("");
-                    setStateName("");
-                    setCity("");
-                    setShopType("");
-                  }}
-                  className="rounded-full glass-soft px-3 py-1 text-xs font-bold"
-                >
-                  {t("search_clear")}
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="rounded-full glass-soft px-3 py-1 text-xs font-bold"
+              >
+                {t("search_clear")}
+              </button>
             </div>
-          </div>
+          )}
 
-          <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="relative mt-8 grid grid-cols-3 gap-2 sm:mt-10 sm:gap-3">
             {(tArray("stats") as [string, string][]).map(([value, label]) => (
-              <div key={label} className="rounded-3xl glass px-2 py-4 text-center sm:px-4 sm:py-5">
-                <p className="text-lg font-extrabold sm:text-2xl">{value}</p>
+              <div
+                key={label}
+                className="rounded-3xl border border-border/30 bg-white/70 px-2 py-4 text-center shadow-elevation-low sm:px-4 sm:py-5"
+              >
+                <p className="text-lg font-extrabold text-primary sm:text-2xl">{value}</p>
                 <p className="text-[0.7rem] leading-tight text-muted-foreground sm:text-sm">
                   {label}
                 </p>
@@ -332,20 +359,14 @@ function Index() {
           </div>
         </section>
 
-        {/* Ambient glow — the one signature element (visual-direction-c).
-            Deliberately placed here, not viewport-fixed: this is the first
-            confirmed-open stretch of plain canvas on the page (everything
-            above this point is covered by the hero photo or opaque glass
-            cards) — a fixed/edge-anchored blob was verified via live
-            screenshot to land invisibly behind that opaque content. */}
-        <div aria-hidden className="pointer-events-none relative h-0">
-          <div className="glow-blob -z-10 top-[-14rem] start-1/2 size-[48rem] -translate-x-1/2" />
-        </div>
-
-        {/* Categories */}
+        {/* Categories — plain Cream canvas from here down (no hero atmosphere): white
+            cards with pale-green icon circles, not tinted-green surfaces, per the
+            brand hierarchy (Cream/white dominant, green/lime/pink used sparingly). */}
         <section className="mt-10 sm:mt-14">
-          <h2 className="text-xl font-extrabold sm:text-3xl">{t("categories_title")}</h2>
-          <div className="mt-4 grid grid-cols-3 gap-2.5 sm:mt-5 sm:grid-cols-6 sm:gap-3">
+          <h2 className="text-xl font-extrabold text-primary sm:text-3xl">
+            {t("categories_title")}
+          </h2>
+          <div className="mt-4 grid grid-cols-4 gap-2.5 sm:mt-5 sm:grid-cols-8 sm:gap-3">
             {CATEGORY_DEFS.map((def) => {
               const Icon = def.icon;
               const active = activeCategory === def.en;
@@ -359,19 +380,23 @@ function Index() {
                     scrollToResults();
                   }}
                   className={`press flex flex-col items-center gap-2 rounded-3xl px-2 py-4 transition sm:gap-3 sm:px-3 sm:py-6 ${
-                    active ? "bg-primary text-primary-foreground shadow-lg" : "glass"
+                    active
+                      ? "bg-primary text-primary-foreground shadow-lg"
+                      : "border border-border/30 bg-white shadow-elevation-low"
                   }`}
                 >
                   <span
                     className={`grid size-10 place-items-center rounded-2xl sm:size-12 ${
                       active
                         ? "bg-primary-foreground/15 text-primary-foreground"
-                        : "bg-accent text-accent-foreground"
+                        : "bg-primary/10 text-primary"
                     }`}
                   >
                     <Icon className="size-5 sm:size-6" />
                   </span>
-                  <span className="text-xs font-semibold sm:text-sm">
+                  <span
+                    className={`text-xs font-semibold sm:text-sm ${active ? "" : "text-primary"}`}
+                  >
                     {t(`categories.${def.key}` as NamespaceKeyMap["marketplace"])}
                   </span>
                 </button>
@@ -387,39 +412,35 @@ function Index() {
               <h2 className="text-xl font-extrabold sm:text-3xl">{t("nearby_title")}</h2>
               <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{t("nearby_sub")}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setQuery("");
-                setActiveCategory(null);
-                setCountry("");
-                setStateName("");
-                setCity("");
-                setShopType("");
+            <Link
+              to="/search"
+              search={{
+                q: "",
+                country,
+                state: "",
+                city: "",
+                type: "",
+                sort: "rating",
+                instant: false,
+                open: false,
               }}
               className="press min-h-11 shrink-0 rounded-2xl glass-soft px-4 text-sm font-semibold"
             >
               {t("see_all")}
-            </button>
+            </Link>
           </div>
 
           {results.length === 0 ? (
             <div className="mt-6 rounded-3xl glass p-10 text-center">
               <p className="font-bold">
                 No salons match “
-                {[query, activeCategory, city, shopType].filter(Boolean).join(" · ") ||
+                {[serviceState?.label, activeCategory, locationLabel].filter(Boolean).join(" · ") ||
                   "your search"}
                 ”.
               </p>
               <button
                 type="button"
-                onClick={() => {
-                  setQuery("");
-                  setActiveCategory(null);
-                  setCountry("");
-                  setCity("");
-                  setShopType("");
-                }}
+                onClick={clearAllFilters}
                 className="press mt-4 inline-flex min-h-11 items-center rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
               >
                 {t("see_all")}
@@ -545,6 +566,35 @@ function Index() {
           t("nav.favorites"),
           t("nav.profile"),
         ]}
+      />
+
+      <ServiceSearchSheet
+        open={serviceSheetOpen}
+        query={serviceQuery}
+        onQueryChange={setServiceQuery}
+        onClose={() => setServiceSheetOpen(false)}
+        onSelectCategory={selectCategory}
+        onSelectBusiness={(slug) =>
+          void navigate({ to: "/business/$businessSlug", params: { businessSlug: slug } })
+        }
+        onSubmitQuery={(q) => {
+          setServiceState({ label: q, query: q });
+          setServiceSheetOpen(false);
+        }}
+      />
+
+      <LocationPickerSheet
+        open={locationSheetOpen}
+        geo={geo}
+        onClose={() => setLocationSheetOpen(false)}
+        onSelect={setLocationState}
+      />
+
+      <DateTimePickerSheet
+        open={dateTimeSheetOpen}
+        initial={dateTimeState}
+        onClose={() => setDateTimeSheetOpen(false)}
+        onApply={setDateTimeState}
       />
     </div>
   );

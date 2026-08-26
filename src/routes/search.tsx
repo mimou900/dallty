@@ -171,7 +171,12 @@ function SearchPage() {
         (!params.country || s.countryCode === params.country) &&
         (!params.state || s.state === params.state) &&
         (!params.city || s.city === params.city) &&
-        (!params.type || s.businessType === params.type) &&
+        // Substring, not exact match: the home page's full-screen service search
+        // also feeds this `type` param from its own richer DB category list (e.g.
+        // "hair"), which doesn't share exact string values with BUSINESS_TYPES
+        // (e.g. "Hair studio") — a loose match keeps both entry points working
+        // without forcing the two taxonomies into one shared enum.
+        (!params.type || s.businessType.toLowerCase().includes(params.type.toLowerCase())) &&
         (!params.instant || s.instant) &&
         (!params.open || s.open) &&
         (!name || s.en.name.toLowerCase().includes(name) || s.ar.name.toLowerCase().includes(name)),

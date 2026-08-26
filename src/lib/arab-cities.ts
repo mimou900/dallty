@@ -1,6 +1,9 @@
 /**
  * Arab markets for Dallty — country → province/state → city.
  * Generated from the official 2026 administrative dataset (22 countries).
+ * Algeria (DZ) updated to the 69-wilaya reorganization (Law 26-06, 4 April 2026) — the
+ * 11 new wilayas are appended after the original 58, each seeded with its chief-town
+ * commune; see the comment above them for what's still pending official publication.
  */
 export type City = { en: string; ar: string };
 export type Province = { en: string; ar: string; cities: City[] };
@@ -12,7 +15,7 @@ export const PROVINCES_BY_COUNTRY: Record<string, Province[]> = {
     { en: "Aïn Témouchent", ar: "عين تموشنت", cities: [{ en: "Aïn Temouchent", ar: "Aïn Temouchent" }, { en: "Beni Saf", ar: "Beni Saf" }, { en: "El Amria", ar: "El Amria" }, { en: "El Malah", ar: "El Malah" }, { en: "Hammam Bou Hadjar", ar: "Hammam Bou Hadjar" }] },
     { en: "Algiers", ar: "الجزائر", cities: [{ en: "Aïn Taya", ar: "Aïn Taya" }, { en: "Algiers", ar: "Algiers" }, { en: "Bab Ezzouar", ar: "Bab Ezzouar" }, { en: "Birkhadem", ar: "Birkhadem" }, { en: "Bordj el Kiffan", ar: "Bordj el Kiffan" }, { en: "Dar el Beïda", ar: "Dar el Beïda" }, { en: "Rouiba", ar: "Rouiba" }] },
     { en: "Annaba", ar: "عنابة", cities: [{ en: "Annaba", ar: "Annaba" }, { en: "Berrahal", ar: "Berrahal" }, { en: "Drean", ar: "Drean" }, { en: "El Hadjar", ar: "El Hadjar" }] },
-    { en: "Batna", ar: "باتنة", cities: [{ en: "Aïn Touta", ar: "Aïn Touta" }, { en: "Arris", ar: "Arris" }, { en: "Barika", ar: "Barika" }, { en: "Batna", ar: "Batna" }, { en: "Boumagueur", ar: "Boumagueur" }, { en: "Merouana", ar: "Merouana" }, { en: "Râs el Aïoun", ar: "Râs el Aïoun" }, { en: "Tazoult-Lambese", ar: "Tazoult-Lambese" }] },
+    { en: "Batna", ar: "باتنة", cities: [{ en: "Aïn Touta", ar: "Aïn Touta" }, { en: "Arris", ar: "Arris" }, { en: "Batna", ar: "Batna" }, { en: "Boumagueur", ar: "Boumagueur" }, { en: "Merouana", ar: "Merouana" }, { en: "Râs el Aïoun", ar: "Râs el Aïoun" }, { en: "Tazoult-Lambese", ar: "Tazoult-Lambese" }] },
     { en: "Béchar", ar: "بشار", cities: [{ en: "Béchar", ar: "Béchar" }] },
     { en: "Béjaïa", ar: "بجاية", cities: [{ en: "Akbou", ar: "Akbou" }, { en: "Amizour", ar: "Amizour" }, { en: "Barbacha", ar: "Barbacha" }, { en: "Bejaïa", ar: "Bejaïa" }, { en: "el hed", ar: "el hed" }, { en: "El Kseur", ar: "El Kseur" }, { en: "Feraoun", ar: "Feraoun" }, { en: "Seddouk", ar: "Seddouk" }] },
     { en: "Béni Abbès", ar: "بني عباس", cities: [] },
@@ -25,8 +28,8 @@ export const PROVINCES_BY_COUNTRY: Record<string, Province[]> = {
     { en: "Chlef", ar: "الشلف", cities: [{ en: "Abou el Hassan", ar: "Abou el Hassan" }, { en: "Boukadir", ar: "Boukadir" }, { en: "Chlef", ar: "Chlef" }, { en: "Ech Chettia", ar: "Ech Chettia" }, { en: "Oued Fodda", ar: "Oued Fodda" }, { en: "Oued Sly", ar: "Oued Sly" }, { en: "Sidi Akkacha", ar: "Sidi Akkacha" }] },
     { en: "Constantine", ar: "قسطنطين", cities: [{ en: "’Aïn Abid", ar: "’Aïn Abid" }, { en: "Aïn Smara", ar: "Aïn Smara" }, { en: "Constantine", ar: "Constantine" }, { en: "Didouche Mourad", ar: "Didouche Mourad" }, { en: "El Khroub", ar: "El Khroub" }, { en: "Hamma Bouziane", ar: "Hamma Bouziane" }] },
     { en: "Djanet", ar: "جانت", cities: [] },
-    { en: "Djelfa", ar: "الجلفة", cities: [{ en: "’Aïn el Bell", ar: "’Aïn el Bell" }, { en: "Aïn Oussera", ar: "Aïn Oussera" }, { en: "Birine", ar: "Birine" }, { en: "Charef", ar: "Charef" }, { en: "Dar Chioukh", ar: "Dar Chioukh" }, { en: "Djelfa", ar: "Djelfa" }, { en: "El Idrissia", ar: "El Idrissia" }, { en: "Messaad", ar: "Messaad" }] },
-    { en: "El Bayadh", ar: "البيض", cities: [{ en: "Brezina", ar: "Brezina" }, { en: "El Abiodh Sidi Cheikh", ar: "El Abiodh Sidi Cheikh" }, { en: "El Bayadh", ar: "El Bayadh" }] },
+    { en: "Djelfa", ar: "الجلفة", cities: [{ en: "’Aïn el Bell", ar: "’Aïn el Bell" }, { en: "Birine", ar: "Birine" }, { en: "Charef", ar: "Charef" }, { en: "Dar Chioukh", ar: "Dar Chioukh" }, { en: "Djelfa", ar: "Djelfa" }, { en: "El Idrissia", ar: "El Idrissia" }] },
+    { en: "El Bayadh", ar: "البيض", cities: [{ en: "Brezina", ar: "Brezina" }, { en: "El Bayadh", ar: "El Bayadh" }] },
     { en: "El M'ghair", ar: "المغير", cities: [] },
     { en: "El Menia", ar: "المنيا", cities: [] },
     { en: "El Oued", ar: "الواد", cities: [{ en: "Debila", ar: "Debila" }, { en: "El Oued", ar: "El Oued" }, { en: "Reguiba", ar: "Reguiba" }, { en: "Robbah", ar: "Robbah" }] },
@@ -38,10 +41,10 @@ export const PROVINCES_BY_COUNTRY: Record<string, Province[]> = {
     { en: "In Salah", ar: "في صلاح", cities: [] },
     { en: "Jijel", ar: "جيجل", cities: [{ en: "Jijel", ar: "Jijel" }] },
     { en: "Khenchela", ar: "خنشلة", cities: [{ en: "Khenchela", ar: "Khenchela" }] },
-    { en: "Laghouat", ar: "الأغواط", cities: [{ en: "Aflou", ar: "Aflou" }, { en: "Laghouat", ar: "Laghouat" }] },
+    { en: "Laghouat", ar: "الأغواط", cities: [{ en: "Laghouat", ar: "Laghouat" }] },
     { en: "M'Sila", ar: "مسيلة", cities: [{ en: "‘Aïn el Hadjel", ar: "‘Aïn el Hadjel" }, { en: "’Aïn el Melh", ar: "’Aïn el Melh" }, { en: "M’Sila", ar: "M’Sila" }, { en: "Sidi Aïssa", ar: "Sidi Aïssa" }] },
     { en: "Mascara", ar: "ماسكارا", cities: [{ en: "Bou Hanifia el Hamamat", ar: "Bou Hanifia el Hamamat" }, { en: "Mascara", ar: "Mascara" }, { en: "Oued el Abtal", ar: "Oued el Abtal" }, { en: "Sig", ar: "Sig" }] },
-    { en: "Médéa", ar: "ميديا", cities: [{ en: "’Aïn Boucif", ar: "’Aïn Boucif" }, { en: "Berrouaghia", ar: "Berrouaghia" }, { en: "Ksar el Boukhari", ar: "Ksar el Boukhari" }, { en: "Médéa", ar: "Médéa" }] },
+    { en: "Médéa", ar: "ميديا", cities: [{ en: "’Aïn Boucif", ar: "’Aïn Boucif" }, { en: "Berrouaghia", ar: "Berrouaghia" }, { en: "Médéa", ar: "Médéa" }] },
     { en: "Mila", ar: "ميلا", cities: [{ en: "Chelghoum el Aïd", ar: "Chelghoum el Aïd" }, { en: "Mila", ar: "Mila" }, { en: "Rouached", ar: "Rouached" }, { en: "Sidi Mérouane", ar: "Sidi Mérouane" }, { en: "Telerghma", ar: "Telerghma" }] },
     { en: "Mostaganem", ar: "مستغانم", cities: [{ en: "Mostaganem", ar: "Mostaganem" }] },
     { en: "Naama", ar: "نعمة", cities: [{ en: "Aïn Sefra", ar: "Aïn Sefra" }, { en: "Naama", ar: "Naama" }] },
@@ -56,8 +59,8 @@ export const PROVINCES_BY_COUNTRY: Record<string, Province[]> = {
     { en: "Skikda", ar: "سكيكدة", cities: [{ en: "Azzaba", ar: "Azzaba" }, { en: "Karkira", ar: "Karkira" }, { en: "Skikda", ar: "Skikda" }, { en: "Tamalous", ar: "Tamalous" }] },
     { en: "Souk Ahras", ar: "سوق أهراس", cities: [{ en: "Sedrata", ar: "Sedrata" }, { en: "Souk Ahras", ar: "Souk Ahras" }] },
     { en: "Tamanghasset", ar: "تمنغست", cities: [{ en: "I-n-Salah", ar: "I-n-Salah" }, { en: "Tamanrasset", ar: "Tamanrasset" }] },
-    { en: "Tébessa", ar: "تبسة", cities: [{ en: "Bir el Ater", ar: "Bir el Ater" }, { en: "Cheria", ar: "Cheria" }, { en: "Hammamet", ar: "Hammamet" }, { en: "Tébessa", ar: "Tébessa" }] },
-    { en: "Tiaret", ar: "تيارت", cities: [{ en: "’Aïn Deheb", ar: "’Aïn Deheb" }, { en: "Djebilet Rosfa", ar: "Djebilet Rosfa" }, { en: "Frenda", ar: "Frenda" }, { en: "Ksar Chellala", ar: "Ksar Chellala" }, { en: "Mehdia daira de meghila", ar: "Mehdia daira de meghila" }, { en: "Sougueur", ar: "Sougueur" }, { en: "Tiaret", ar: "Tiaret" }] },
+    { en: "Tébessa", ar: "تبسة", cities: [{ en: "Cheria", ar: "Cheria" }, { en: "Hammamet", ar: "Hammamet" }, { en: "Tébessa", ar: "Tébessa" }] },
+    { en: "Tiaret", ar: "تيارت", cities: [{ en: "’Aïn Deheb", ar: "’Aïn Deheb" }, { en: "Djebilet Rosfa", ar: "Djebilet Rosfa" }, { en: "Frenda", ar: "Frenda" }, { en: "Mehdia daira de meghila", ar: "Mehdia daira de meghila" }, { en: "Sougueur", ar: "Sougueur" }, { en: "Tiaret", ar: "Tiaret" }] },
     { en: "Timimoun", ar: "تيميمون", cities: [] },
     { en: "Tindouf", ar: "تندوف", cities: [{ en: "Tindouf", ar: "Tindouf" }] },
     { en: "Tipasa", ar: "تيبازة", cities: [{ en: "’Aïn Benian", ar: "’Aïn Benian" }, { en: "Baraki", ar: "Baraki" }, { en: "Bou Ismaïl", ar: "Bou Ismaïl" }, { en: "Cheraga", ar: "Cheraga" }, { en: "Douera", ar: "Douera" }, { en: "El Affroun", ar: "El Affroun" }, { en: "Hadjout", ar: "Hadjout" }, { en: "Kolea", ar: "Kolea" }, { en: "Mouzaïa", ar: "Mouzaïa" }, { en: "Oued el Alleug", ar: "Oued el Alleug" }, { en: "Saoula", ar: "Saoula" }, { en: "Tipasa", ar: "Tipasa" }, { en: "Zeralda", ar: "Zeralda" }] },
@@ -65,6 +68,23 @@ export const PROVINCES_BY_COUNTRY: Record<string, Province[]> = {
     { en: "Tizi Ouzou", ar: "تيزي وزو", cities: [{ en: "’Aïn el Hammam", ar: "’Aïn el Hammam" }, { en: "Arhribs", ar: "Arhribs" }, { en: "Azazga", ar: "Azazga" }, { en: "Beni Douala", ar: "Beni Douala" }, { en: "Boghni", ar: "Boghni" }, { en: "Boudjima", ar: "Boudjima" }, { en: "Chemini", ar: "Chemini" }, { en: "Draa Ben Khedda", ar: "Draa Ben Khedda" }, { en: "Freha", ar: "Freha" }, { en: "Ighram", ar: "Ighram" }, { en: "L’Arbaa Naït Irathen", ar: "L’Arbaa Naït Irathen" }, { en: "Mekla", ar: "Mekla" }, { en: "Timizart", ar: "Timizart" }, { en: "Tirmitine", ar: "Tirmitine" }, { en: "Tizi Ouzou", ar: "Tizi Ouzou" }, { en: "Tizi Rached", ar: "Tizi Rached" }, { en: "Tizi-n-Tleta", ar: "Tizi-n-Tleta" }] },
     { en: "Tlemcen", ar: "تلمسان", cities: [{ en: "Beni Mester", ar: "Beni Mester" }, { en: "Bensekrane", ar: "Bensekrane" }, { en: "Chetouane", ar: "Chetouane" }, { en: "Hennaya", ar: "Hennaya" }, { en: "Mansoûra", ar: "Mansoûra" }, { en: "Nedroma", ar: "Nedroma" }, { en: "Ouled Mimoun", ar: "Ouled Mimoun" }, { en: "Remchi", ar: "Remchi" }, { en: "Sebdou", ar: "Sebdou" }, { en: "Sidi Abdelli", ar: "Sidi Abdelli" }, { en: "Sidi Senoussi سيدي سنوسي", ar: "Sidi Senoussi سيدي سنوسي" }, { en: "Tlemcen", ar: "Tlemcen" }] },
     { en: "Touggourt", ar: "تقرت", cities: [] },
+    // The 11 wilayas created by Law 26-06 (4 April 2026), splitting Algeria from 58 to
+    // 69 wilayas — each seeded with its own chief-town commune (guaranteed correct: the
+    // chief town becomes a commune of its own new wilaya). Full commune-level
+    // reassignment from each mother wilaya isn't yet published as of this writing (the
+    // transition period runs through 31 Dec 2026), so no other communes have been
+    // moved here yet — add them once an official list is available.
+    { en: "Aflou", ar: "أفلو", cities: [{ en: "Aflou", ar: "Aflou" }] },
+    { en: "Barika", ar: "بريكة", cities: [{ en: "Barika", ar: "Barika" }] },
+    { en: "El Kantara", ar: "القنطرة", cities: [{ en: "El Kantara", ar: "El Kantara" }] },
+    { en: "Bir El Ater", ar: "بئر العاتر", cities: [{ en: "Bir El Ater", ar: "Bir El Ater" }] },
+    { en: "El Aricha", ar: "العريشة", cities: [{ en: "El Aricha", ar: "El Aricha" }] },
+    { en: "Ksar Chellala", ar: "قصر الشلالة", cities: [{ en: "Ksar Chellala", ar: "Ksar Chellala" }] },
+    { en: "Aïn Oussara", ar: "عين وسارة", cities: [{ en: "Aïn Oussara", ar: "Aïn Oussara" }] },
+    { en: "Messaad", ar: "مسعد", cities: [{ en: "Messaad", ar: "Messaad" }] },
+    { en: "Ksar El Boukhari", ar: "قصر البخاري", cities: [{ en: "Ksar El Boukhari", ar: "Ksar El Boukhari" }] },
+    { en: "Bou Saâda", ar: "بوسعادة", cities: [{ en: "Bou Saâda", ar: "Bou Saâda" }] },
+    { en: "El Abiodh Sidi Cheikh", ar: "الأبيض سيدي الشيخ", cities: [{ en: "El Abiodh Sidi Cheikh", ar: "El Abiodh Sidi Cheikh" }] },
   ],
   BH: [
     { en: "Capital", ar: "عاصمة", cities: [{ en: "Jidd Ḩafş", ar: "Jidd Ḩafş" }, { en: "Manama", ar: "Manama" }, { en: "Sitrah", ar: "Sitrah" }] },
