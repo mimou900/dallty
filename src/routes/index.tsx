@@ -268,15 +268,14 @@ function Index() {
           <div
             className="atmosphere-blob top-[5%] end-[8%] size-72 sm:size-96 lg:size-[32rem]"
             style={{
-              backgroundImage: "radial-gradient(circle, oklch(1 0 0 / 0.55) 0%, transparent 68%)",
+              backgroundImage: "radial-gradient(circle, var(--white-glow) 0%, transparent 68%)",
               animationDuration: "11s",
             }}
           />
           <div
             className="atmosphere-blob top-[20%] start-[-12%] size-[26rem] sm:size-[34rem] lg:size-[46rem]"
             style={{
-              backgroundImage:
-                "radial-gradient(circle, oklch(from var(--lime) l c h / 0.5) 0%, transparent 70%)",
+              backgroundImage: "radial-gradient(circle, var(--lime-glow) 0%, transparent 70%)",
               animationDuration: "14s",
               animationDelay: "-4s",
             }}
@@ -284,8 +283,7 @@ function Index() {
           <div
             className="atmosphere-blob top-[10%] end-[-12%] size-[22rem] sm:size-[28rem] lg:size-[38rem]"
             style={{
-              backgroundImage:
-                "radial-gradient(circle, oklch(from var(--primary) l c h / 0.28) 0%, transparent 70%)",
+              backgroundImage: "radial-gradient(circle, var(--primary-glow) 0%, transparent 70%)",
               animationDuration: "20s",
               animationDelay: "-9s",
             }}
@@ -293,8 +291,7 @@ function Index() {
           <div
             className="atmosphere-blob bottom-[-5%] start-[18%] size-[26rem] sm:size-[32rem] lg:size-[44rem]"
             style={{
-              backgroundImage:
-                "radial-gradient(circle, oklch(from var(--pink) l c h / 0.5) 0%, transparent 70%)",
+              backgroundImage: "radial-gradient(circle, var(--pink-glow) 0%, transparent 70%)",
               animationDuration: "17s",
               animationDelay: "-2s",
             }}

@@ -290,6 +290,19 @@
   --cream: oklch(0.97 0.01 93.5);
   --cream-foreground: oklch(0.2 0.024 160);
 
+  /* Homepage hero atmosphere glow colors — plain oklch with the alpha baked directly
+     into the value (NOT `oklch(from var(--x) l c h / a)` relative-color syntax,
+     which several browsers/renderers silently fail to parse: an unsupported color
+     function makes the whole `background-image` declaration invalid, so the
+     background-image is dropped entirely rather than erroring — the hero looked
+     completely flat for exactly this reason before this fix). Base hues match
+     --lime/--primary/--pink/white; only used by the atmosphere-blob instances in
+     src/routes/index.tsx. */
+  --lime-glow: oklch(0.8462 0.1986 118.84 / 0.5);
+  --primary-glow: oklch(0.3811 0.0771 161.08 / 0.28);
+  --pink-glow: oklch(0.7613 0.1982 338.76 / 0.5);
+  --white-glow: oklch(1 0 0 / 0.55);
+
   --gold: oklch(0.78 0.115 85);
   --gold-foreground: oklch(0.28 0.05 85);
   /* Lime — primary action / energy (brand #C0DD00). CTA buttons only. */
@@ -406,6 +419,11 @@
      light patch. */
   --cream: var(--background);
   --cream-foreground: var(--foreground);
+
+  --lime-glow: oklch(0.82 0.19 119 / 0.5);
+  --primary-glow: oklch(0.72 0.13 161 / 0.28);
+  --pink-glow: oklch(0.78 0.19 339 / 0.5);
+  --white-glow: oklch(1 0 0 / 0.35);
 
   --gold: oklch(0.82 0.12 85);
   --gold-foreground: oklch(0.22 0.04 85);
