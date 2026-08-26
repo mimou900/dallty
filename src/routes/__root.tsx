@@ -90,10 +90,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   // src/lib/i18n/hooks.ts). Namespace fetches are cheap (~15KB total) and
   // preloadNamespaces() no-ops anything already cached, so this only ever
   // costs real time on the very first navigation.
+  //
+  // DEFAULT_LANG is preloaded alongside the active language (a no-op when
+  // they're the same) so that if a specific key is genuinely missing from a
+  // non-default language's file, useTranslation()'s fallback (see
+  // src/lib/i18n/hooks.ts) has real data to fall back to instead of ever
+  // surfacing the raw key.
   beforeLoad: async ({ location }) => {
     const lang = langFromSearch(location.search) ?? DEFAULT_LANG;
     try {
-      await preloadNamespaces(lang, ACTIVE_NAMESPACES);
+      await Promise.all([
+        preloadNamespaces(lang, ACTIVE_NAMESPACES),
+        lang === DEFAULT_LANG
+          ? Promise.resolve()
+          : preloadNamespaces(DEFAULT_LANG, ACTIVE_NAMESPACES),
+      ]);
     } catch (error) {
       console.error("[i18n] failed to preload namespaces", error);
     }

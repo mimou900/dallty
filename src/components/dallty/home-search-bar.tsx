@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { CalendarDays, MapPin, Search, X } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 /** Present only on desktop — wraps the field trigger in an anchored Popover instead
  *  of opening the mobile full-screen flow. */
@@ -10,6 +11,7 @@ type FieldPopover = { open: boolean; onOpenChange: (open: boolean) => void; pane
 function FieldRow({
   icon,
   placeholder,
+  clearAriaLabel,
   value,
   onOpen,
   onClear,
@@ -19,6 +21,7 @@ function FieldRow({
 }: {
   icon: ReactNode;
   placeholder: string;
+  clearAriaLabel: string;
   value: string | null;
   onOpen: () => void;
   onClear: () => void;
@@ -47,7 +50,7 @@ function FieldRow({
 
   return (
     <div
-      className={`flex min-h-12 flex-1 items-center rounded-[16px] bg-cream/70 md:min-h-0 md:rounded-none md:bg-transparent md:py-2.5 ${
+      className={`flex min-h-11 min-w-0 flex-1 items-center rounded-[16px] bg-cream/70 md:min-h-0 md:rounded-none md:bg-transparent md:py-2.5 ${
         divider ? "md:border-e md:border-border" : ""
       }`}
       style={grow ? { flexGrow: grow } : undefined}
@@ -73,7 +76,7 @@ function FieldRow({
             e.stopPropagation();
             onClear();
           }}
-          aria-label={`Clear ${placeholder}`}
+          aria-label={clearAriaLabel}
           className="grid size-8 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
         >
           <X className="size-4" />
@@ -119,14 +122,19 @@ export function HomeSearchBar({
   locationPopover?: FieldPopover;
   dateTimePopover?: FieldPopover;
 }) {
+  const { t } = useTranslation("marketplace");
   const hasSelection = Boolean(serviceLabel || locationLabel || dateTimeLabel);
+  const servicePlaceholder = t("search_service_placeholder");
+  const locationPlaceholder = t("search_location_placeholder");
+  const dateTimePlaceholder = t("search_datetime_placeholder");
 
   return (
-    <div className="relative z-10 mx-auto max-w-md rounded-[28px] border border-border/30 bg-card/95 p-4 shadow-elevation-high md:max-w-4xl md:rounded-full md:p-2.5 lg:max-w-5xl">
-      <div className="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-1">
+    <div className="relative z-10 mx-auto max-w-md rounded-[28px] border border-border/30 bg-card/95 p-3 shadow-elevation-high md:max-w-4xl md:rounded-full md:p-2.5 lg:max-w-5xl">
+      <div className="flex flex-col gap-2 md:flex-row md:items-stretch md:gap-1">
         <FieldRow
           icon={<Search className="size-[18px]" />}
-          placeholder="Search by service or business"
+          placeholder={servicePlaceholder}
+          clearAriaLabel={t("clear_field_aria", { field: servicePlaceholder })}
           value={serviceLabel}
           onOpen={onOpenService}
           onClear={onClearService}
@@ -136,7 +144,8 @@ export function HomeSearchBar({
         />
         <FieldRow
           icon={<MapPin className="size-[18px]" />}
-          placeholder="Choose your location"
+          placeholder={locationPlaceholder}
+          clearAriaLabel={t("clear_field_aria", { field: locationPlaceholder })}
           value={locationLabel}
           onOpen={onOpenLocation}
           onClear={onClearLocation}
@@ -146,7 +155,8 @@ export function HomeSearchBar({
         />
         <FieldRow
           icon={<CalendarDays className="size-[18px]" />}
-          placeholder="Choose date and time"
+          placeholder={dateTimePlaceholder}
+          clearAriaLabel={t("clear_field_aria", { field: dateTimePlaceholder })}
           value={dateTimeLabel}
           onOpen={onOpenDateTime}
           onClear={onClearDateTime}
@@ -156,24 +166,24 @@ export function HomeSearchBar({
         <button
           type="button"
           onClick={onSearch}
-          className="press flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-lime px-8 text-[0.95rem] font-bold text-lime-foreground md:min-h-0 md:self-stretch md:px-7"
+          className="press flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-lime px-8 text-[0.95rem] font-bold text-lime-foreground md:min-h-0 md:self-stretch md:px-7"
         >
           <Search className="size-[18px]" />
-          <span>Search</span>
+          <span>{t("search_btn")}</span>
         </button>
       </div>
 
       {hasSelection && resultCount !== undefined && (
         <div className="mt-2.5 flex items-center justify-between px-1">
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
-            {resultCount} shops match
+            {resultCount} {t("shops_match")}
           </span>
           <button
             type="button"
             onClick={onClearAll}
             className="text-xs font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
-            Clear all
+            {t("clear_all")}
           </button>
         </div>
       )}

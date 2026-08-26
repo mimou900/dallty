@@ -12,7 +12,7 @@ import {
   Users,
 } from "lucide-react";
 
-import wordmarkUrl from "@/assets/dallty-wordmark.png";
+import wordmarkUrl from "@/assets/dallty-wordmark.webp";
 import {
   DropdownMenu,
   DropdownMenuContent,

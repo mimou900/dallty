@@ -45,8 +45,8 @@ export const getRouter = () => {
     // Generic content-shaped skeleton for any route's loader (the root's i18n
     // preload, or a slow page loader) that takes a moment — delayed so a
     // fast, already-cached navigation never flashes it, held for a minimum
-    // stretch once shown so it never flickers in and out. The home route
-    // overrides this with its own branded BootSplash (see routes/index.tsx).
+    // stretch once shown so it never flickers in and out. Every route,
+    // including home, uses this same real skeleton.
     defaultPendingComponent: RouteSkeleton,
     defaultPendingMs: 150,
     defaultPendingMinMs: 400,

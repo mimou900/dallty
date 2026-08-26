@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { requestOtp, verifyOtp } from "@/lib/otp.functions";
 import { clearOtpPending } from "@/lib/session";
 import { resolveLandingForSession } from "@/lib/post-login";
-import wordmarkUrl from "@/assets/dallty-wordmark.png";
+import wordmarkUrl from "@/assets/dallty-wordmark.webp";
 import { OtpCodeInput } from "@/components/dallty/otp-code-input";
 
 const searchSchema = z.object({

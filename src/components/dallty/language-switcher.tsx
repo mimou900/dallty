@@ -1,4 +1,4 @@
-import { Check, Languages } from "lucide-react";
+import { Check, ChevronDown, Globe, Languages } from "lucide-react";
 
 import { LANGUAGES, useLocale, type Lang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -20,9 +20,41 @@ export function LanguageSwitcher({
   variant = "segmented",
 }: {
   className?: string;
-  variant?: "segmented" | "row" | "icon";
+  variant?: "segmented" | "row" | "icon" | "footer";
 }) {
   const { lang, setLang } = useLocale();
+
+  if (variant === "footer") {
+    const current = LANGUAGES.find((l) => l.code === lang);
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label="Language"
+          className={cn(
+            "press flex min-h-11 items-center gap-2 rounded-2xl border border-current/25 px-3.5 text-sm font-semibold",
+            className,
+          )}
+        >
+          <Globe className="size-4 shrink-0" />
+          {current?.native}
+          <ChevronDown className="size-3.5 shrink-0" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44 glass">
+          {LANGUAGES.map((l) => (
+            <DropdownMenuItem
+              key={l.code}
+              lang={l.code}
+              onSelect={() => setLang(l.code)}
+              className="flex items-center justify-between font-semibold"
+            >
+              {l.native}
+              {lang === l.code && <Check className="size-4 shrink-0 text-primary" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
 
   if (variant === "icon") {
     return (

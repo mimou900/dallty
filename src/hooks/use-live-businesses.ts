@@ -58,6 +58,7 @@ export function useLiveBusinesses(countryCode?: string) {
         open: b.open_now,
         instant: Boolean(b.instant_booking),
         verified: Boolean(b.is_verified),
+        category: b.business_type ?? undefined,
         countryCode: (b.country_code ?? "").toUpperCase(),
         state: b.district ?? provinceOfCity((b.country_code ?? "").toUpperCase(), b.city ?? ""),
         city: b.city ?? "",

@@ -21,143 +21,89 @@
  *    (`bg-cream` on the page root), making every color/opacity/blur tweak
  *    invisible regardless of its values. Fixed by adding `isolate` to that wrapper.
  *
- * Design v6 — rebuilt against an actual Fresha reference screenshot (earlier
- * rounds worked from text descriptions of it alone and ended up overbuilding a
- * six-color-zone mesh the reference doesn't actually have). What the reference
- * shows is a DIAGONAL wash — one cool tone glowing from the upper-left corner,
- * pink glowing from the lower-right. Translated to Dallty: lime/green take the
- * upper-left corner (+ a whisper of deep green for brand depth), pink takes
- * the lower-right.
+ * v14 — color-fidelity refinement of v13's Deep Green / Lime system. v13 put
+ * three green-family fields (primary + pale-green + a "green secondary") in
+ * overlapping territory with only one lime field, which is exactly what reads
+ * as "gray-green mud" instead of clean, recognizable green/lime separation.
+ * Reorganized into two distinct ZONES with a white field between them:
  *
- * v7 — no animated white/bright layer. Cream (`bg-cream` on the page root,
- * static, not part of this component) IS the hero's base and is meant to show
- * through naturally in the gaps between color fields. The bridge between the
- * cool lime corner and the warm pink corner is a very subtle pastel lavender
- * — chromatically between the two — not white.
+ * - GREEN ZONE (one area of the hero): pure Deep Green `#0F4F3B` primary +
+ *   a lighter same-family tint (`#9FBDB2`) for depth.
+ * - LIME ZONE (a different area): pure Lime `#CCD000` primary + a lighter
+ *   same-family tint (`#E9EB91`). Lime's peak opacity is tuned LOWER than
+ *   Green's (see `@keyframes atmosphere-lime-primary` in styles.css) because
+ *   the same alpha reads more neon on Lime than on Deep Green — it's an
+ *   inherently more luminant hue.
+ * - A white "breathe" field sits between the two zones so the transition
+ *   reads as green → clean white → lime, not one blended wash.
  *
- * v8 — color DOMINANCE is now a coordinated group behavior, not a per-field
- * accident. Every pink field (A/B/C) and every lime/green field (lime A/B,
- * green whisper) carries TWO animations at once: its own `atmosphere-pos-*`
- * transform-only path (independent duration, so fields keep drifting through
- * different regions of the hero), plus the SAME shared `atmosphere-dominance`
- * opacity keyframe from styles.css — pink fields run it near phase 0, lime/
- * green fields run it shifted by exactly half its 38s period. Because that
- * keyframe is a symmetric rise-and-fall, the half-period shift guarantees the
- * two families are always anti-phase: whichever is fading, the other is
- * rising, so they're never both weak at the same moment (see the long
- * comment above `@keyframes atmosphere-dominance` in styles.css for the
- * mechanics). Lavender stays independent of this — it's a bridge tone, not
- * part of the pink/green duality.
+ * Blur is reduced from v13 (was up to 210px) so each field keeps a
+ * recognizable "this is green" / "this is lime" center — translucent glass,
+ * not fog. Motion (position+scale+opacity combined per field, five different
+ * non-multiple durations 13s/16s/18s/21s/24s) is unchanged from v13.
  */
 export function HeroAtmosphere() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      {/* Lime A — upper-left corner, the primary field. Dominance phase ~19s
-          (anti-phase to the pink family). */}
+      {/* GREEN ZONE — primary. Upper-left, pure Deep Green. */}
       <div
-        className="atmosphere-blob -top-40 start-[-32%] size-[42rem] sm:size-[64rem] lg:size-[92rem]"
+        className="atmosphere-blob -top-24 start-[-10%] w-[30rem] h-[24rem] sm:w-[40rem] sm:h-[32rem] lg:w-[44rem] lg:h-[36rem]"
         style={{
-          backgroundColor: "rgba(192, 221, 0, 0.22)",
-          filter: "blur(200px)",
-          animationName: "atmosphere-pos-lime-a, atmosphere-dominance",
-          animationDuration: "27s, 38s",
-          animationDelay: "-5s, -19s",
-          animationTimingFunction: "cubic-bezier(0.45, 0, 0.55, 1), ease-in-out",
+          backgroundColor: "rgb(15, 79, 59)",
+          filter: "blur(130px)",
+          animationName: "atmosphere-green-primary",
+          animationDuration: "18s",
+          animationDelay: "0s",
+          animationTimingFunction: "ease-in-out",
         }}
       />
-      {/* Lime B — smaller, same corner, independent path so the corner isn't one
-          static shape. */}
+      {/* GREEN ZONE — tint. Same area, lighter same-family tone for depth. */}
       <div
-        className="atmosphere-blob -top-4 start-[-10%] size-[20rem] sm:size-[30rem] lg:size-[48rem]"
+        className="atmosphere-blob top-4 start-[6%] w-[22rem] h-[18rem] sm:w-[28rem] sm:h-[24rem] lg:w-[32rem] lg:h-[28rem]"
         style={{
-          backgroundColor: "rgba(192, 221, 0, 0.12)",
-          filter: "blur(170px)",
-          animationName: "atmosphere-pos-lime-b, atmosphere-dominance",
-          animationDuration: "29.6s, 38s",
-          animationDelay: "-12s, -22s",
-          animationTimingFunction: "cubic-bezier(0.4, 0, 0.6, 1), ease-in-out",
-        }}
-      />
-      {/* Deep green whisper — very subtle, blended near the lime corner, brand
-          depth without becoming its own visible zone. */}
-      <div
-        className="atmosphere-blob top-16 start-[-14%] size-[24rem] sm:size-[38rem] lg:size-[58rem] sm:top-20 lg:top-24"
-        style={{
-          backgroundColor: "rgba(15, 69, 53, 0.07)",
-          filter: "blur(190px)",
-          animationName: "atmosphere-pos-green-a, atmosphere-dominance",
-          animationDuration: "25.4s, 38s",
-          animationDelay: "-18s, -25s",
-          animationTimingFunction: "cubic-bezier(0.37, 0, 0.63, 1), ease-in-out",
-        }}
-      />
-      {/* Pink A — lower-right corner, the primary pink field. Dominance phase
-          ~0s (anti-phase to the lime/green family). */}
-      <div
-        className="atmosphere-blob top-[26rem] end-[-32%] size-[44rem] sm:size-[66rem] lg:size-[92rem] sm:top-[32rem] lg:top-[38rem]"
-        style={{
-          backgroundColor: "rgba(255, 120, 219, 0.2)",
-          filter: "blur(200px)",
-          animationName: "atmosphere-pos-pink-a, atmosphere-dominance",
-          animationDuration: "22s, 38s",
-          animationDelay: "-2s, 0s",
-          animationTimingFunction: "cubic-bezier(0.42, 0, 0.58, 1), ease-in-out",
-        }}
-      />
-      {/* Pink B — smaller, same corner, independent path. */}
-      <div
-        className="atmosphere-blob top-[22rem] end-[-6%] size-[20rem] sm:size-[30rem] lg:size-[48rem] sm:top-[26rem] lg:top-[30rem]"
-        style={{
-          backgroundColor: "rgba(255, 120, 219, 0.11)",
-          filter: "blur(170px)",
-          animationName: "atmosphere-pos-pink-b, atmosphere-dominance",
-          animationDuration: "24.5s, 38s",
-          animationDelay: "-9s, -3s",
-          animationTimingFunction: "cubic-bezier(0.42, 0, 0.58, 1), ease-in-out",
-        }}
-      />
-      {/* Pink C — a third pink field reaching toward the left side, so pink's
-          presence isn't confined to a single corner (the family needs to be
-          able to read as dominant from the left too, per the "spatial
-          movement" requirement). */}
-      <div
-        className="atmosphere-blob top-[20rem] start-[-18%] size-[18rem] sm:size-[28rem] lg:size-[44rem] sm:top-[26rem] lg:top-[32rem]"
-        style={{
-          backgroundColor: "rgba(255, 120, 219, 0.1)",
-          filter: "blur(170px)",
-          animationName: "atmosphere-pos-pink-c, atmosphere-dominance",
-          animationDuration: "20.3s, 38s",
-          animationDelay: "-14s, -6s",
-          animationTimingFunction: "cubic-bezier(0.42, 0, 0.58, 1), ease-in-out",
-        }}
-      />
-      {/* Lavender A — the bridge between the cool lime corner and the warm pink
-          corner, chromatically between the two rather than a competing bright
-          zone. Very subtle. Painted late in DOM order, over the color fields,
-          but at low alpha so Cream still shows through underneath it.
-          Independent of the pink/green dominance duality — its own
-          self-contained animation, unchanged from v7. */}
-      <div
-        className="atmosphere-blob top-12 start-[10%] size-[46rem] sm:size-[66rem] lg:size-[100rem] sm:top-16 lg:top-20"
-        style={{
-          backgroundColor: "rgba(196, 181, 253, 0.14)",
-          filter: "blur(220px)",
-          animationName: "atmosphere-drift-lavender-a",
-          animationDuration: "10.8s",
+          backgroundColor: "rgb(159, 189, 178)",
+          filter: "blur(150px)",
+          animationName: "atmosphere-green-tint",
+          animationDuration: "16s",
           animationDelay: "-5s",
           animationTimingFunction: "ease-in-out",
         }}
       />
-      {/* Lavender B — small, even more subtle, adds a second bridging point so
-          the transition doesn't read as one static disc. */}
+      {/* WHITE separator — keeps the green zone and lime zone from blending
+          into one wash; the transition should read as a clean white gap. */}
       <div
-        className="atmosphere-blob -top-4 start-[36%] size-[22rem] sm:size-[32rem] lg:size-[50rem]"
+        className="atmosphere-blob top-[20rem] start-[24%] w-[32rem] h-[26rem] sm:w-[42rem] sm:h-[34rem] lg:w-[48rem] lg:h-[38rem] sm:top-[24rem] lg:top-[28rem]"
         style={{
-          backgroundColor: "rgba(196, 181, 253, 0.08)",
+          backgroundColor: "rgb(255, 255, 255)",
           filter: "blur(170px)",
-          animationName: "atmosphere-drift-lavender-b",
-          animationDuration: "14.7s",
-          animationDelay: "-2s",
+          animationName: "atmosphere-breathe",
+          animationDuration: "24s",
+          animationDelay: "-12s",
+          animationTimingFunction: "ease-in-out",
+        }}
+      />
+      {/* LIME ZONE — primary. Lower-right, pure Lime — a separate area from
+          the green zone. */}
+      <div
+        className="atmosphere-blob top-[22rem] end-[-8%] w-[28rem] h-[22rem] sm:w-[38rem] sm:h-[30rem] lg:w-[42rem] lg:h-[34rem] sm:top-[28rem] lg:top-[32rem]"
+        style={{
+          backgroundColor: "rgb(204, 208, 0)",
+          filter: "blur(130px)",
+          animationName: "atmosphere-lime-primary",
+          animationDuration: "21s",
+          animationDelay: "-8s",
+          animationTimingFunction: "ease-in-out",
+        }}
+      />
+      {/* LIME ZONE — tint. Same area, lighter same-family tone for depth. */}
+      <div
+        className="atmosphere-blob top-[26rem] end-[4%] w-[20rem] h-[16rem] sm:w-[26rem] sm:h-[22rem] lg:w-[30rem] lg:h-[26rem] sm:top-[32rem] lg:top-[36rem]"
+        style={{
+          backgroundColor: "rgb(233, 235, 145)",
+          filter: "blur(150px)",
+          animationName: "atmosphere-lime-tint",
+          animationDuration: "13s",
+          animationDelay: "-6s",
           animationTimingFunction: "ease-in-out",
         }}
       />

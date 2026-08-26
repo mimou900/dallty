@@ -1,9 +1,29 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Eye, Flower2, Gem, Hand, Scissors, Smartphone, Sparkles, Waves } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+  Brush,
+  Droplet,
+  Flower2,
+  Hand,
+  MoreHorizontal,
+  Scissors,
+  Smile,
+  Waves,
+} from "lucide-react";
 
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
+import {
+  BusinessCarousel,
+  CarouselArrows,
+  CarouselDots,
+  useCarouselScroll,
+} from "@/components/dallty/business-carousel";
+import { CategoryScroller, CategoryTile } from "@/components/dallty/category-scroller";
+import { ProfessionalCTA } from "@/components/dallty/professional-cta";
+import { AppDownloadSection } from "@/components/dallty/app-download-section";
+import { Footer, type FooterColumnData } from "@/components/dallty/footer/footer";
+import { SectionHeader } from "@/components/dallty/section-header";
 import { HeroAtmosphere } from "@/components/dallty/hero-atmosphere";
 import { HomeSearchBar } from "@/components/dallty/home-search-bar";
 import { ServiceSearchSheet, ServiceSearchPanel } from "@/components/dallty/service-search-sheet";
@@ -18,23 +38,18 @@ import {
   type DateTimeSelection,
 } from "@/components/dallty/datetime-picker-sheet";
 import type { Business } from "@/lib/dallty-content";
+import { TRENDING_BUSINESSES } from "@/lib/trending-mock";
+import { NEW_ON_DALLTY_BUSINESSES } from "@/lib/new-on-dallty-mock";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
-import { useAuth } from "@/hooks/use-auth";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { haversineKm, useUserLocation } from "@/hooks/use-user-location";
 import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
-import { landingForRoles } from "@/lib/post-login";
 import { SiteHeader } from "@/components/dallty/site-nav";
 import { getDefaultCountry, type Category } from "@/lib/reference-data";
-import { BootSplash } from "@/components/dallty/boot-splash";
 
 export const Route = createFileRoute("/")({
-  // Only the home route gets the full branded splash while pending (first cold load,
-  // mainly) — every other route falls back to the router's generic RouteSkeleton so a
-  // shared link straight into e.g. a business page doesn't show home-page branding.
-  pendingComponent: BootSplash,
   head: () => ({
     meta: [
       { title: "Dallty — Find. Book. Relax." },
@@ -54,16 +69,19 @@ export const Route = createFileRoute("/")({
 });
 
 // `en` stays the stable filter key matched against businessType (business
-// data, not translated UI copy); `key` looks up the translated label.
+// data, not translated UI copy); `key` looks up the translated label. `en:
+// null` (Autres/Other) clears the category filter entirely rather than
+// matching a keyword — there's no catch-all businessType substring for it.
 const CATEGORY_DEFS = [
   { key: "hair", en: "Hair", icon: Scissors },
   { key: "barber", en: "Barber", icon: Scissors },
-  { key: "nails", en: "Nails", icon: Hand },
-  { key: "spa", en: "Spa", icon: Flower2 },
-  { key: "makeup", en: "Makeup", icon: Sparkles },
-  { key: "lashes", en: "Lashes", icon: Eye },
+  { key: "nails", en: "Nail", icon: Hand },
   { key: "massage", en: "Massage", icon: Waves },
-  { key: "beauty", en: "Beauty", icon: Gem },
+  { key: "skin", en: "Skin", icon: Smile },
+  { key: "spa", en: "Spa", icon: Flower2 },
+  { key: "waxing", en: "Waxing", icon: Droplet },
+  { key: "makeup", en: "Makeup", icon: Brush },
+  { key: "other", en: null, icon: MoreHorizontal },
 ] as const;
 
 // The real DB `categories` table (Hair Salon, Barbershop, Beauty Salon...) is richer
@@ -116,9 +134,6 @@ function dateTimeLabel(sel: DateTimeSelection | null, todayStr: string, tomorrow
 function Index() {
   const { lang } = useLocale();
   const { t, tArray } = useTranslation(["marketplace", "common"]);
-  const { user, roles } = useAuth();
-  const home = landingForRoles(roles);
-  const isManager = home !== "/bookings";
   const navigate = useNavigate();
   const geo = useUserLocation();
   const country = getDefaultCountry().iso_code;
@@ -128,7 +143,6 @@ function Index() {
   // working full-screen flow, just not the dedicated "large bottom sheet" variant).
   const isDesktop = useBreakpoint() === "desktop";
 
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [serviceState, setServiceState] = useState<ServiceState>(null);
   const [locationState, setLocationState] = useState<LocationSelection | null>(null);
   const [dateTimeState, setDateTimeState] = useState<DateTimeSelection | null>(null);
@@ -139,6 +153,38 @@ function Index() {
   const [dateTimeSheetOpen, setDateTimeSheetOpen] = useState(false);
 
   const { data: liveBusinesses } = useLiveBusinesses(country);
+
+  // Unfiltered, top-of-feed slice for the "Recommended for you" carousel — the
+  // RPC's default sort is already relevance (rank_score: rating + review
+  // volume + verified + distance + profile completeness), so no extra
+  // client-side sort is needed here. Deliberately separate from `results`
+  // below, which is the category/service/location-FILTERED grid — combining
+  // them would make category taps affect this unfiltered recommendation rail.
+  const recommended = useMemo(() => (liveBusinesses ?? []).slice(0, 10), [liveBusinesses]);
+
+  // Honest "Top rated" badge: only the single highest-rated business in the
+  // rail, and only if its rating genuinely earns the claim — no fabricated
+  // "New"/"Trending"/"Offer" badges without real backing data (see the
+  // homepage-rebuild plan: those need their own backend signal first).
+  const topRatedId = useMemo(() => {
+    const candidate = recommended.reduce<Business | null>((best, b) => {
+      if (b.rating < 4.8) return best;
+      if (
+        !best ||
+        b.rating > best.rating ||
+        (b.rating === best.rating && b.reviews > best.reviews)
+      ) {
+        return b;
+      }
+      return best;
+    }, null);
+    return candidate?.id ?? null;
+  }, [recommended]);
+
+  const recommendedCarousel = useCarouselScroll<HTMLDivElement>();
+  const categoriesCarousel = useCarouselScroll<HTMLDivElement>();
+  const trendingCarousel = useCarouselScroll<HTMLDivElement>();
+  const newCarousel = useCarouselScroll<HTMLDivElement>();
 
   const today = useMemo(() => new Date(), []);
   const tomorrow = useMemo(() => {
@@ -180,10 +226,6 @@ function Index() {
     });
   }
 
-  function scrollToResults() {
-    document.getElementById("nearby")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   function selectCategory(cat: Category) {
     const label = cat.translations[lang] ?? cat.default_name;
     setServiceState({ label, keyword: CATEGORY_KEYWORD[cat.default_name] ?? label.toLowerCase() });
@@ -191,6 +233,9 @@ function Index() {
     setServiceSheetOpen(false);
   }
 
+  // Feeds only the hero search bar's live "N shops match" summary
+  // (`resultCount` below) now that the homepage no longer has its own
+  // filterable results grid — category taps navigate straight to /search.
   const results = useMemo(() => {
     const list: Business[] = liveBusinesses ?? [];
     let placed = (list as LiveBusiness[]).filter((s) => {
@@ -200,11 +245,6 @@ function Index() {
       }
       return true;
     });
-    if (activeCategory) {
-      placed = placed.filter((s) =>
-        s.businessType.toLowerCase().includes(activeCategory.toLowerCase()),
-      );
-    }
     if (serviceState?.keyword) {
       const kw = serviceState.keyword.toLowerCase();
       placed = placed.filter((s) => s.businessType.toLowerCase().includes(kw));
@@ -230,14 +270,75 @@ function Index() {
       });
     }
     return placed;
-  }, [liveBusinesses, locationState, activeCategory, serviceState, geo.coords]);
+  }, [liveBusinesses, locationState, serviceState, geo.coords]);
 
   function clearAllFilters() {
-    setActiveCategory(null);
     setServiceState(null);
     setLocationState(null);
     setDateTimeState(null);
   }
+
+  const browseSearch = {
+    q: "",
+    country,
+    state: "",
+    city: "",
+    type: "",
+    sort: "rating" as const,
+    instant: false,
+    open: false,
+  };
+  const soon = t("soon");
+  const footerColumns: FooterColumnData[] = [
+    {
+      id: "customers",
+      title: t("footer_customers_title"),
+      items: [
+        { label: t("footer_customers_how_it_works"), soonLabel: soon },
+        { label: t("footer_customers_find_salons"), to: "/search", search: browseSearch },
+        { label: t("footer_customers_categories"), to: "/search", search: browseSearch },
+        { label: t("footer_customers_gift_cards"), soonLabel: soon },
+        { label: t("footer_customers_for_pros"), to: "/business/signup" },
+        { label: t("footer_customers_faq"), soonLabel: soon },
+      ],
+    },
+    {
+      id: "professionals",
+      title: t("footer_professionals_title"),
+      items: [
+        { label: t("footer_professionals_why"), soonLabel: soon },
+        { label: t("footer_professionals_features"), soonLabel: soon },
+        { label: t("footer_professionals_pricing"), soonLabel: soon },
+        { label: t("footer_professionals_success_stories"), soonLabel: soon },
+        { label: t("footer_professionals_resources"), soonLabel: soon },
+        { label: t("footer_professionals_create_account"), to: "/business/signup" },
+      ],
+    },
+    {
+      id: "company",
+      title: t("footer_company_title"),
+      items: [
+        { label: t("footer_company_about"), soonLabel: soon },
+        { label: t("footer_company_careers"), soonLabel: soon },
+        { label: t("footer_company_press"), soonLabel: soon },
+        { label: t("footer_company_blog"), soonLabel: soon },
+        { label: t("footer_company_contact"), soonLabel: soon },
+        { label: t("footer_company_partnerships"), soonLabel: soon },
+      ],
+    },
+    {
+      id: "legal",
+      title: t("footer_legal_title"),
+      items: [
+        { label: t("footer_legal_terms"), to: "/terms" },
+        { label: t("footer_legal_privacy"), to: "/privacy" },
+        { label: t("footer_legal_cookie"), soonLabel: soon },
+        { label: t("footer_legal_refund"), soonLabel: soon },
+        { label: t("footer_legal_professional_terms"), soonLabel: soon },
+        { label: t("footer_legal_data_protection"), soonLabel: soon },
+      ],
+    },
+  ];
 
   return (
     <div
@@ -258,8 +359,8 @@ function Index() {
         <div className="mx-auto max-w-6xl px-4">
           {/* Hero — spacious, editorial, Fresha-inspired: huge open space, a bold
               centered headline, and the floating search as the visual centerpiece. */}
-          <section className="relative animate-fade-up pb-4 pt-8 sm:pt-14 lg:pb-8 lg:pt-20">
-            <h1 className="text-display mx-auto max-w-3xl text-center text-primary">
+          <section className="relative animate-fade-up pb-4 pt-14 sm:pt-16 lg:pb-8 lg:pt-20">
+            <h1 className="text-display mx-auto max-w-3xl text-balance text-center text-primary">
               {t("hero_title")}
             </h1>
             <p className="text-body-lg mx-auto mt-4 max-w-xl text-balance text-center text-cream-foreground/70">
@@ -343,7 +444,7 @@ function Index() {
               {(tArray("stats") as [string, string][]).map(([value, label]) => (
                 <div
                   key={label}
-                  className="rounded-3xl border border-border/30 bg-white/70 px-2 py-4 text-center shadow-elevation-low sm:px-4 sm:py-5"
+                  className="glass-soft rounded-3xl px-2 py-4 text-center shadow-elevation-low sm:px-4 sm:py-5"
                 >
                   <p className="text-lg font-extrabold text-primary sm:text-2xl">{value}</p>
                   <p className="text-[0.7rem] leading-tight text-muted-foreground sm:text-sm">
@@ -357,62 +458,17 @@ function Index() {
       </div>
 
       <main className="mx-auto max-w-6xl px-4 pb-32 md:pb-24">
-        {/* Categories — plain Cream canvas from here down (no hero atmosphere): white
-            cards with pale-green icon circles, not tinted-green surfaces, per the
-            brand hierarchy (Cream/white dominant, green/lime/pink used sparingly). */}
-        <section className="mt-10 sm:mt-14">
-          <h2 className="text-xl font-extrabold text-primary sm:text-3xl">
-            {t("categories_title")}
-          </h2>
-          <div className="mt-4 grid grid-cols-4 gap-2.5 sm:mt-5 sm:grid-cols-8 sm:gap-3">
-            {CATEGORY_DEFS.map((def) => {
-              const Icon = def.icon;
-              const active = activeCategory === def.en;
-              return (
-                <button
-                  key={def.key}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => {
-                    setActiveCategory(active ? null : def.en);
-                    scrollToResults();
-                  }}
-                  className={`press flex flex-col items-center gap-2 rounded-3xl px-2 py-4 transition sm:gap-3 sm:px-3 sm:py-6 ${
-                    active
-                      ? "bg-primary text-primary-foreground shadow-lg"
-                      : "border border-border/30 bg-white shadow-elevation-low"
-                  }`}
-                >
-                  <span
-                    className={`grid size-10 place-items-center rounded-2xl sm:size-12 ${
-                      active
-                        ? "bg-primary-foreground/15 text-primary-foreground"
-                        : "bg-primary/10 text-primary"
-                    }`}
-                  >
-                    <Icon className="size-5 sm:size-6" />
-                  </span>
-                  <span
-                    className={`text-xs font-semibold sm:text-sm ${active ? "" : "text-primary"}`}
-                  >
-                    {t(`categories.${def.key}` as NamespaceKeyMap["marketplace"])}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Nearby */}
-        <section id="nearby" className="mt-10 scroll-mt-28 sm:mt-14">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:items-end sm:gap-4">
-            <div className="min-w-0">
-              <h2 className="text-xl font-extrabold sm:text-3xl">{t("nearby_title")}</h2>
-              <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{t("nearby_sub")}</p>
-            </div>
-            <Link
-              to="/search"
-              search={{
+        {/* Recommended for you — unfiltered top-ranked picks, horizontal carousel.
+            Distinct from the filterable "Nearby" grid further down: tapping a
+            category below never affects this rail. */}
+        {recommended.length > 0 && (
+          <section className="mt-14 sm:mt-16">
+            <SectionHeader
+              title={t("recommended_title")}
+              subtitle={t("recommended_sub")}
+              seeAllHref="/search"
+              seeAllLabel={t("see_all")}
+              seeAllSearch={{
                 q: "",
                 country,
                 state: "",
@@ -422,138 +478,206 @@ function Index() {
                 instant: false,
                 open: false,
               }}
-              className="press min-h-11 shrink-0 rounded-2xl glass-soft px-4 text-sm font-semibold"
-            >
-              {t("see_all")}
-            </Link>
-          </div>
-
-          {results.length === 0 ? (
-            <div className="mt-6 rounded-3xl glass p-10 text-center">
-              <p className="font-bold">
-                No salons match “
-                {[serviceState?.label, activeCategory, locationLabel].filter(Boolean).join(" · ") ||
-                  "your search"}
-                ”.
-              </p>
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="press mt-4 inline-flex min-h-11 items-center rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground"
-              >
-                {t("see_all")}
-              </button>
+              actions={<CarouselArrows {...recommendedCarousel} />}
+            />
+            <div className="mt-5 sm:mt-6">
+              <BusinessCarousel scrollRef={recommendedCarousel.ref}>
+                {recommended.map((s) => (
+                  <BusinessCard
+                    key={s.id}
+                    business={s}
+                    lang={lang}
+                    compact
+                    badge={
+                      s.id === topRatedId
+                        ? { label: t("badge_top_rated"), tone: "top-rated" }
+                        : undefined
+                    }
+                  />
+                ))}
+              </BusinessCarousel>
             </div>
-          ) : (
-            <div className="mt-5 grid gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-              {results.map((s) => (
-                <BusinessCard key={s.id} business={s} lang={lang} />
-              ))}
-            </div>
-          )}
-        </section>
+          </section>
+        )}
 
-        {/* How it works */}
-        <section className="mt-12 sm:mt-16">
-          <h2 className="text-xl font-extrabold sm:text-3xl">{t("steps_title")}</h2>
-          <ol className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-            {(tArray("steps") as [string, string][]).map(([title, desc], i) => (
-              <li className="rounded-3xl glass p-5 sm:p-6" key={title}>
-                <span className="grid size-10 place-items-center rounded-2xl bg-gold text-base font-extrabold text-gold-foreground">
-                  {i + 1}
-                </span>
-                <h3 className="mt-3 text-base font-bold sm:mt-4 sm:text-lg">{title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {/* CTA */}
-        <section className="mt-12 overflow-hidden rounded-4xl glass p-6 text-center sm:mt-16 sm:p-14">
-          <h2 className="mx-auto max-w-2xl text-2xl font-extrabold sm:text-4xl">
-            {t("cta_title")}
-          </h2>
-          <p className="mt-3 text-sm text-muted-foreground sm:text-base">{t("cta_sub")}</p>
-
-          <Link
-            to={user ? home : "/auth"}
-            className="press mt-7 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-pink px-7 text-base font-bold text-pink-foreground"
-          >
-            <Smartphone className="size-5" />
-            {t("cta_btn")}
-          </Link>
-        </section>
-
-        <footer className="mt-12 space-y-6 pb-4 text-sm text-muted-foreground">
-          <div className="grid gap-6 rounded-4xl glass p-6 sm:grid-cols-2">
-            <div>
-              <p className="text-[0.7rem] font-bold uppercase tracking-wide text-foreground">
-                {t("menu.customers")}
-              </p>
-              <nav aria-label="Customer links" className="mt-3 flex flex-col gap-2">
-                <Link to="/" className="hover:text-foreground">
-                  {t("menu.explore")}
-                </Link>
-                <Link
-                  to="/search"
-                  search={{
-                    q: "",
-                    country: "",
-                    state: "",
-                    city: "",
-                    type: "",
-                    sort: "rating",
-                    instant: false,
-                    open: false,
+        {/* Explore by category — plain Cream canvas from here down (no hero
+            atmosphere): white/cream, pale-green icon circles, Deep Green active
+            state, per the brand hierarchy (Cream/white dominant, green/lime used
+            sparingly). Tapping a tile navigates straight to /search with that
+            category applied — the homepage no longer hosts its own filterable
+            results grid (removed along with "Nearby", see below), so there's
+            nothing on-page left to filter/scroll to. The corrected 9-category
+            list adds Visage/Face and Autres/Other. */}
+        <section className="mt-14 sm:mt-16">
+          <SectionHeader
+            title={t("explore_title")}
+            seeAllHref="/search"
+            seeAllLabel={t("see_all")}
+            seeAllSearch={{
+              q: "",
+              country,
+              state: "",
+              city: "",
+              type: "",
+              sort: "rating",
+              instant: false,
+              open: false,
+            }}
+            actions={<CarouselArrows {...categoriesCarousel} />}
+          />
+          <div className="mt-4 sm:mt-5">
+            <CategoryScroller scrollRef={categoriesCarousel.ref}>
+              {CATEGORY_DEFS.map((def) => (
+                <CategoryTile
+                  key={def.key}
+                  icon={def.icon}
+                  label={t(`categories.${def.key}` as NamespaceKeyMap["marketplace"])}
+                  onClick={() => {
+                    void navigate({
+                      to: "/search",
+                      search: {
+                        q: "",
+                        country,
+                        state: "",
+                        city: "",
+                        type: def.en ?? "",
+                        sort: "rating",
+                        instant: false,
+                        open: false,
+                      },
+                    });
                   }}
-                  className="hover:text-foreground"
-                >
-                  {t("menu.search")}
-                </Link>
-                <Link to="/bookings" className="hover:text-foreground">
-                  {t("menu.bookings")}
-                </Link>
-                <Link to="/favorites" className="hover:text-foreground">
-                  {t("menu.favorites")}
-                </Link>
-                <Link to="/profile" className="hover:text-foreground">
-                  {t("menu.account")}
-                </Link>
-              </nav>
-            </div>
-            <div>
-              <p className="text-[0.7rem] font-bold uppercase tracking-wide text-foreground">
-                {t("menu.business")}
-              </p>
-              <nav aria-label="Business links" className="mt-3 flex flex-col gap-2">
-                <Link to="/business/signup" className="hover:text-foreground">
-                  {t("menu.list_business")}
-                </Link>
-                <Link to="/auth" className="hover:text-foreground">
-                  {t("menu.business_sign_in")}
-                </Link>
-                <Link to="/staff/signup" className="hover:text-foreground">
-                  {t("menu.staff_sign_in")}
-                </Link>
-                {isManager && (
-                  <Link to={home} className="hover:text-foreground">
-                    {t("menu.business_dashboard")}
-                  </Link>
-                )}
-              </nav>
-            </div>
+                />
+              ))}
+            </CategoryScroller>
           </div>
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
-            <Link to="/privacy" className="hover:text-foreground">
-              Privacy Policy
-            </Link>
-            <Link to="/terms" className="hover:text-foreground">
-              Terms of Use
-            </Link>
+        </section>
+
+        {/* Trending now — fixture data (see src/lib/trending-mock.ts) until a
+            real trending signal exists server-side; same reusable card/carousel
+            system as Recommended, just a different data source and badge set. */}
+        <section className="mt-14 sm:mt-16">
+          <SectionHeader
+            title={t("trending_title")}
+            subtitle={t("trending_sub")}
+            seeAllHref="/search"
+            seeAllLabel={t("see_all")}
+            seeAllSearch={{
+              q: "",
+              country,
+              state: "",
+              city: "",
+              type: "",
+              sort: "rating",
+              instant: false,
+              open: false,
+            }}
+            actions={<CarouselArrows {...trendingCarousel} />}
+          />
+          <div className="mt-5 sm:mt-6">
+            <BusinessCarousel scrollRef={trendingCarousel.ref}>
+              {TRENDING_BUSINESSES.map((b) => (
+                <BusinessCard
+                  key={b.id}
+                  business={b}
+                  lang={lang}
+                  compact
+                  badge={{
+                    label: t(
+                      `badge_${b.badgeTone.replace("-", "_")}` as NamespaceKeyMap["marketplace"],
+                    ),
+                    tone: b.badgeTone,
+                  }}
+                />
+              ))}
+            </BusinessCarousel>
           </div>
-          <p className="text-center">{t("footer")}</p>
-        </footer>
+          <CarouselDots progress={trendingCarousel.progress} count={TRENDING_BUSINESSES.length} />
+        </section>
+
+        {/* Nearby */}
+        {/* New on Dallty — fixture data (see src/lib/new-on-dallty-mock.ts) until
+            a real "recently joined" signal exists server-side; same reusable
+            card/carousel system as Recommended/Trending, always the "New" badge.
+            Replaces the old "Nearby" filterable grid, which is gone — category
+            taps above and "See all" links throughout the homepage now go
+            straight to /search instead. */}
+        <section className="mt-14 sm:mt-16">
+          <SectionHeader
+            title={t("new_title")}
+            subtitle={t("new_sub")}
+            seeAllHref="/search"
+            seeAllLabel={t("see_all")}
+            seeAllSearch={{
+              q: "",
+              country,
+              state: "",
+              city: "",
+              type: "",
+              sort: "rating",
+              instant: false,
+              open: false,
+            }}
+            actions={<CarouselArrows {...newCarousel} />}
+          />
+          <div className="mt-5 sm:mt-6">
+            <BusinessCarousel scrollRef={newCarousel.ref}>
+              {NEW_ON_DALLTY_BUSINESSES.map((b) => (
+                <BusinessCard
+                  key={b.id}
+                  business={b}
+                  lang={lang}
+                  compact
+                  badge={{ label: t("badge_new"), tone: "new" }}
+                />
+              ))}
+            </BusinessCarousel>
+          </div>
+          <CarouselDots progress={newCarousel.progress} count={NEW_ON_DALLTY_BUSINESSES.length} />
+        </section>
+
+        {/* Dallty for professionals */}
+        <ProfessionalCTA
+          title={t("professional_title")}
+          subtitle={t("professional_sub")}
+          ctaLabel={t("professional_cta")}
+          features={tArray("professional_features") as [string, string][]}
+        />
+
+        {/* Download the app */}
+        <AppDownloadSection
+          title={t("app_title")}
+          subtitle={t("app_sub")}
+          appStoreLabel={t("app_store_label")}
+          appStoreName={t("app_store_name")}
+          playStoreLabel={t("play_store_label")}
+          playStoreName={t("play_store_name")}
+        />
+
+        <Footer
+          lang={lang}
+          brandStatement={t("footer_brand_statement")}
+          columns={footerColumns}
+          newsletterTitle={t("footer_newsletter_title")}
+          newsletterSub={t("footer_newsletter_sub")}
+          newsletterPlaceholder={t("footer_newsletter_placeholder")}
+          newsletterCta={t("footer_newsletter_cta")}
+          newsletterSuccess={t("footer_newsletter_success")}
+          newsletterError={t("footer_newsletter_error")}
+          newsletterInvalid={t("footer_newsletter_invalid")}
+          trustItems={(tArray("footer_trust") as [string, string][]).map(([title, desc]) => ({
+            title,
+            desc,
+          }))}
+          appTitle={t("footer_app_title")}
+          appSub={t("footer_app_sub")}
+          appStoreLabel={t("app_store_label")}
+          appStoreName={t("app_store_name")}
+          playStoreLabel={t("play_store_label")}
+          playStoreName={t("play_store_name")}
+          copyright={t("footer_copyright", { year: today.getFullYear() })}
+          madeWithLove={t("footer_made_with_love")}
+        />
       </main>
 
       <BottomNav

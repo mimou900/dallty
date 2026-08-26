@@ -1,10 +1,9 @@
 /**
- * Generic pending screen — the router's `defaultPendingComponent` for every route except
- * "/", which gets its own branded BootSplash instead (see router.tsx). Shows a plausible
- * page shape instead of a blank screen or the home page's splash bleeding into an
- * unrelated route. Individual routes/components should still prefer their own
- * content-shaped skeleton where one exists (e.g. bookings.tsx's own pulse blocks); this is
- * the floor for everything that doesn't.
+ * Generic pending screen — the router's `defaultPendingComponent` for every route
+ * (see router.tsx). Shows a plausible page shape instead of a blank screen.
+ * Individual routes/components should still prefer their own content-shaped
+ * skeleton where one exists (e.g. bookings.tsx's own pulse blocks); this is the
+ * floor for everything that doesn't.
  */
 export function RouteSkeleton() {
   return (

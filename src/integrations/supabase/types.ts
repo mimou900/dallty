@@ -2202,6 +2202,30 @@ export type Database = {
           },
         ];
       };
+      newsletter_subscribers: {
+        Row: {
+          created_at: string;
+          email: string;
+          id: string;
+          lang: string | null;
+          unsubscribed_at: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          email: string;
+          id?: string;
+          lang?: string | null;
+          unsubscribed_at?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          email?: string;
+          id?: string;
+          lang?: string | null;
+          unsubscribed_at?: string | null;
+        };
+        Relationships: [];
+      };
       notification_deliveries: {
         Row: {
           attempt_number: number;

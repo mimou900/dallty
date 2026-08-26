@@ -19,7 +19,7 @@ import { setOtpPending, setRememberMe } from "@/lib/session";
 import { ensureSessionAfterSignUp } from "@/lib/auth-session";
 import { resolveLandingForSession } from "@/lib/post-login";
 import { friendlyError } from "@/lib/friendly-error";
-import wordmarkUrl from "@/assets/dallty-wordmark.png";
+import wordmarkUrl from "@/assets/dallty-wordmark.webp";
 import { LanguageSwitcher } from "@/components/dallty/language-switcher";
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";

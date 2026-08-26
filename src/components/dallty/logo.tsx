@@ -1,5 +1,5 @@
-import markUrl from "@/assets/dallty-mark.png";
-import wordmarkUrl from "@/assets/dallty-wordmark.png";
+import markUrl from "@/assets/dallty-mark.webp";
+import wordmarkUrl from "@/assets/dallty-wordmark.webp";
 
 /** Dallty pin mark — square, safe on any background. */
 export function LogoMark({ className = "size-9" }: { className?: string }) {

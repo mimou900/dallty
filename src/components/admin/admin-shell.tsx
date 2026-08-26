@@ -47,7 +47,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import wordmarkUrl from "@/assets/dallty-wordmark.png";
+import wordmarkUrl from "@/assets/dallty-wordmark.webp";
 import { useLocale, type Lang } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import { preloadNamespaces } from "@/lib/i18n/loader";

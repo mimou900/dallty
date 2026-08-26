@@ -13,4 +13,8 @@ export type Business = {
   open: boolean;
   instant: boolean;
   verified?: boolean;
+  /** Display-ready category label (e.g. "Hair studio", "Barbershop") — the
+   *  raw `business_type` column, already human-readable. Optional since not
+   *  every caller/mock fixture sets it. */
+  category?: string;
 };

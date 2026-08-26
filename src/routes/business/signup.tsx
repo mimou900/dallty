@@ -22,6 +22,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Scissors,
+  Sparkles,
   Store,
   UserCog,
   UserRound,
@@ -36,8 +37,7 @@ import { registerBusiness } from "@/lib/business.functions";
 import { ensureSessionAfterSignUp } from "@/lib/auth-session";
 import { businessDetailsSchema, phoneSchema, strongPassword } from "@/lib/business-schema";
 import { useCategories } from "@/lib/reference-data";
-import * as Icons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { DynamicIcon, type IconName } from "lucide-react/dynamic.mjs";
 import { PasswordStrength, isPasswordStrong } from "@/components/dallty/password-strength";
 import { checkSignupPassword, checkPhoneHasAccount } from "@/lib/account.functions";
 import { checkEmailDomainAllowed } from "@/lib/email-trust.functions";
@@ -81,9 +81,26 @@ const inputClass =
   "min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2";
 const labelClass = "mb-1.5 block text-sm font-semibold";
 
+/** DB category icons are stored PascalCase (e.g. "HeartHandshake" — see
+ *  supabase/migrations/20260813010300_seed_categories.sql); `DynamicIcon` expects
+ *  lucide's kebab-case icon-file names ("heart-handshake"). */
+function toKebabIconName(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/([A-Za-z])(\d)/g, "$1-$2")
+    .toLowerCase();
+}
+
+/** Renders by DB-stored icon name without bundling the whole icon library — see
+ *  the identical helper in service-search-sheet.tsx for the full rationale. */
 function CategoryIcon({ name }: { name: string }) {
-  const Icon = (Icons as unknown as Record<string, LucideIcon>)[name] ?? Icons.Sparkles;
-  return <Icon className="size-3.5" />;
+  return (
+    <DynamicIcon
+      name={toKebabIconName(name) as IconName}
+      className="size-3.5"
+      fallback={() => <Sparkles className="size-3.5" />}
+    />
+  );
 }
 
 type Account = {
