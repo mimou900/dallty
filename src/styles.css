@@ -61,6 +61,8 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-cream: var(--cream);
+  --color-cream-foreground: var(--cream-foreground);
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
   --color-lime: var(--lime);
@@ -281,6 +283,13 @@
   --accent: oklch(0.94 0.03 161);
   --accent-foreground: oklch(0.32 0.05 161);
 
+  /* Cream (brand #F7F5EE) — deliberately NOT --background (see the canvas note
+     above): kept as its own opt-in token for surfaces that specifically want
+     the brand's warm editorial cream rather than the site-wide mint neutral,
+     e.g. the profile page's canvas. */
+  --cream: oklch(0.97 0.01 93.5);
+  --cream-foreground: oklch(0.2 0.024 160);
+
   --gold: oklch(0.78 0.115 85);
   --gold-foreground: oklch(0.28 0.05 85);
   /* Lime — primary action / energy (brand #C0DD00). CTA buttons only. */
@@ -391,6 +400,12 @@
   --muted-foreground: oklch(0.72 0.02 155);
   --accent: oklch(0.31 0.05 164);
   --accent-foreground: oklch(0.95 0.01 150);
+
+  /* No warm-cream equivalent reads right against the dark canvas, so this
+     falls back to the dark theme's own background rather than a mismatched
+     light patch. */
+  --cream: var(--background);
+  --cream-foreground: var(--foreground);
 
   --gold: oklch(0.82 0.12 85);
   --gold-foreground: oklch(0.22 0.04 85);

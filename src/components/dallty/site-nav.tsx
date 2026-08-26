@@ -108,8 +108,11 @@ export function SiteHeader({ lang: langProp }: NavProps) {
   }
 
   return (
-    <header className="sticky top-0 z-(--z-nav) px-3 pt-3 sm:px-4 sm:pt-4">
-      <div className="glass glass-highlight mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-3xl px-3 py-2.5 sm:gap-4 sm:px-5 sm:py-3">
+    <header
+      className="sticky top-0 z-(--z-nav) px-3 sm:px-4"
+      style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+    >
+      <div className="glass glass-highlight mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-3xl py-2 ps-4 pe-2.5 sm:gap-4 sm:py-2.5 sm:ps-5 sm:pe-3">
         <Link to="/" className="flex min-w-0 items-center">
           <img src={wordmarkUrl} alt={t("brand")} className="h-8 w-auto object-contain sm:h-9" />
         </Link>
@@ -150,7 +153,7 @@ export function SiteHeader({ lang: langProp }: NavProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <NotificationCenter />
+          <NotificationCenter variant="glass" />
 
           <LanguageSwitcher variant="icon" />
 

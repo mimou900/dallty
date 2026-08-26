@@ -24,25 +24,25 @@ export function BottomNav({ tabs }: { tabs: string[] }) {
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-(--z-nav) px-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden"
     >
-      <ul className="glass glass-highlight mx-auto flex max-w-md items-center justify-between rounded-3xl px-2 py-2">
+      <ul className="glass glass-highlight mx-auto flex max-w-md items-center justify-between gap-1 rounded-3xl p-1.5">
         {tabs.map((tab, i) => {
           const item = items[i] ?? items[0];
           const Icon = item.icon;
           const active =
             i === 0 ? pathname === "/" : pathname.startsWith(item.to) && item.to !== "/";
           return (
-            <li key={tab} className="flex-1">
+            <li key={tab} className="min-w-0 flex-1">
               <Link
                 to={item.to}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-11 w-full flex-col items-center gap-1 rounded-2xl py-2 text-[11px] font-semibold transition-[background-color,color,box-shadow] ${
+                className={`flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-semibold transition-[background-color,color,box-shadow] ${
                   active
                     ? "bg-(image:--gradient-primary) text-primary-foreground shadow-(--shadow-glow-primary)"
                     : "text-muted-foreground"
                 }`}
               >
-                <Icon className="size-5" />
-                {tab}
+                <Icon className="size-[1.15rem]" strokeWidth={2} />
+                <span className="truncate">{tab}</span>
               </Link>
             </li>
           );

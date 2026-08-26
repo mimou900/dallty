@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   BadgeCheck,
+  KeyRound,
   Loader2,
   LogOut,
   Mail,
@@ -33,7 +34,7 @@ import { policyForRoles } from "@/lib/password-policy";
 import { isValidE164 } from "@/lib/phone";
 
 const inputClass =
-  "min-h-12 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2";
+  "min-h-12 w-full rounded-2xl border border-border bg-card px-4 text-base outline-none ring-ring transition-shadow placeholder:text-muted-foreground focus:border-primary/30 focus:ring-2";
 
 /**
  * Security & account controls rendered inline on the profile page so the
@@ -400,17 +401,21 @@ export function AccountSecurity() {
   return (
     <div className="space-y-5">
       {/* Verification status */}
-      <section className="rounded-3xl glass p-5">
+      <section className="rounded-4xl border border-border/60 bg-card p-5 shadow-elevation-low sm:p-6">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
           Verification
         </h2>
         <div className="mt-4 space-y-3">
-          <div className="rounded-2xl glass-soft p-4">
+          <div className="rounded-2xl bg-muted/60 p-4">
             <div className="flex items-center gap-3">
               {emailVerified ? (
-                <BadgeCheck className="size-5 shrink-0 text-primary" />
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                  <BadgeCheck className="size-5" />
+                </span>
               ) : (
-                <ShieldAlert className="size-5 shrink-0 text-gold" />
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-warning/15 text-warning">
+                  <ShieldAlert className="size-5" />
+                </span>
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold">
@@ -469,12 +474,16 @@ export function AccountSecurity() {
             )}
           </div>
 
-          <div className="rounded-2xl glass-soft p-4">
+          <div className="rounded-2xl bg-muted/60 p-4">
             <div className="flex items-center gap-3">
               {phoneVerified ? (
-                <BadgeCheck className="size-5 shrink-0 text-primary" />
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                  <BadgeCheck className="size-5" />
+                </span>
               ) : (
-                <ShieldAlert className="size-5 shrink-0 text-gold" />
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-warning/15 text-warning">
+                  <ShieldAlert className="size-5" />
+                </span>
               )}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold">Phone</p>
@@ -596,7 +605,7 @@ export function AccountSecurity() {
       </section>
 
       {/* Change email */}
-      <section className="rounded-3xl glass p-5">
+      <section className="rounded-4xl border border-border/60 bg-card p-5 shadow-elevation-low sm:p-6">
         <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
           <Mail className="size-4" /> Change email
         </h2>
@@ -690,8 +699,9 @@ export function AccountSecurity() {
       </section>
 
       {/* Password */}
-      <section className="rounded-3xl glass p-5">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+      <section className="rounded-4xl border border-border/60 bg-card p-5 shadow-elevation-low sm:p-6">
+        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+          <KeyRound className="size-4" />
           {hasPassword ? "Change password" : "Set a password"}
         </h2>
         {!user?.email ? (
@@ -827,12 +837,14 @@ export function AccountSecurity() {
       </section>
 
       {/* Sessions and devices */}
-      <section className="rounded-3xl glass p-5">
+      <section className="rounded-4xl border border-border/60 bg-card p-5 shadow-elevation-low sm:p-6">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
           Sessions & devices
         </h2>
-        <div className="mt-4 flex items-start gap-3 rounded-2xl glass-soft p-4">
-          <MonitorSmartphone className="size-5 shrink-0 text-primary" />
+        <div className="mt-4 flex items-start gap-3 rounded-2xl bg-muted/60 p-4">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+            <MonitorSmartphone className="size-5" />
+          </span>
           <div className="min-w-0">
             <p className="text-sm font-bold">This device</p>
             <p className="text-xs text-muted-foreground">
@@ -845,7 +857,7 @@ export function AccountSecurity() {
           <button
             type="button"
             onClick={signOutHere}
-            className="press flex min-h-11 items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold"
+            className="press flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border text-sm font-bold"
           >
             <LogOut className="size-4" />
             Sign out here
@@ -863,12 +875,14 @@ export function AccountSecurity() {
       </section>
 
       {/* Danger zone */}
-      <section className="rounded-3xl border border-destructive/40 bg-destructive/5 p-5">
+      <section className="rounded-4xl border border-destructive/30 bg-destructive/5 p-5 sm:p-6">
         <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-destructive">
-          <Trash2 className="size-4" />
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-destructive/10">
+            <Trash2 className="size-4" />
+          </span>
           Delete account
         </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-3 text-sm text-muted-foreground">
           This permanently removes your profile, bookings history and preferences. It cannot be
           undone.
         </p>
@@ -877,13 +891,13 @@ export function AccountSecurity() {
           onChange={(e) => setConfirmDelete(e.target.value)}
           placeholder="Type DELETE to confirm"
           aria-label="Type DELETE to confirm"
-          className={`${inputClass} mt-3`}
+          className={`${inputClass} mt-3 border-destructive/30 focus:border-destructive/50`}
         />
         <button
           type="button"
           onClick={handleDelete}
           disabled={busy === "delete"}
-          className="press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-destructive text-sm font-bold text-destructive-foreground disabled:opacity-60"
+          className="press mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-destructive text-sm font-bold text-destructive-foreground disabled:opacity-60"
         >
           {busy === "delete" && <Loader2 className="size-4 animate-spin" />}
           Delete my account

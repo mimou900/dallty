@@ -15,18 +15,26 @@ export function ClientShell({
   actions,
   children,
   width = "max-w-3xl",
+  surface = "default",
 }: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
   children: ReactNode;
   width?: string;
+  /** "cream" swaps the page canvas for the brand's warm editorial cream instead
+   *  of the site-wide mint neutral — opt in per page, see the --cream token. */
+  surface?: "default" | "cream";
 }) {
   const { lang } = useLocale();
   const { t } = useTranslation("common");
 
   return (
-    <div className="relative min-h-dvh pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12">
+    <div
+      className={`relative min-h-dvh pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12 ${
+        surface === "cream" ? "bg-cream text-cream-foreground" : ""
+      }`}
+    >
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="glow-blob -top-32 start-[-10%] size-[34rem]" />
         <div
@@ -37,18 +45,18 @@ export function ClientShell({
 
       <SiteHeader lang={lang} />
 
-      <main className={`mx-auto ${width} px-4 pt-5 sm:px-5`}>
+      <main className={`mx-auto ${width} px-4 pt-6 sm:px-5 sm:pt-8`}>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
+            <h1 className="text-h1 truncate">{title}</h1>
             {subtitle && (
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{subtitle}</p>
+              <p className="text-body-sm mt-1.5 line-clamp-2 text-muted-foreground">{subtitle}</p>
             )}
           </div>
           {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
         </div>
 
-        <div className="mt-6">{children}</div>
+        <div className="mt-7 sm:mt-8">{children}</div>
       </main>
 
       <BottomNav

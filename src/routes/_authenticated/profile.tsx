@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Camera, Loader2, Save, Star, Wallet } from "lucide-react";
+import { ArrowRight, Camera, Loader2, Plus, Save, Star, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -22,8 +22,16 @@ import {
 const HAIR_TYPES = ["Straight", "Wavy", "Curly", "Coily"];
 const SKIN_TYPES = ["Normal", "Dry", "Oily", "Combination", "Sensitive"];
 const GENDERS = ["Female", "Male", "Prefer not to say"];
+// Common salon-relevant allergens shown as one-tap chips; a person can still add anything
+// else by typing it — allergies stays the same free-text `profiles.allergies` column
+// (comma-joined here), no schema change needed for the nicer chip UI.
+const COMMON_ALLERGENS = ["Fragrance", "Latex", "Nickel", "Sulfates", "Parabens", "Essential oils"];
 /** Radix Select can't take an empty-string item value, so "no selection" needs a sentinel. */
 const UNSET = "__unset__";
+
+const fieldInputClass =
+  "min-h-12 w-full rounded-2xl border border-border bg-card px-4 text-base text-foreground outline-none ring-ring transition-shadow placeholder:text-muted-foreground focus:border-primary/30 focus:ring-2";
+const selectTriggerClass = "border border-border bg-card";
 
 function numberFormat(n: number) {
   return new Intl.NumberFormat("en").format(n);
@@ -83,11 +91,175 @@ function BrandBurst({ className }: { className?: string }) {
   );
 }
 
+/** Balance + loyalty — the page's flagship card. Sized off its own container width
+ *  (not the viewport) via @container, since it renders full-width on mobile but in a
+ *  narrow sidebar column on desktop: at @xs+ (~320px available) the two stats sit
+ *  side by side with a divider; below that they stack full-width, never squeezed. */
+function WalletCard() {
+  return (
+    <section className="@container relative overflow-hidden rounded-4xl bg-(image:--gradient-primary) p-5 text-primary-foreground shadow-elevation-high @sm:p-7">
+      <BrandBurst className="pointer-events-none absolute -start-14 -bottom-16 size-64 opacity-70 blur-2xl @sm:size-72" />
+      <BrandBurst className="pointer-events-none absolute -end-20 top-0 size-48 rotate-[42deg] opacity-50 blur-2xl" />
+
+      <div className="relative grid grid-cols-1 gap-4 @xs:grid-cols-2 @xs:gap-0">
+        <div className="flex items-start gap-2.5 border-b border-primary-foreground/15 pb-4 @xs:border-b-0 @xs:border-e @xs:pb-0 @xs:pe-4 @sm:gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary-foreground/10 @sm:size-11">
+            <Wallet className="size-4.5 text-lime @sm:size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[0.65rem] font-bold uppercase tracking-wider text-primary-foreground/80">
+              Balance
+            </p>
+            <p className="mt-0.5 flex items-baseline gap-1">
+              <span className="text-xl font-extrabold text-background @sm:text-2xl">
+                {numberFormat(0)}
+              </span>
+              <span className="text-[0.65rem] font-extrabold text-lime">DZD</span>
+            </p>
+            <p className="mt-1 text-[0.65rem] leading-snug text-primary-foreground/70">
+              Available balance
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2.5 @xs:ps-4 @sm:gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary-foreground/10 @sm:size-11">
+            <Star className="size-4.5 text-pink @sm:size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[0.65rem] font-bold uppercase tracking-wider text-primary-foreground/80">
+              Loyalty points
+            </p>
+            <p className="mt-0.5 flex items-baseline gap-1">
+              <span className="text-xl font-extrabold text-background @sm:text-2xl">
+                {numberFormat(0)}
+              </span>
+              <span className="text-[0.65rem] font-extrabold text-pink">PTS</span>
+            </p>
+            <p className="mt-1 text-[0.65rem] leading-snug text-primary-foreground/70">
+              Keep booking, get rewarded!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative mt-4 flex justify-center">
+        <button
+          type="button"
+          onClick={() => toast.info("Rewards are coming soon.")}
+          className="press flex items-center gap-1.5 rounded-full border border-lime/40 px-4 py-2 text-xs font-bold text-lime"
+        >
+          View rewards
+          <ArrowRight className="size-3.5 rtl:rotate-180" />
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function Field({ children, title }: { title: string; children: React.ReactNode }) {
   return (
     <div>
       <p className="mb-2 text-sm font-bold">{title}</p>
       {children}
+    </div>
+  );
+}
+
+/** Section eyebrow shared by Personal information and every AccountSecurity block, so the
+ *  settings half of the page reads as one consistent list rather than mismatched cards. */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{children}</h2>
+  );
+}
+
+/** Multi-select chips over the existing free-text `allergies` column (comma-joined) — keeps
+ *  the current data model (no migration) while presenting the "pick or type, then remove
+ *  with ×" interaction the redesign calls for. */
+function AllergiesField({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const selected = useMemo(
+    () =>
+      value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    [value],
+  );
+  const [draft, setDraft] = useState("");
+
+  function commit(next: string[]) {
+    onChange(next.join(", "));
+  }
+
+  function addCustom() {
+    const v = draft.trim();
+    if (!v) return;
+    if (!selected.includes(v)) commit([...selected, v]);
+    setDraft("");
+  }
+
+  return (
+    <div>
+      {selected.length > 0 && (
+        <div className="mb-2.5 flex flex-wrap gap-2">
+          {selected.map((item) => (
+            <span
+              key={item}
+              className="flex items-center gap-1.5 rounded-full border border-rose/25 bg-rose/15 py-1.5 pe-2 ps-3 text-xs font-bold text-rose-foreground"
+            >
+              {item}
+              <button
+                type="button"
+                onClick={() => commit(selected.filter((s) => s !== item))}
+                aria-label={`Remove ${item}`}
+                className="grid size-4 place-items-center rounded-full hover:bg-rose/20"
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {COMMON_ALLERGENS.filter((a) => !selected.includes(a)).map((a) => (
+          <button
+            key={a}
+            type="button"
+            onClick={() => commit([...selected, a])}
+            className="press flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground"
+          >
+            <Plus className="size-3" />
+            {a}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2.5 flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addCustom();
+            }
+          }}
+          placeholder="Add another — e.g. a specific dye"
+          aria-label="Add another allergy"
+          maxLength={60}
+          className={fieldInputClass}
+        />
+        <button
+          type="button"
+          onClick={addCustom}
+          disabled={!draft.trim()}
+          className="press shrink-0 rounded-2xl border border-border bg-card px-4 text-sm font-bold disabled:opacity-50"
+        >
+          Add
+        </button>
+      </div>
     </div>
   );
 }
@@ -203,259 +375,253 @@ function ProfilePage() {
     [form.full_name, user?.email],
   );
 
+  // "2 of 5 details completed" — the five core fields the redesign's profile-completion
+  // card tracks. Beauty notes/allergies/favorite categories are real, saved fields too,
+  // just not part of this headline fraction.
+  const completionFields = [
+    form.full_name,
+    form.birthday,
+    form.gender,
+    form.hair_type,
+    form.skin_type,
+  ];
+  const completedCount = completionFields.filter(Boolean).length;
+  const totalFields = completionFields.length;
+  const completionPct = Math.round((completedCount / totalFields) * 100);
+
   return (
     <ClientShell
       title="Your profile"
       subtitle="Keep your details and preferences up to date."
-      width="max-w-2xl"
+      width="max-w-5xl"
+      surface="cream"
     >
-      <section className="relative mt-6 overflow-hidden rounded-4xl bg-(image:--gradient-primary) p-6 text-primary-foreground shadow-elevation-high sm:p-7">
-        <BrandBurst className="pointer-events-none absolute -start-14 -bottom-16 size-64 opacity-70 blur-2xl sm:size-72" />
-        <BrandBurst className="pointer-events-none absolute -end-20 top-0 size-48 rotate-[42deg] opacity-50 blur-2xl" />
+      <div className="grid gap-6 lg:grid-cols-[22rem_1fr] lg:items-start lg:gap-8">
+        {/* Left column (desktop): identity, rewards. Stacks above everything on mobile. */}
+        <div className="space-y-6 lg:sticky lg:top-24">
+          <WalletCard />
 
-        <div className="relative grid grid-cols-2">
-          <div className="flex items-start gap-2.5 border-e border-primary-foreground/15 pe-4 sm:gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary-foreground/10 sm:size-11">
-              <Wallet className="size-4.5 text-lime sm:size-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[0.65rem] font-bold uppercase tracking-wider text-primary-foreground/80">
-                Balance
-              </p>
-              <p className="mt-0.5 flex items-baseline gap-1">
-                <span className="text-xl font-extrabold text-background sm:text-2xl">
-                  {numberFormat(0)}
-                </span>
-                <span className="text-[0.65rem] font-extrabold text-lime">DZD</span>
-              </p>
-              <p className="mt-1 text-[0.65rem] leading-snug text-primary-foreground/70">
-                Available balance
-              </p>
+          <section className="rounded-4xl border border-border/60 bg-card p-5 shadow-elevation-low sm:p-6">
+            <div className="flex items-start gap-4">
+              <div className="relative shrink-0">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Your profile photo"
+                    className="size-16 rounded-3xl object-cover sm:size-[4.5rem]"
+                  />
+                ) : (
+                  <div className="grid size-16 place-items-center rounded-3xl bg-primary/15 text-lg font-extrabold text-primary sm:size-[4.5rem]">
+                    {initials}
+                  </div>
+                )}
+                <label className="press absolute -bottom-1 -end-1 grid size-8 cursor-pointer place-items-center rounded-2xl bg-primary text-primary-foreground shadow-elevation-low">
+                  {uploading ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Camera className="size-3.5" />
+                  )}
+                  <span className="sr-only">Upload a profile photo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleAvatar(file);
+                    }}
+                  />
+                </label>
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <p className="text-h3 truncate">
+                  {completedCount === totalFields ? "Your profile" : "Complete your profile"}
+                </p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {completedCount} of {totalFields} details completed
+                </p>
+                <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-lime transition-[width] duration-500"
+                    style={{ width: `${completionPct}%` }}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-start gap-2.5 ps-4 sm:gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary-foreground/10 sm:size-11">
-              <Star className="size-4.5 text-pink sm:size-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[0.65rem] font-bold uppercase tracking-wider text-primary-foreground/80">
-                Loyalty points
-              </p>
-              <p className="mt-0.5 flex items-baseline gap-1">
-                <span className="text-xl font-extrabold text-background sm:text-2xl">
-                  {numberFormat(0)}
-                </span>
-                <span className="text-[0.65rem] font-extrabold text-pink">PTS</span>
-              </p>
-              <p className="mt-1 text-[0.65rem] leading-snug text-primary-foreground/70">
-                Keep booking, get rewarded!
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative mt-4 flex justify-end">
-          <button
-            type="button"
-            onClick={() => toast.info("Rewards are coming soon.")}
-            className="press flex items-center gap-1.5 rounded-full border border-lime/40 px-4 py-2 text-xs font-bold text-lime"
-          >
-            View rewards
-            <ArrowRight className="size-3.5 rtl:rotate-180" />
-          </button>
-        </div>
-      </section>
-
-      <section className="mt-5 flex items-center gap-4 rounded-3xl glass p-5">
-        <div className="relative">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt="Your profile photo"
-              className="size-20 rounded-3xl object-cover"
-            />
-          ) : (
-            <div className="grid size-20 place-items-center rounded-3xl bg-primary/15 text-xl font-extrabold text-primary">
-              {initials}
-            </div>
-          )}
-          <label className="press absolute -bottom-1 -end-1 grid size-9 cursor-pointer place-items-center rounded-2xl bg-primary text-primary-foreground">
-            {uploading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Camera className="size-4" />
+            {completedCount < totalFields && (
+              <button
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById("personal-info")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
+                className="press mt-4 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-2xl bg-primary/8 text-sm font-bold text-primary"
+              >
+                Complete profile
+                <ArrowRight className="size-4 rtl:rotate-180" />
+              </button>
             )}
-            <span className="sr-only">Upload a profile photo</span>
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleAvatar(file);
-              }}
-            />
-          </label>
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-lg font-extrabold">{form.full_name || "Add your name"}</p>
-          <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
-        </div>
-      </section>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate();
-        }}
-        className="mt-5 space-y-5 rounded-3xl glass p-5"
-      >
-        <Field title="Full name">
-          <input
-            value={form.full_name}
-            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-            maxLength={100}
-            className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
-          />
-        </Field>
-
-        <div className="grid grid-cols-2 gap-4">
-          <Field title="Birthday">
-            <input
-              type="date"
-              value={form.birthday}
-              onChange={(e) => setForm({ ...form, birthday: e.target.value })}
-              max={new Date().toISOString().slice(0, 10)}
-              className="min-h-11 w-full rounded-2xl bg-card/70 px-4 text-base outline-none ring-ring focus:ring-2"
-            />
-          </Field>
-          <Field title="Gender">
-            <Select
-              value={form.gender || UNSET}
-              onValueChange={(v) => setForm({ ...form, gender: v === UNSET ? "" : v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UNSET}>Not set</SelectItem>
-                {GENDERS.map((g) => (
-                  <SelectItem key={g} value={g}>
-                    {g}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+          </section>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Field title="Hair type">
-            <Select
-              value={form.hair_type || UNSET}
-              onValueChange={(v) => setForm({ ...form, hair_type: v === UNSET ? "" : v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UNSET}>Not set</SelectItem>
-                {HAIR_TYPES.map((h) => (
-                  <SelectItem key={h} value={h}>
-                    {h}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field title="Skin type">
-            <Select
-              value={form.skin_type || UNSET}
-              onValueChange={(v) => setForm({ ...form, skin_type: v === UNSET ? "" : v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UNSET}>Not set</SelectItem>
-                {SKIN_TYPES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
+        {/* Right column (desktop): personal information and account settings. */}
+        <div className="space-y-6">
+          <form
+            id="personal-info"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save.mutate();
+            }}
+            className="scroll-mt-24 space-y-5 rounded-4xl border border-border/60 bg-card p-5 shadow-elevation-low sm:p-6"
+          >
+            <SectionLabel>Personal information</SectionLabel>
 
-        <Field title="Allergies">
-          <textarea
-            value={form.allergies}
-            onChange={(e) => setForm({ ...form, allergies: e.target.value })}
-            maxLength={300}
-            rows={2}
-            placeholder="e.g. fragrance, latex, certain dyes — shared with the salon at booking"
-            className="w-full resize-none rounded-2xl bg-card/70 px-4 py-3 text-base outline-none ring-ring focus:ring-2"
-          />
-        </Field>
+            <Field title="Full name">
+              <input
+                value={form.full_name}
+                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                maxLength={100}
+                placeholder="Your name"
+                className={fieldInputClass}
+              />
+            </Field>
 
-        <Field title="Beauty notes">
-          <textarea
-            value={form.beauty_notes}
-            onChange={(e) => setForm({ ...form, beauty_notes: e.target.value })}
-            maxLength={300}
-            rows={2}
-            placeholder="Anything a specialist should know before your visit"
-            className="w-full resize-none rounded-2xl bg-card/70 px-4 py-3 text-base outline-none ring-ring focus:ring-2"
-          />
-        </Field>
-
-        <Field title="I'm usually looking for">
-          <div className="flex flex-wrap gap-2">
-            {SERVICE_CATEGORIES.map((cat) => {
-              const active = form.favorite_categories.includes(cat);
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      favorite_categories: active
-                        ? form.favorite_categories.filter((c) => c !== cat)
-                        : [...form.favorite_categories, cat],
-                    })
-                  }
-                  className={`press rounded-full px-3.5 py-2 text-sm font-semibold capitalize ${
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card/70 text-foreground ring-1 ring-border"
-                  }`}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field title="Birthday">
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={form.birthday}
+                    onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+                    max={new Date().toISOString().slice(0, 10)}
+                    className={fieldInputClass}
+                  />
+                </div>
+              </Field>
+              <Field title="Gender">
+                <Select
+                  value={form.gender || UNSET}
+                  onValueChange={(v) => setForm({ ...form, gender: v === UNSET ? "" : v })}
                 >
-                  {cat}
-                </button>
-              );
-            })}
-          </div>
-        </Field>
+                  <SelectTrigger className={selectTriggerClass}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNSET}>Not set</SelectItem>
+                    {GENDERS.map((g) => (
+                      <SelectItem key={g} value={g}>
+                        {g}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
 
-        <button
-          type="submit"
-          disabled={save.isPending}
-          className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
-        >
-          {save.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Save className="size-4" />
-          )}
-          Save profile
-        </button>
-      </form>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field title="Hair type">
+                <Select
+                  value={form.hair_type || UNSET}
+                  onValueChange={(v) => setForm({ ...form, hair_type: v === UNSET ? "" : v })}
+                >
+                  <SelectTrigger className={selectTriggerClass}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNSET}>Not set</SelectItem>
+                    {HAIR_TYPES.map((h) => (
+                      <SelectItem key={h} value={h}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field title="Skin type">
+                <Select
+                  value={form.skin_type || UNSET}
+                  onValueChange={(v) => setForm({ ...form, skin_type: v === UNSET ? "" : v })}
+                >
+                  <SelectTrigger className={selectTriggerClass}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNSET}>Not set</SelectItem>
+                    {SKIN_TYPES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
 
-      <div className="mt-5">
-        <AccountSecurity />
+            <Field title="Allergies">
+              <AllergiesField
+                value={form.allergies}
+                onChange={(v) => setForm({ ...form, allergies: v })}
+              />
+            </Field>
+
+            <Field title="Beauty notes">
+              <textarea
+                value={form.beauty_notes}
+                onChange={(e) => setForm({ ...form, beauty_notes: e.target.value })}
+                maxLength={300}
+                rows={2}
+                placeholder="Anything a specialist should know before your visit"
+                className={`${fieldInputClass} resize-none py-3`}
+              />
+            </Field>
+
+            <Field title="I'm usually looking for">
+              <div className="flex flex-wrap gap-2">
+                {SERVICE_CATEGORIES.map((cat) => {
+                  const active = form.favorite_categories.includes(cat);
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          favorite_categories: active
+                            ? form.favorite_categories.filter((c) => c !== cat)
+                            : [...form.favorite_categories, cat],
+                        })
+                      }
+                      className={`press rounded-full px-3.5 py-2 text-sm font-semibold capitalize ${
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border bg-card text-foreground"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+
+            <button
+              type="submit"
+              disabled={save.isPending}
+              className="press flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {save.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              Save profile
+            </button>
+          </form>
+
+          <AccountSecurity />
+        </div>
       </div>
     </ClientShell>
   );

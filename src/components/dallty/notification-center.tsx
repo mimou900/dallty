@@ -70,7 +70,13 @@ function visualFor(kind: string) {
 }
 
 /** Bell + panel: bottom sheet on mobile, popover on desktop. */
-export function NotificationCenter({ className = "" }: { className?: string }) {
+export function NotificationCenter({
+  className = "",
+  variant = "default",
+}: {
+  className?: string;
+  variant?: "default" | "glass";
+}) {
   const { user } = useAuth();
   const { lang } = useLocale();
   const { t } = useTranslation("notifications");
@@ -159,7 +165,9 @@ export function NotificationCenter({ className = "" }: { className?: string }) {
       type="button"
       onClick={markAllRead}
       aria-label={unread > 0 ? `${t("title")}: ${unread} ${t("unread")}` : t("title")}
-      className={`press relative grid size-10 shrink-0 place-items-center rounded-2xl border border-border bg-card text-foreground ${className}`}
+      className={`press relative grid shrink-0 place-items-center rounded-2xl text-foreground ${
+        variant === "glass" ? "size-11 glass-soft" : "size-10 border border-border bg-card"
+      } ${className}`}
     >
       <Bell className="size-[1.05rem]" />
       {unread > 0 && (
