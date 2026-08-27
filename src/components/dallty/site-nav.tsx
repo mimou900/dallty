@@ -181,7 +181,7 @@ export function SiteHeader({ lang: langProp }: NavProps) {
 
           {user ? (
             <DropdownMenu>
-              <DropdownMenuTrigger className="press hidden min-h-11 shrink-0 items-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground md:flex">
+              <DropdownMenuTrigger className="press hidden min-h-11 shrink-0 items-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-primary-hover md:flex">
                 <User className="size-4" />
                 {isManager ? m.dashboard : m.account}
                 <ChevronDown className="size-4" />
@@ -215,7 +215,7 @@ export function SiteHeader({ lang: langProp }: NavProps) {
             <Link
               to="/auth"
               search={{ next: returnPath }}
-              className="press flex min-h-11 shrink-0 items-center rounded-2xl bg-lime px-4 text-sm font-semibold text-lime-foreground sm:px-5"
+              className="press flex min-h-11 shrink-0 items-center rounded-2xl bg-lime px-4 text-sm font-semibold text-lime-foreground transition-[filter] duration-150 hover:brightness-95 sm:px-5"
             >
               {t("sign_in")}
             </Link>

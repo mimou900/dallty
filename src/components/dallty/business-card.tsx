@@ -94,7 +94,7 @@ export function BusinessCard({
   const stockName = stockMatch?.[1];
 
   return (
-    <article className="group overflow-hidden rounded-3xl border border-border/50 bg-card shadow-soft transition-shadow duration-200 hover:shadow-elevation-medium">
+    <article className="group overflow-hidden rounded-3xl border border-border/50 bg-card shadow-soft transition-colors duration-150 hover:border-border hover:bg-secondary">
       <div className={`relative overflow-hidden ${compact ? "aspect-[16/10]" : "aspect-[4/3]"}`}>
         <picture>
           {stockName && (
@@ -136,7 +136,7 @@ export function BusinessCard({
           kind="business"
           targetId={business.id}
           label={s.name}
-          className="absolute end-3 top-3 !size-11 transition-transform active:scale-90"
+          className="absolute end-3 top-3 !size-11"
         />
         <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
           <span className="rounded-full glass-dark px-3 py-1 text-xs font-semibold">
@@ -189,7 +189,7 @@ export function BusinessCard({
             params={{ businessSlug: business.slug }}
             search={{ book: true }}
             aria-label={`${t("book")} ${s.name}`}
-            className="press mt-3 flex min-h-11 items-center justify-center rounded-full bg-(image:--gradient-lime) text-sm font-semibold text-lime-foreground transition-[filter] duration-150 hover:brightness-105"
+            className="press mt-3 flex min-h-11 items-center justify-center rounded-full bg-(image:--gradient-lime) text-sm font-semibold text-lime-foreground transition-[filter] duration-150 hover:brightness-95"
           >
             {t("book")}
           </Link>
@@ -254,7 +254,7 @@ export function BusinessCard({
             <Link
               to="/business/$businessSlug"
               params={{ businessSlug: business.slug }}
-              className="press block rounded-2xl glass-soft py-3 text-center text-sm font-semibold"
+              className="press block rounded-2xl glass-soft py-3 text-center text-sm font-semibold transition-colors duration-150 hover:bg-primary/5"
             >
               {t("details")}
             </Link>
@@ -263,7 +263,7 @@ export function BusinessCard({
               params={{ businessSlug: business.slug }}
               search={{ book: true }}
               aria-label={`${t("book")} ${s.name}`}
-              className="press block rounded-2xl bg-(image:--gradient-lime) py-3 text-center text-sm font-semibold text-lime-foreground transition-[filter] duration-150 hover:brightness-105"
+              className="press block rounded-2xl bg-(image:--gradient-lime) py-3 text-center text-sm font-semibold text-lime-foreground transition-[filter] duration-150 hover:brightness-95"
             >
               {t("book")}
             </Link>

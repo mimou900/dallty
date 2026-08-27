@@ -38,7 +38,7 @@ export function SectionHeader({
           <Link
             to={seeAllHref}
             search={seeAllSearch}
-            className="group flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors duration-150 hover:bg-primary/15"
+            className="group flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors duration-150 hover:text-primary-hover"
           >
             {seeAllLabel}
             <ArrowRight className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />

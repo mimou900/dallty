@@ -988,16 +988,17 @@
   padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
 }
 
+/* Tap/press feedback only — deliberately has NO hover behavior of its own.
+ * Previously lifted (translateY) and swapped in a heavy shadow on hover,
+ * which moved the element and everything sized/positioned relative to it —
+ * exactly the instability the current Dallty hover system rules out. Every
+ * interactive element now owns its own hover state (a background/border/
+ * text-color transition on the element itself), and this utility only adds
+ * the brief, layout-neutral "this registered a tap" dip on `:active`. */
 @utility press {
-  transition:
-    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.25s ease;
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-float);
-  }
+  transition: opacity 0.15s ease;
   &:active {
-    transform: translateY(0) scale(0.985);
+    opacity: 0.85;
   }
 }
 

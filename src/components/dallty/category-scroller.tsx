@@ -43,13 +43,13 @@ export function CategoryTile({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`press flex w-full flex-col items-center gap-2 rounded-2xl px-2 py-3 text-center transition ${
+      className={`press group flex w-full flex-col items-center gap-2 rounded-2xl px-2 py-3 text-center transition-colors duration-150 ${
         active ? "" : "hover:bg-primary/5"
       }`}
     >
       <span
-        className={`grid size-14 place-items-center rounded-full transition sm:size-16 ${
-          active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
+        className={`grid size-14 place-items-center rounded-full transition-colors duration-150 sm:size-16 ${
+          active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary group-hover:bg-primary/15"
         }`}
       >
         <Icon className="size-6 sm:size-7" />

@@ -166,7 +166,7 @@ export function HomeSearchBar({
         <button
           type="button"
           onClick={onSearch}
-          className="press flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-lime px-8 text-[0.95rem] font-bold text-lime-foreground md:min-h-0 md:self-stretch md:px-7"
+          className="press flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-lime px-8 text-[0.95rem] font-bold text-lime-foreground transition-[filter] duration-150 hover:brightness-95 md:min-h-0 md:self-stretch md:px-7"
         >
           <Search className="size-[18px]" />
           <span>{t("search_btn")}</span>

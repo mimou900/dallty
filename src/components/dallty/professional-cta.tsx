@@ -37,7 +37,7 @@ export function ProfessionalCTA({
 
           <Link
             to="/business/signup"
-            className="press mt-7 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-6 text-sm font-bold text-primary-foreground sm:text-base"
+            className="press mt-7 inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-6 text-sm font-bold text-primary-foreground transition-colors duration-150 hover:bg-primary-hover sm:text-base"
           >
             {ctaLabel}
             <ArrowRight className="size-4 rtl:rotate-180" />

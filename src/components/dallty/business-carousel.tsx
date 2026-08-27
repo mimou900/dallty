@@ -110,7 +110,7 @@ export function CarouselArrows({
         onClick={scrollPrev}
         disabled={!canScrollPrev}
         aria-label="Previous"
-        className="press glass-warm flex size-10 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-40"
+        className="press glass-warm flex size-10 items-center justify-center rounded-full transition-colors duration-150 hover:bg-primary/10 disabled:pointer-events-none disabled:opacity-40"
       >
         <ChevronLeft className="size-4 rtl:rotate-180" />
       </button>
@@ -119,7 +119,7 @@ export function CarouselArrows({
         onClick={scrollNext}
         disabled={!canScrollNext}
         aria-label="Next"
-        className="press glass-warm flex size-10 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-40"
+        className="press glass-warm flex size-10 items-center justify-center rounded-full transition-colors duration-150 hover:bg-primary/10 disabled:pointer-events-none disabled:opacity-40"
       >
         <ChevronRight className="size-4 rtl:rotate-180" />
       </button>
