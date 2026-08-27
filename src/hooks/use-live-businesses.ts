@@ -31,6 +31,42 @@ export type LiveBusiness = Business & {
   lng: number | null;
 };
 
+type SearchRow = Awaited<ReturnType<typeof searchBusinesses>>["results"][number];
+
+/** Shared row→card shape, used by both the client hook below and the
+ *  homepage route's SSR `loader` (`src/routes/index.tsx`) — the loader calls
+ *  `searchBusinesses` directly (no HTTP hop when it runs server-side) and
+ *  needs the exact same transform so its result can seed this hook's
+ *  `useQuery` as `initialData` without drifting from what a normal client
+ *  fetch would have produced. */
+export function mapSearchRowToLiveBusiness(b: SearchRow): LiveBusiness {
+  return {
+    id: b.id,
+    slug: b.slug,
+    image: b.image_url ?? imageFallbackFor(b.business_type),
+    en: { name: b.name, area: b.area ?? "", tags: `${b.area ?? ""} · ${b.city ?? ""}` },
+    ar: {
+      name: b.name_ar ?? b.name,
+      area: b.area_ar ?? b.area ?? "",
+      tags: b.area_ar ?? b.area ?? "",
+    },
+    rating: Number(b.rating),
+    reviews: b.review_count ?? 0,
+    distanceKm: Number(b.distance_km ?? 0),
+    price: b.price_range ?? "$$",
+    open: b.open_now,
+    instant: Boolean(b.instant_booking),
+    verified: Boolean(b.is_verified),
+    category: b.business_type ?? undefined,
+    countryCode: (b.country_code ?? "").toUpperCase(),
+    state: b.district ?? provinceOfCity((b.country_code ?? "").toUpperCase(), b.city ?? ""),
+    city: b.city ?? "",
+    businessType: b.business_type ?? "",
+    lat: b.latitude === null || b.latitude === undefined ? null : Number(b.latitude),
+    lng: b.longitude === null || b.longitude === undefined ? null : Number(b.longitude),
+  };
+}
+
 /**
  * Project 14 Phase 2: was a raw, unbounded, client-side `supabase.from("businesses")` query —
  * confirmed via the Project 14 audit to be missing `marketplace_status`/`deleted_at`/`is_test`
@@ -47,7 +83,16 @@ export type LiveBusiness = Business & {
  * larger follow-up — not attempted in this pass, since there is currently exactly one
  * marketplace-enabled country to test against either way.
  */
-export function useLiveBusinesses(countryCode?: string, limit = 50) {
+export function useLiveBusinesses(
+  countryCode?: string,
+  limit = 50,
+  /** SSR-prefetched data (homepage's route `loader`) to seed this query with
+   *  so the first render already has real data instead of firing its own
+   *  fetch and waiting — see `mapSearchRowToLiveBusiness`'s comment. Omitted
+   *  by every other caller (`search.tsx`, `service-search-sheet.tsx`),
+   *  which fetch client-side exactly as before. */
+  initialData?: LiveBusiness[],
+) {
   const search = useServerFn(searchBusinesses);
   const resolvedCountry = countryCode ?? getDefaultCountry().iso_code;
 
@@ -60,35 +105,12 @@ export function useLiveBusinesses(countryCode?: string, limit = 50) {
     // a cached visit renders instantly with no network request at all, not just
     // "no skeleton flash."
     staleTime: 2 * 60 * 1000,
+    ...(initialData ? { initialData, initialDataUpdatedAt: Date.now() } : {}),
     queryFn: async (): Promise<LiveBusiness[]> => {
       const { results } = await search({
         data: { countryCode: resolvedCountry, limit },
       });
-      return results.map((b) => ({
-        id: b.id,
-        slug: b.slug,
-        image: b.image_url ?? imageFallbackFor(b.business_type),
-        en: { name: b.name, area: b.area ?? "", tags: `${b.area ?? ""} · ${b.city ?? ""}` },
-        ar: {
-          name: b.name_ar ?? b.name,
-          area: b.area_ar ?? b.area ?? "",
-          tags: b.area_ar ?? b.area ?? "",
-        },
-        rating: Number(b.rating),
-        reviews: b.review_count ?? 0,
-        distanceKm: Number(b.distance_km ?? 0),
-        price: b.price_range ?? "$$",
-        open: b.open_now,
-        instant: Boolean(b.instant_booking),
-        verified: Boolean(b.is_verified),
-        category: b.business_type ?? undefined,
-        countryCode: (b.country_code ?? "").toUpperCase(),
-        state: b.district ?? provinceOfCity((b.country_code ?? "").toUpperCase(), b.city ?? ""),
-        city: b.city ?? "",
-        businessType: b.business_type ?? "",
-        lat: b.latitude === null || b.latitude === undefined ? null : Number(b.latitude),
-        lng: b.longitude === null || b.longitude === undefined ? null : Number(b.longitude),
-      }));
+      return results.map(mapSearchRowToLiveBusiness);
     },
   });
 }

@@ -47,13 +47,46 @@ import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { haversineKm, useUserLocation } from "@/hooks/use-user-location";
-import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
+import {
+  useLiveBusinesses,
+  mapSearchRowToLiveBusiness,
+  type LiveBusiness,
+} from "@/hooks/use-live-businesses";
+import { searchBusinesses } from "@/lib/marketplace-search.functions";
 import { SiteHeader } from "@/components/dallty/site-nav";
 import { getDefaultCountry, type Category } from "@/lib/reference-data";
 
 type MarketplaceKey = NamespaceKeyMap["marketplace"];
 
 export const Route = createFileRoute("/")({
+  // Matches useLiveBusinesses' own React Query staleTime below — without this,
+  // TanStack Router's own loader cache defaults to re-running on every match,
+  // which (combined with router.tsx's defaultPendingMs: 150) would show the
+  // generic full-route RouteSkeleton on a same-session revisit even though
+  // React Query already has fresh data for it. This keeps a warm revisit
+  // exactly as instant as before this loader existed.
+  staleTime: 2 * 60 * 1000,
+  // Recommended for you was the homepage's slowest real content to appear:
+  // real data only started fetching after the client finished downloading,
+  // parsing, and hydrating — a real request waterfall, not a slow query (the
+  // query itself is fast; see marketplace-search.functions.ts/rate-limit.server.ts
+  // for the parallelized-query, trimmed-payload work already done). This
+  // fetches the same 12 recommended businesses server-side, during SSR, so
+  // the first response already carries real card markup — no client fetch,
+  // no skeleton, on a fresh load. Errors are swallowed to `null` rather than
+  // failing the whole route: `Index` falls back to its normal client-side
+  // fetch (and existing loading/error UI) exactly as if this loader didn't
+  // exist, so a transient SSR-side failure never breaks the page.
+  loader: async (): Promise<{ recommended: LiveBusiness[] | null }> => {
+    try {
+      const { results } = await searchBusinesses({
+        data: { countryCode: getDefaultCountry().iso_code, limit: 12 },
+      });
+      return { recommended: results.map(mapSearchRowToLiveBusiness) };
+    } catch {
+      return { recommended: null };
+    }
+  },
   head: () => ({
     meta: [
       { title: "Dallty — Find. Book. Relax." },
@@ -165,11 +198,17 @@ function Index() {
   // 12, not the hook's normal 50: "Recommended for you" only ever shows 10 cards
   // (4 visible at once on desktop) — the search page and the service-search sheet
   // still call the same hook with its default 50, unaffected by this.
+  //
+  // `loaderData.recommended` (null on a loader failure, or on a client-side-only
+  // render where the loader hasn't been re-run) seeds this query with what SSR
+  // already fetched, so the first render has real data instead of firing its
+  // own fetch and showing a skeleton.
+  const { recommended: recommendedSeed } = Route.useLoaderData();
   const {
     data: liveBusinesses,
     isLoading: recommendedLoading,
     isError: recommendedFailed,
-  } = useLiveBusinesses(country, 12);
+  } = useLiveBusinesses(country, 12, recommendedSeed ?? undefined);
 
   // Unfiltered, top-of-feed slice for the "Recommended for you" carousel — the
   // RPC's default sort is already relevance (rank_score: rating + review
