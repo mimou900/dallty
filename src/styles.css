@@ -821,6 +821,14 @@
   background-repeat: no-repeat;
 }
 
+/* Bottom clearance for the floating `BottomNav` (fixed, safe-area-aware on
+ * its own). Every page that renders the nav needs its outermost wrapper to
+ * reserve at least this much space so content never ends up underneath it —
+ * pair with `md:pb-12` (plain Tailwind) since the nav itself is `md:hidden`. */
+@utility pb-nav-safe {
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+}
+
 @utility press {
   transition:
     transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),

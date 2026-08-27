@@ -1262,7 +1262,7 @@ function BookingFlow() {
   }
 
   return (
-    <div className="relative min-h-dvh pb-32">
+    <div className="relative min-h-dvh pb-nav-safe md:pb-12">
       <StaffDetailDrawer staffId={staffDrawerId} onClose={() => setStaffDrawerId(null)} />
       {exitBlocker.status === "blocked" && (
         <div

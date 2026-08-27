@@ -98,19 +98,17 @@ export function BusinessCard({
           label={s.name}
           className="absolute end-3 top-3 !size-11 transition-transform active:scale-90"
         />
-        {!compact && (
-          <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
-            <span className="rounded-full glass-dark px-3 py-1 text-xs font-semibold">
-              {business.open ? t("open") : t("closed")}
+        <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
+          <span className="rounded-full glass-dark px-3 py-1 text-xs font-semibold">
+            {business.open ? t("open") : t("closed")}
+          </span>
+          {business.instant && (
+            <span className="flex items-center gap-1 rounded-full bg-gold px-3 py-1 text-xs font-semibold text-gold-foreground">
+              <Zap className="size-3.5" />
+              {t("instant")}
             </span>
-            {business.instant && (
-              <span className="flex items-center gap-1 rounded-full bg-gold px-3 py-1 text-xs font-semibold text-gold-foreground">
-                <Zap className="size-3.5" />
-                {t("instant")}
-              </span>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {compact ? (
@@ -150,7 +148,7 @@ export function BusinessCard({
             to="/business/$businessSlug"
             params={{ businessSlug: business.slug }}
             search={{ book: true }}
-            className="press mt-3 flex min-h-11 items-center justify-center rounded-full border border-primary text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+            className="press mt-3 flex min-h-11 items-center justify-center rounded-full bg-(image:--gradient-lime) text-sm font-semibold text-lime-foreground shadow-(--shadow-glow-lime)"
           >
             {t("book")}
           </Link>

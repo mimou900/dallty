@@ -5,6 +5,7 @@ import { DynamicIcon, type IconName } from "lucide-react/dynamic.mjs";
 import { useCategories, translate, type Category } from "@/lib/reference-data";
 import { useLiveBusinesses } from "@/hooks/use-live-businesses";
 import { useLocale } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 export type ServiceSelection =
   { kind: "category"; value: string; label: string } | { kind: "query"; value: string };
@@ -67,6 +68,7 @@ function ServiceSearchBody({
   maxListHeight,
 }: BodyProps) {
   const { lang } = useLocale();
+  const { t } = useTranslation("marketplace");
   const categories = useCategories();
   const { data: liveBusinesses } = useLiveBusinesses();
 
@@ -92,7 +94,7 @@ function ServiceSearchBody({
             <input
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Search by service or business"
+              placeholder={t("search_service_placeholder")}
               autoFocus={autoFocus}
               className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
             />
@@ -107,11 +109,11 @@ function ServiceSearchBody({
         {query.trim() ? (
           <>
             <p className="px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              Businesses
+              {t("service_sheet_businesses_label")}
             </p>
             {matches.length === 0 ? (
               <p className="p-4 text-center text-sm text-muted-foreground">
-                No businesses match "{query.trim()}" yet — try Search instead.
+                {t("service_sheet_no_match", { query: query.trim() })}
               </p>
             ) : (
               <ul>
@@ -144,7 +146,7 @@ function ServiceSearchBody({
         ) : (
           <>
             <p className="px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              Categories
+              {t("service_sheet_categories_label")}
             </p>
             <ul>
               {(categories.data ?? []).map((cat) => (
@@ -166,7 +168,9 @@ function ServiceSearchBody({
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
                     <Grid2x2 className="size-5" />
                   </span>
-                  <span className="text-sm text-muted-foreground">Loading categories…</span>
+                  <span className="text-sm text-muted-foreground">
+                    {t("service_sheet_loading_categories")}
+                  </span>
                 </li>
               )}
             </ul>
@@ -191,6 +195,7 @@ export function ServiceSearchSheet({
   onClose,
   ...body
 }: FlowProps & { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("marketplace");
   if (!open) return null;
 
   return (
@@ -206,12 +211,12 @@ export function ServiceSearchSheet({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Back"
+          aria-label={t("back_aria")}
           className="press grid size-10 shrink-0 place-items-center rounded-full bg-muted/60"
         >
           <ArrowLeft className="size-5 rtl:rotate-180" />
         </button>
-        <h1 className="text-h3 truncate">Search</h1>
+        <h1 className="text-h3 truncate">{t("service_sheet_title")}</h1>
       </header>
 
       <ServiceSearchBody {...body} autoFocus />

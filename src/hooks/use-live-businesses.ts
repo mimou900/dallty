@@ -6,6 +6,22 @@ import type { Business } from "@/lib/dallty-content";
 import { getDefaultCountry } from "@/lib/reference-data";
 import { searchBusinesses } from "@/lib/marketplace-search.functions";
 
+/** Fallback photo when a business has no `image_url`, chosen by category so
+ *  a nail studio or spa doesn't show a haircut photo. Only 4 stock photos
+ *  exist under `/public/salons/` today; everything without a closer match
+ *  gets `hair.jpg` as an honest "no dedicated asset yet" default, not a
+ *  disguised claim about the business. Extend this map as more category
+ *  photos are added, matching `BUSINESS_TYPES` in `src/lib/business-schema.ts`. */
+const CATEGORY_IMAGE_FALLBACK: Record<string, string> = {
+  Barbershop: "/salons/barber.jpg",
+  "Nail studio": "/salons/nails.jpg",
+  "Spa & wellness": "/salons/spa.jpg",
+};
+
+function imageFallbackFor(businessType: string | null | undefined): string {
+  return (businessType && CATEGORY_IMAGE_FALLBACK[businessType]) || "/salons/hair.jpg";
+}
+
 export type LiveBusiness = Business & {
   countryCode: string;
   state: string;
@@ -44,7 +60,7 @@ export function useLiveBusinesses(countryCode?: string, limit = 50) {
       return results.map((b) => ({
         id: b.id,
         slug: b.slug,
-        image: b.image_url ?? "/salons/hair.jpg",
+        image: b.image_url ?? imageFallbackFor(b.business_type),
         en: { name: b.name, area: b.area ?? "", tags: `${b.area ?? ""} · ${b.city ?? ""}` },
         ar: {
           name: b.name_ar ?? b.name,

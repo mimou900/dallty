@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronRight, Loader2, MapPin, Navigation, Search } from "lu
 import { provincesFor, citiesFor, type Province } from "@/lib/arab-cities";
 import type { useUserLocation } from "@/hooks/use-user-location";
 import { useLocale } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 export type LocationSelection =
   | { kind: "current" }
@@ -92,6 +93,7 @@ function useLocationFlow(geo: Geo, onSelect: (s: LocationSelection) => void, onD
 type Flow = ReturnType<typeof useLocationFlow>;
 
 function MainView({ flow, geo }: { flow: Flow; geo: Geo }) {
+  const { t } = useTranslation("marketplace");
   return (
     <div className="flex-1 overflow-y-auto p-4">
       <button
@@ -108,17 +110,15 @@ function MainView({ flow, geo }: { flow: Flow; geo: Geo }) {
           )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-bold">Use my current location</span>
+          <span className="block font-bold">{t("location_use_current")}</span>
           <span className="block text-sm text-muted-foreground">
-            Recommended for nearby results
+            {t("location_use_current_sub")}
           </span>
         </span>
       </button>
 
       {geo.status === "denied" && (
-        <p className="mt-2 px-1 text-xs text-muted-foreground">
-          Location is blocked in your browser settings.
-        </p>
+        <p className="mt-2 px-1 text-xs text-muted-foreground">{t("location_blocked")}</p>
       )}
 
       <button
@@ -130,8 +130,10 @@ function MainView({ flow, geo }: { flow: Flow; geo: Geo }) {
           <MapPin className="size-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-bold">Choose your wilaya</span>
-          <span className="block text-sm text-muted-foreground">Pick a wilaya, then a commune</span>
+          <span className="block font-bold">{t("location_choose_wilaya")}</span>
+          <span className="block text-sm text-muted-foreground">
+            {t("location_choose_wilaya_sub")}
+          </span>
         </span>
         <ChevronRight className="size-5 shrink-0 text-muted-foreground rtl:rotate-180" />
       </button>
@@ -140,6 +142,7 @@ function MainView({ flow, geo }: { flow: Flow; geo: Geo }) {
 }
 
 function WilayaView({ flow, lang, autoFocus }: { flow: Flow; lang: string; autoFocus?: boolean }) {
+  const { t } = useTranslation("marketplace");
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="shrink-0 p-4 pb-2">
@@ -148,7 +151,7 @@ function WilayaView({ flow, lang, autoFocus }: { flow: Flow; lang: string; autoF
           <input
             value={flow.wilayaQuery}
             onChange={(e) => flow.setWilayaQuery(e.target.value)}
-            placeholder="Search wilaya"
+            placeholder={t("location_search_wilaya_placeholder")}
             autoFocus={autoFocus}
             className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
           />
@@ -171,7 +174,9 @@ function WilayaView({ flow, lang, autoFocus }: { flow: Flow; lang: string; autoF
           </li>
         ))}
         {flow.filteredWilayas.length === 0 && (
-          <p className="p-4 text-center text-sm text-muted-foreground">No wilaya matches.</p>
+          <p className="p-4 text-center text-sm text-muted-foreground">
+            {t("location_no_wilaya_match")}
+          </p>
         )}
       </ul>
     </div>
@@ -179,11 +184,14 @@ function WilayaView({ flow, lang, autoFocus }: { flow: Flow; lang: string; autoF
 }
 
 function CommuneView({ flow, lang }: { flow: Flow; lang: string }) {
+  const { t } = useTranslation("marketplace");
   if (!flow.selectedWilaya) return null;
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <p className="shrink-0 px-4 pb-2 text-sm font-semibold text-muted-foreground">
-        Wilaya: {lang === "ar" ? flow.selectedWilaya.ar : flow.selectedWilaya.en}
+        {t("location_wilaya_label", {
+          name: lang === "ar" ? flow.selectedWilaya.ar : flow.selectedWilaya.en,
+        })}
       </p>
       <ul className="flex-1 overflow-y-auto px-2 pb-4">
         {flow.communes.map((c) => (
@@ -199,7 +207,7 @@ function CommuneView({ flow, lang }: { flow: Flow; lang: string }) {
         ))}
         {flow.communes.length === 0 && (
           <p className="p-4 text-center text-sm text-muted-foreground">
-            No communes listed for this wilaya.
+            {t("location_no_communes")}
           </p>
         )}
       </ul>
@@ -221,6 +229,7 @@ export function LocationPickerSheet({
 }) {
   const flow = useLocationFlow(geo, onSelect, onClose);
   const { lang } = useLocale();
+  const { t } = useTranslation("marketplace");
 
   if (!open) return null;
 
@@ -243,17 +252,17 @@ export function LocationPickerSheet({
                 ? flow.setView("wilaya")
                 : flow.setView("main")
           }
-          aria-label="Back"
+          aria-label={t("back_aria")}
           className="press grid size-10 shrink-0 place-items-center rounded-full bg-muted/60"
         >
           <ArrowLeft className="size-5 rtl:rotate-180" />
         </button>
         <h1 className="text-h3 truncate">
           {flow.view === "main"
-            ? "Location"
+            ? t("location_sheet_title")
             : flow.view === "wilaya"
-              ? "Select wilaya"
-              : "Select commune"}
+              ? t("location_select_wilaya_title")
+              : t("location_select_commune_title")}
         </h1>
       </header>
 
@@ -278,6 +287,7 @@ export function LocationPickerPanel({
 }) {
   const flow = useLocationFlow(geo, onSelect, onDone);
   const { lang } = useLocale();
+  const { t } = useTranslation("marketplace");
 
   return (
     <div className="flex max-h-[28rem] w-[22rem] flex-col overflow-hidden rounded-3xl">
@@ -288,13 +298,15 @@ export function LocationPickerPanel({
             onClick={() =>
               flow.view === "commune" ? flow.setView("wilaya") : flow.setView("main")
             }
-            aria-label="Back"
+            aria-label={t("back_aria")}
             className="press grid size-8 shrink-0 place-items-center rounded-full bg-muted/60"
           >
             <ArrowLeft className="size-4 rtl:rotate-180" />
           </button>
           <p className="text-sm font-bold">
-            {flow.view === "wilaya" ? "Select wilaya" : "Select commune"}
+            {flow.view === "wilaya"
+              ? t("location_select_wilaya_title")
+              : t("location_select_commune_title")}
           </p>
         </div>
       )}

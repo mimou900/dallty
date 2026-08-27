@@ -31,7 +31,7 @@ export function ClientShell({
 
   return (
     <div
-      className={`relative min-h-dvh pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12 ${
+      className={`relative min-h-dvh pb-nav-safe md:pb-12 ${
         surface === "cream" ? "bg-cream text-cream-foreground" : ""
       }`}
     >

@@ -1,16 +1,21 @@
 import { useMemo, useState } from "react";
+import { format } from "date-fns";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+
+import { dateFnsLocaleFor, useLocale } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n/hooks";
+import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 
 export type Period = "morning" | "afternoon" | "evening";
 export type DateTimeSelection = { date: Date; period: Period | null };
 
-const PERIODS: { key: Period; label: string; hours: string }[] = [
-  { key: "morning", label: "Morning", hours: "09:00 – 12:00" },
-  { key: "afternoon", label: "Afternoon", hours: "12:00 – 18:00" },
-  { key: "evening", label: "Evening", hours: "18:00 – close" },
-];
+type MarketplaceKey = NamespaceKeyMap["marketplace"];
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const PERIOD_KEYS: { key: Period; labelKey: MarketplaceKey; hoursKey: MarketplaceKey }[] = [
+  { key: "morning", labelKey: "period_morning", hoursKey: "period_morning_hours" },
+  { key: "afternoon", labelKey: "period_afternoon", hoursKey: "period_afternoon_hours" },
+  { key: "evening", labelKey: "period_evening", hoursKey: "period_evening_hours" },
+];
 
 function startOfDay(d: Date) {
   const n = new Date(d);
@@ -25,11 +30,11 @@ function addDays(d: Date, n: number) {
   r.setDate(r.getDate() + n);
   return r;
 }
-function monthLabel(d: Date) {
-  return d.toLocaleDateString("en", { month: "long", year: "numeric" });
+function monthLabel(d: Date, locale: ReturnType<typeof dateFnsLocaleFor>) {
+  return format(d, "LLLL yyyy", { locale });
 }
-function shortDateLabel(d: Date) {
-  return d.toLocaleDateString("en", { weekday: "short", day: "numeric", month: "short" });
+function shortDateLabel(d: Date, locale: ReturnType<typeof dateFnsLocaleFor>) {
+  return format(d, "EEE d MMM", { locale });
 }
 
 /** Days of the month grid, Monday-first, padded with leading blanks. */
@@ -84,11 +89,14 @@ function useDateTimeFlow(initial: DateTimeSelection | null) {
 type Flow = ReturnType<typeof useDateTimeFlow>;
 
 function QuickPicks({ flow, stack }: { flow: Flow; stack?: boolean }) {
+  const { t } = useTranslation("marketplace");
+  const { lang } = useLocale();
+  const locale = dateFnsLocaleFor(lang);
   return (
     <div className={stack ? "space-y-2" : "grid grid-cols-2 gap-3"}>
       {[
-        { d: flow.today, label: "Today" },
-        { d: flow.tomorrow, label: "Tomorrow" },
+        { d: flow.today, label: t("today") },
+        { d: flow.tomorrow, label: t("tomorrow") },
       ].map(({ d, label }) => {
         const active = sameDay(d, flow.selectedDate);
         return (
@@ -104,7 +112,7 @@ function QuickPicks({ flow, stack }: { flow: Flow; stack?: boolean }) {
             }`}
           >
             <span className="block font-bold">{label}</span>
-            <span className="block text-sm text-muted-foreground">{shortDateLabel(d)}</span>
+            <span className="block text-sm text-muted-foreground">{shortDateLabel(d, locale)}</span>
           </button>
         );
       })}
@@ -113,6 +121,10 @@ function QuickPicks({ flow, stack }: { flow: Flow; stack?: boolean }) {
 }
 
 function Calendar({ flow }: { flow: Flow }) {
+  const { t, tArray } = useTranslation("marketplace");
+  const { lang } = useLocale();
+  const locale = dateFnsLocaleFor(lang);
+  const weekdays = tArray("weekdays_short") as string[];
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -125,12 +137,12 @@ function Calendar({ flow }: { flow: Flow }) {
             )
           }
           disabled={!flow.canGoPrevMonth}
-          aria-label="Previous month"
+          aria-label={t("prev_month_aria")}
           className="press grid size-9 place-items-center rounded-full bg-muted/60 disabled:opacity-30"
         >
           <ChevronLeft className="size-4.5 rtl:rotate-180" />
         </button>
-        <p className="font-bold">{monthLabel(flow.viewMonth)}</p>
+        <p className="font-bold">{monthLabel(flow.viewMonth, locale)}</p>
         <button
           type="button"
           onClick={() =>
@@ -138,7 +150,7 @@ function Calendar({ flow }: { flow: Flow }) {
               new Date(flow.viewMonth.getFullYear(), flow.viewMonth.getMonth() + 1, 1),
             )
           }
-          aria-label="Next month"
+          aria-label={t("next_month_aria")}
           className="press grid size-9 place-items-center rounded-full bg-muted/60"
         >
           <ChevronRight className="size-4.5 rtl:rotate-180" />
@@ -146,8 +158,8 @@ function Calendar({ flow }: { flow: Flow }) {
       </div>
 
       <div className="mt-3 grid grid-cols-7 gap-y-1 text-center text-xs font-semibold text-muted-foreground">
-        {WEEKDAYS.map((w) => (
-          <span key={w}>{w}</span>
+        {weekdays.map((w, i) => (
+          <span key={i}>{w}</span>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-y-1 text-center">
@@ -182,11 +194,12 @@ function Calendar({ flow }: { flow: Flow }) {
 }
 
 function PeriodPicker({ flow, horizontal }: { flow: Flow; horizontal?: boolean }) {
+  const { t } = useTranslation("marketplace");
   return (
     <div>
-      <p className="text-sm font-bold">Select a time</p>
+      <p className="text-sm font-bold">{t("select_time_label")}</p>
       <div className={horizontal ? "mt-3 flex gap-2 overflow-x-auto pb-1" : "mt-3 space-y-2"}>
-        {PERIODS.map((p) => {
+        {PERIOD_KEYS.map((p) => {
           const active = flow.period === p.key;
           return (
             <button
@@ -197,8 +210,8 @@ function PeriodPicker({ flow, horizontal }: { flow: Flow; horizontal?: boolean }
                 horizontal ? "shrink-0" : "block w-full"
               } ${active ? "border-primary bg-primary/8" : "border-border bg-card"}`}
             >
-              <span className="block text-sm font-bold">{p.label}</span>
-              <span className="block text-xs text-muted-foreground">{p.hours}</span>
+              <span className="block text-sm font-bold">{t(p.labelKey)}</span>
+              <span className="block text-xs text-muted-foreground">{t(p.hoursKey)}</span>
             </button>
           );
         })}
@@ -218,6 +231,7 @@ function ClearDoneRow({
   onDone: (s: DateTimeSelection) => void;
   className?: string;
 }) {
+  const { t } = useTranslation("marketplace");
   return (
     <div className={`flex gap-3 ${className ?? ""}`}>
       <button
@@ -225,14 +239,14 @@ function ClearDoneRow({
         onClick={onClear}
         className="press flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-border text-sm font-bold"
       >
-        Clear
+        {t("clear_btn")}
       </button>
       <button
         type="button"
         onClick={() => onDone({ date: flow.selectedDate, period: flow.period })}
         className="press flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-primary-foreground"
       >
-        Done
+        {t("done_btn")}
       </button>
     </div>
   );
@@ -252,6 +266,7 @@ export function DateTimePickerSheet({
   onApply: (selection: DateTimeSelection | null) => void;
 }) {
   const flow = useDateTimeFlow(initial);
+  const { t } = useTranslation("marketplace");
 
   if (!open) return null;
 
@@ -268,12 +283,12 @@ export function DateTimePickerSheet({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Back"
+          aria-label={t("back_aria")}
           className="press grid size-10 shrink-0 place-items-center rounded-full bg-muted/60"
         >
           <ArrowLeft className="size-5 rtl:rotate-180" />
         </button>
-        <h1 className="text-h3 truncate">Date and time</h1>
+        <h1 className="text-h3 truncate">{t("datetime_sheet_title")}</h1>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 pb-28">

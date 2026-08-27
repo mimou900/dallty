@@ -1,5 +1,13 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Children, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  Children,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 /**
  * Horizontal discovery row shared by every homepage section (Recommended,
@@ -121,18 +129,43 @@ export function CarouselDots({ progress, count }: { progress: number; count: num
   );
 }
 
-/** The scrollable card track itself — pass the `ref` from `useCarouselScroll()`. */
+/** The scrollable card track itself — pass the `ref` from `useCarouselScroll()`.
+ *  `label` names the rail for assistive tech and doubles as the keyboard
+ *  entry point: below `lg` the prev/next arrows are hidden (see
+ *  `CarouselArrows`), so this is the only non-touch way to scroll a rail —
+ *  Arrow Left/Right move by one card, mirroring `scrollByCard` exactly. */
 export function BusinessCarousel({
   scrollRef,
+  label,
   children,
 }: {
   scrollRef: RefObject<HTMLDivElement | null>;
+  label?: string;
   children: ReactNode;
 }) {
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const el = scrollRef.current;
+    if (!el) return;
+    const rtl = getComputedStyle(el).direction === "rtl";
+    let direction: 1 | -1 | null = null;
+    if (event.key === "ArrowRight") direction = rtl ? -1 : 1;
+    else if (event.key === "ArrowLeft") direction = rtl ? 1 : -1;
+    if (direction === null) return;
+    event.preventDefault();
+    const card = el.firstElementChild as HTMLElement | null;
+    const amount = (card?.offsetWidth ?? el.clientWidth * 0.8) + 16;
+    el.scrollBy({ left: amount * direction, behavior: "smooth" });
+  }
+
   return (
     <div
       ref={scrollRef}
-      className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1"
+      tabIndex={0}
+      role="region"
+      aria-roledescription="carousel"
+      aria-label={label}
+      onKeyDown={handleKeyDown}
+      className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
     >
       {Children.map(children, (child) => (
         <div className="w-[78vw] shrink-0 snap-start sm:w-[46%] lg:w-[calc(25%-0.75rem)]">

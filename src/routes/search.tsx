@@ -454,7 +454,7 @@ function SearchPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-32 pt-6 md:pb-24">
+      <main className="mx-auto max-w-6xl px-4 pb-nav-safe pt-6 md:pb-12">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="me-2 text-xl font-extrabold sm:text-2xl">
             {isLoading ? t("searching") : `${results.length} ${t("shops_found")}`}

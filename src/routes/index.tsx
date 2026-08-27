@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { format } from "date-fns";
 import {
   Brush,
   Droplet,
@@ -41,7 +42,7 @@ import {
 import type { Business } from "@/lib/dallty-content";
 import { TRENDING_BUSINESSES } from "@/lib/trending-mock";
 import { NEW_ON_DALLTY_BUSINESSES } from "@/lib/new-on-dallty-mock";
-import { dirFor, useLocale } from "@/lib/i18n";
+import { dateFnsLocaleFor, dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
@@ -49,6 +50,8 @@ import { haversineKm, useUserLocation } from "@/hooks/use-user-location";
 import { useLiveBusinesses, type LiveBusiness } from "@/hooks/use-live-businesses";
 import { SiteHeader } from "@/components/dallty/site-nav";
 import { getDefaultCountry, type Category } from "@/lib/reference-data";
+
+type MarketplaceKey = NamespaceKeyMap["marketplace"];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -112,23 +115,29 @@ const CATEGORY_KEYWORD: Record<string, string> = {
 
 type ServiceState = { label: string; keyword?: string; query?: string } | null;
 
-function periodLabel(period: DateTimeSelection["period"]) {
-  if (period === "morning") return "Morning";
-  if (period === "afternoon") return "Afternoon";
-  if (period === "evening") return "Evening";
+function periodLabel(period: DateTimeSelection["period"], t: (key: MarketplaceKey) => string) {
+  if (period === "morning") return t("period_morning");
+  if (period === "afternoon") return t("period_afternoon");
+  if (period === "evening") return t("period_evening");
   return null;
 }
 
-function dateTimeLabel(sel: DateTimeSelection | null, todayStr: string, tomorrowStr: string) {
+function dateTimeLabel(
+  sel: DateTimeSelection | null,
+  todayStr: string,
+  tomorrowStr: string,
+  t: (key: MarketplaceKey) => string,
+  locale: ReturnType<typeof dateFnsLocaleFor>,
+) {
   if (!sel) return null;
   const dateStr = sel.date.toDateString();
   const dayPart =
     dateStr === todayStr
-      ? "Today"
+      ? t("today")
       : dateStr === tomorrowStr
-        ? "Tomorrow"
-        : sel.date.toLocaleDateString("en", { day: "numeric", month: "short" });
-  const period = periodLabel(sel.period);
+        ? t("tomorrow")
+        : format(sel.date, "d MMM", { locale });
+  const period = periodLabel(sel.period, t);
   return period ? `${dayPart} · ${period}` : dayPart;
 }
 
@@ -203,7 +212,7 @@ function Index() {
 
   const locationLabel = useMemo(() => {
     if (!locationState) return null;
-    if (locationState.kind === "current") return "Current location";
+    if (locationState.kind === "current") return t("location_use_current_label");
     return locationState.commune
       ? `${lang === "ar" ? locationState.wilayaAr : locationState.wilaya} · ${
           lang === "ar" ? locationState.communeAr : locationState.commune
@@ -211,14 +220,28 @@ function Index() {
       : lang === "ar"
         ? locationState.wilayaAr
         : locationState.wilaya;
-  }, [locationState, lang]);
+  }, [locationState, lang, t]);
 
+  const dateFnsLocale = useMemo(() => dateFnsLocaleFor(lang), [lang]);
   const dtLabel = useMemo(
-    () => dateTimeLabel(dateTimeState, today.toDateString(), tomorrow.toDateString()),
-    [dateTimeState, today, tomorrow],
+    () =>
+      dateTimeLabel(dateTimeState, today.toDateString(), tomorrow.toDateString(), t, dateFnsLocale),
+    [dateTimeState, today, tomorrow, t, dateFnsLocale],
   );
 
   function runSearch() {
+    // /search has no date/time filter today, and there's no real cross-business
+    // slot inventory to search against (see datetime-picker-sheet.tsx) — so most
+    // date/time selections can't honestly drive a real filter here. The one
+    // exception: "today, no specific period" plausibly and honestly means "show
+    // me what's open right now", which /search already supports for real via
+    // `open`. Anything else (a future date, or a period picked) is left alone
+    // rather than silently misapplying a filter that doesn't match the intent.
+    const wantsOpenNow =
+      dateTimeState !== null &&
+      dateTimeState.period === null &&
+      dateTimeState.date.toDateString() === today.toDateString();
+
     void navigate({
       to: "/search",
       search: {
@@ -229,7 +252,7 @@ function Index() {
         type: serviceState?.keyword ?? "",
         sort: locationState?.kind === "current" ? ("distance" as const) : ("rating" as const),
         instant: false,
-        open: false,
+        open: wantsOpenNow,
       },
     });
   }
@@ -447,25 +470,11 @@ function Index() {
                 }
               />
             </div>
-
-            <div className="relative mt-8 grid grid-cols-3 gap-2 sm:mt-10 sm:gap-3">
-              {(tArray("stats") as [string, string][]).map(([value, label]) => (
-                <div
-                  key={label}
-                  className="glass-soft rounded-3xl px-2 py-4 text-center shadow-elevation-low sm:px-4 sm:py-5"
-                >
-                  <p className="text-lg font-extrabold text-primary sm:text-2xl">{value}</p>
-                  <p className="text-[0.7rem] leading-tight text-muted-foreground sm:text-sm">
-                    {label}
-                  </p>
-                </div>
-              ))}
-            </div>
           </section>
         </div>
       </div>
 
-      <main className="bg-atmosphere-whisper mx-auto max-w-6xl px-4 pb-32 md:pb-24">
+      <main className="bg-atmosphere-whisper mx-auto max-w-6xl px-4 pb-nav-safe md:pb-12">
         {/* Recommended for you — unfiltered top-ranked picks, horizontal carousel.
             Distinct from the filterable "Nearby" grid further down: tapping a
             category below never affects this rail. */}
@@ -494,7 +503,10 @@ function Index() {
                 // render nothing until the fetch resolved, which was both the
                 // homepage's CLS source (the whole section popping into layout at
                 // once) and what made the LCP image undiscoverable until then.
-                <BusinessCarousel scrollRef={recommendedCarousel.ref}>
+                <BusinessCarousel
+                  scrollRef={recommendedCarousel.ref}
+                  label={t("recommended_title")}
+                >
                   {Array.from({ length: 4 }, (_, i) => (
                     <BusinessCardSkeleton key={i} />
                   ))}
@@ -504,7 +516,10 @@ function Index() {
                   {t("recommended_unavailable")}
                 </p>
               ) : (
-                <BusinessCarousel scrollRef={recommendedCarousel.ref}>
+                <BusinessCarousel
+                  scrollRef={recommendedCarousel.ref}
+                  label={t("recommended_title")}
+                >
                   {recommended.map((s, i) => (
                     <BusinessCard
                       key={s.id}
@@ -600,7 +615,7 @@ function Index() {
             actions={<CarouselArrows {...trendingCarousel} />}
           />
           <div className="mt-5 sm:mt-6">
-            <BusinessCarousel scrollRef={trendingCarousel.ref}>
+            <BusinessCarousel scrollRef={trendingCarousel.ref} label={t("trending_title")}>
               {TRENDING_BUSINESSES.map((b) => (
                 <BusinessCard
                   key={b.id}
@@ -646,7 +661,7 @@ function Index() {
             actions={<CarouselArrows {...newCarousel} />}
           />
           <div className="mt-5 sm:mt-6">
-            <BusinessCarousel scrollRef={newCarousel.ref}>
+            <BusinessCarousel scrollRef={newCarousel.ref} label={t("new_title")}>
               {NEW_ON_DALLTY_BUSINESSES.map((b) => (
                 <BusinessCard
                   key={b.id}
