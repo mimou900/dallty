@@ -68,8 +68,8 @@ const SUPABASE_ORIGIN = "https://cbacaplvcxytzclpiyir.supabase.co";
 const CSP = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' https://maps.googleapis.com`,
-  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com`,
-  `font-src 'self' https://fonts.gstatic.com https://cdn.fontshare.com`,
+  `style-src 'self' 'unsafe-inline'`,
+  `font-src 'self'`,
   `img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com ${SUPABASE_ORIGIN}`,
   `connect-src 'self' ${SUPABASE_ORIGIN} wss://cbacaplvcxytzclpiyir.supabase.co https://maps.googleapis.com`,
   // A library in this app spins up a blob: Web Worker (confirmed by testing — the browser

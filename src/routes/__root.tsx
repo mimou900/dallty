@@ -203,22 +203,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      {
-        rel: "preconnect",
-        href: "https://fonts.gstatic.com",
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap",
-      },
-      { rel: "preconnect", href: "https://api.fontshare.com" },
-      { rel: "preconnect", href: "https://cdn.fontshare.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap",
-      },
+      // Fonts are self-hosted (@font-face rules in styles.css, files under
+      // public/fonts/) — this used to be three cross-origin stylesheets
+      // (fonts.googleapis.com, api.fontshare.com, each pulling from its own
+      // CDN), each a separate DNS+TLS negotiation plus a CSS-then-font fetch
+      // hop, all render-blocking on the critical path. Same exact font
+      // files, now served from this origin as part of appCss above instead.
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "icon", href: "/icon-192.png", type: "image/png", sizes: "192x192" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },

@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 
 import wordmarkUrl from "@/assets/dallty-wordmark.webp";
+import wordmarkAvif220 from "@/assets/dallty-wordmark-220.avif";
+import wordmarkAvif360 from "@/assets/dallty-wordmark-360.avif";
+import wordmarkWebp220 from "@/assets/dallty-wordmark-220.webp";
+import wordmarkWebp360 from "@/assets/dallty-wordmark-360.webp";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -114,7 +118,25 @@ export function SiteHeader({ lang: langProp }: NavProps) {
     >
       <div className="glass glass-highlight mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-3xl py-2 ps-4 pe-2.5 sm:gap-4 sm:py-2.5 sm:ps-5 sm:pe-3">
         <Link to="/" className="flex min-w-0 items-center">
-          <img src={wordmarkUrl} alt={t("brand")} className="h-8 w-auto object-contain sm:h-9" />
+          <picture>
+            <source
+              type="image/avif"
+              sizes="107px"
+              srcSet={`${wordmarkAvif220} 220w, ${wordmarkAvif360} 360w`}
+            />
+            <source
+              type="image/webp"
+              sizes="107px"
+              srcSet={`${wordmarkWebp220} 220w, ${wordmarkWebp360} 360w`}
+            />
+            <img
+              src={wordmarkUrl}
+              alt={t("brand")}
+              width={360}
+              height={121}
+              className="h-8 w-auto object-contain sm:h-9"
+            />
+          </picture>
         </Link>
 
         <div className="flex items-center gap-1.5 sm:gap-2">

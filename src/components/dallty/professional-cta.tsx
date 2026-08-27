@@ -3,8 +3,18 @@ import { ArrowRight, BarChart3, CalendarClock, ShieldCheck, Users } from "lucide
 import type { LucideIcon } from "lucide-react";
 
 import dashboardMockup from "@/assets/professional-dashboard-mockup.webp";
+import dashboardMockupAvif480 from "@/assets/professional-dashboard-mockup-480.avif";
+import dashboardMockupAvif768 from "@/assets/professional-dashboard-mockup-768.avif";
+import dashboardMockupAvif1152 from "@/assets/professional-dashboard-mockup-1152.avif";
+import dashboardMockupWebp480 from "@/assets/professional-dashboard-mockup-480.webp";
+import dashboardMockupWebp768 from "@/assets/professional-dashboard-mockup-768.webp";
+import dashboardMockupWebp1152 from "@/assets/professional-dashboard-mockup-1152.webp";
 
 const FEATURE_ICONS: LucideIcon[] = [CalendarClock, ShieldCheck, Users, BarChart3];
+
+// Below-fold, decorative (aria-hidden) — matches its own w-full max-w-xl
+// sizing exactly: never wider than 576px, otherwise fills its column.
+const MOCKUP_SIZES = "(min-width: 576px) 576px, 100vw";
 
 /** Business-conversion section ("Dallty for professionals"). */
 export function ProfessionalCTA({
@@ -49,12 +59,27 @@ export function ProfessionalCTA({
           </div>
         </div>
 
-        <img
-          src={dashboardMockup}
-          alt=""
-          aria-hidden
-          className="w-full max-w-xl justify-self-center object-contain lg:justify-self-end"
-        />
+        <picture>
+          <source
+            type="image/avif"
+            sizes={MOCKUP_SIZES}
+            srcSet={`${dashboardMockupAvif480} 480w, ${dashboardMockupAvif768} 768w, ${dashboardMockupAvif1152} 1152w`}
+          />
+          <source
+            type="image/webp"
+            sizes={MOCKUP_SIZES}
+            srcSet={`${dashboardMockupWebp480} 480w, ${dashboardMockupWebp768} 768w, ${dashboardMockupWebp1152} 1152w`}
+          />
+          <img
+            src={dashboardMockup}
+            alt=""
+            aria-hidden
+            loading="lazy"
+            width={1152}
+            height={768}
+            className="w-full max-w-xl justify-self-center object-contain lg:justify-self-end"
+          />
+        </picture>
       </div>
     </section>
   );

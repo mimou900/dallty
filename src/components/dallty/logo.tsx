@@ -1,5 +1,7 @@
 import markUrl from "@/assets/dallty-mark.webp";
 import wordmarkUrl from "@/assets/dallty-wordmark.webp";
+import wordmarkAvif220 from "@/assets/dallty-wordmark-220.avif";
+import wordmarkWebp220 from "@/assets/dallty-wordmark-220.webp";
 
 /** Dallty pin mark — square, safe on any background. */
 export function LogoMark({ className = "size-9" }: { className?: string }) {
@@ -20,7 +22,18 @@ export function Logo({
     <span className={`flex items-center gap-2 ${className}`}>
       <LogoMark className={markClassName} />
       {showWordmark ? (
-        <img src={wordmarkUrl} alt="Dallty" className="h-6 w-auto object-contain" />
+        <picture>
+          <source type="image/avif" srcSet={wordmarkAvif220} />
+          <source type="image/webp" srcSet={wordmarkWebp220} />
+          <img
+            src={wordmarkUrl}
+            alt="Dallty"
+            loading="lazy"
+            width={360}
+            height={121}
+            className="h-6 w-auto object-contain"
+          />
+        </picture>
       ) : (
         <span className="sr-only">Dallty</span>
       )}

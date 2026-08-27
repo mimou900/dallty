@@ -102,12 +102,12 @@ export function BusinessCard({
               <source
                 type="image/avif"
                 sizes={STOCK_IMAGE_SIZES}
-                srcSet={`/salons/${stockName}-480.avif 480w, /salons/${stockName}-960.avif 960w`}
+                srcSet={`/salons/${stockName}-480.avif 480w, /salons/${stockName}-640.avif 640w, /salons/${stockName}-960.avif 960w`}
               />
               <source
                 type="image/webp"
                 sizes={STOCK_IMAGE_SIZES}
-                srcSet={`/salons/${stockName}-480.webp 480w, /salons/${stockName}-960.webp 960w`}
+                srcSet={`/salons/${stockName}-480.webp 480w, /salons/${stockName}-640.webp 640w, /salons/${stockName}-960.webp 960w`}
               />
             </>
           )}
@@ -188,6 +188,7 @@ export function BusinessCard({
             to="/business/$businessSlug"
             params={{ businessSlug: business.slug }}
             search={{ book: true }}
+            aria-label={`${t("book")} ${s.name}`}
             className="press mt-3 flex min-h-11 items-center justify-center rounded-full bg-(image:--gradient-lime) text-sm font-semibold text-lime-foreground transition-[filter] duration-150 hover:brightness-105"
           >
             {t("book")}
@@ -261,6 +262,7 @@ export function BusinessCard({
               to="/business/$businessSlug"
               params={{ businessSlug: business.slug }}
               search={{ book: true }}
+              aria-label={`${t("book")} ${s.name}`}
               className="press block rounded-2xl bg-(image:--gradient-lime) py-3 text-center text-sm font-semibold text-lime-foreground transition-[filter] duration-150 hover:brightness-105"
             >
               {t("book")}

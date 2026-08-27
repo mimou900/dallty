@@ -1,6 +1,23 @@
 import { useMemo } from "react";
-import { ArrowLeft, Search, Grid2x2, Sparkles } from "lucide-react";
-import { DynamicIcon, type IconName } from "lucide-react/dynamic.mjs";
+import {
+  ArrowLeft,
+  Search,
+  Grid2x2,
+  Sparkles,
+  Scissors,
+  Users,
+  Hand,
+  Waves,
+  HeartHandshake,
+  Droplet,
+  Paintbrush,
+  Eye,
+  Zap,
+  Flower2,
+  Gem,
+  Heart,
+  type LucideIcon,
+} from "lucide-react";
 
 import { useCategories, translate, type Category } from "@/lib/reference-data";
 import { useLiveBusinesses } from "@/hooks/use-live-businesses";
@@ -10,31 +27,37 @@ import { useTranslation } from "@/lib/i18n/hooks";
 export type ServiceSelection =
   { kind: "category"; value: string; label: string } | { kind: "query"; value: string };
 
-/** DB category icons are stored PascalCase (e.g. "HeartHandshake", matching lucide's
- *  named-export style — see supabase/migrations/20260813010300_seed_categories.sql);
- *  `DynamicIcon` expects lucide's kebab-case icon-file names ("heart-handshake"). */
-function toKebabIconName(name: string): string {
-  return name
-    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-    .replace(/([A-Za-z])(\d)/g, "$1-$2")
-    .toLowerCase();
-}
+/** DB category icons are stored PascalCase (e.g. "HeartHandshake" — see
+ *  supabase/migrations/20260813010300_seed_categories.sql), matching lucide's
+ *  named-export style directly, so this is a flat lookup, not a name
+ *  transform. Previously `DynamicIcon` (lucide-react/dynamic.mjs), which
+ *  avoided bundling the whole ~1500-icon library — but it does that by
+ *  shipping a ~1,950-entry import map (one `() => import(...)` per lucide
+ *  icon) as its own chunk, most of it dead weight for a fixed, known set of
+ *  13 category icons (confirmed against the seed migration — every icon this
+ *  app's categories table can ever contain). Static imports let Rollup
+ *  tree-shake to exactly these 13 modules instead. Add a new icon here (and
+ *  to the seed migration) if a future category needs one outside this set —
+ *  falls back to Sparkles in the meantime, same as DynamicIcon's fallback did. */
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  Scissors,
+  Users,
+  Sparkles,
+  Hand,
+  Waves,
+  HeartHandshake,
+  Droplet,
+  Paintbrush,
+  Eye,
+  Zap,
+  Flower2,
+  Gem,
+  Heart,
+};
 
-/**
- * Renders a category icon by its DB-stored name without bundling the whole
- * ~1500-icon library — `import * as Icons from "lucide-react"` (the previous
- * approach) forces every icon into one shared chunk, since a dynamic property
- * lookup on a namespace import can't be tree-shaken. `DynamicIcon` fetches only
- * the one icon file actually needed, as its own tiny chunk, per icon name seen.
- */
 function CategoryIcon({ name }: { name: string }) {
-  return (
-    <DynamicIcon
-      name={toKebabIconName(name) as IconName}
-      className="size-5"
-      fallback={() => <Sparkles className="size-5" />}
-    />
-  );
+  const Icon = CATEGORY_ICONS[name] ?? Sparkles;
+  return <Icon className="size-5" />;
 }
 
 type BodyProps = {

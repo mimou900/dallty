@@ -97,7 +97,7 @@ export function getCountriesSync(): Country[] {
 }
 
 export function useCountries(): UseQueryResult<Country[]> {
-  return useQuery({
+  const countries = useQuery({
     queryKey: ["reference-data", "countries"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -111,6 +111,20 @@ export function useCountries(): UseQueryResult<Country[]> {
     },
     staleTime: Infinity,
   });
+
+  // Keeps the synchronous `countryCache` (getDefaultCountry/getCountryByCode/
+  // getCountriesSync) warm for whichever caller happens to fetch this first —
+  // moved here from ReferenceDataProvider so the countries query only ever
+  // fires when a page actually calls useCountries() (PhoneField, search.tsx,
+  // business/signup.tsx, admin/settings.tsx), not unconditionally on every
+  // page load regardless of whether that page needs it. Every synchronous
+  // reader already tolerates an empty/stale cache (falls back to
+  // FALLBACK_COUNTRY), so deferring this has no behavior change for them.
+  useEffect(() => {
+    if (countries.data) countryCache = countries.data;
+  }, [countries.data]);
+
+  return countries;
 }
 
 export function useCurrencies(): UseQueryResult<Currency[]> {
@@ -186,14 +200,16 @@ export function useCities(regionId: string | null): UseQueryResult<City[]> {
 
 const ReferenceDataContext = createContext<null>(null);
 
-/** Mounted once at the app root. Keeps the synchronous country cache warm. */
+/** Mounted once at the app root. Used to unconditionally fetch the countries
+ *  table here (via useCountries()) so the synchronous cache was always warm —
+ *  that put a countries API call on every single page's critical path, homepage
+ *  included, whether or not that page ever reads live country data. Countries
+ *  now only fetch when a page that actually needs them mounts useCountries()
+ *  itself (PhoneField, search.tsx, business/signup.tsx, admin/settings.tsx) —
+ *  see the cache-population effect moved into useCountries() itself. This
+ *  provider is kept as a plain context wrapper (see useReferenceDataContext)
+ *  rather than removed, so nothing downstream needs to change. */
 export function ReferenceDataProvider({ children }: { children: ReactNode }) {
-  const countries = useCountries();
-
-  useEffect(() => {
-    if (countries.data) countryCache = countries.data;
-  }, [countries.data]);
-
   return <ReferenceDataContext.Provider value={null}>{children}</ReferenceDataContext.Provider>;
 }
 

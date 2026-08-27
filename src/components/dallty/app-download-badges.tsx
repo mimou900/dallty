@@ -24,11 +24,17 @@ export function AppDownloadBadges({
       <img
         src={appStoreBadge}
         alt={`${appStoreLabel} ${appStoreName}`}
+        loading="lazy"
+        width={336}
+        height={112}
         className={`${heightClass} w-auto object-contain`}
       />
       <img
         src={googlePlayBadge}
         alt={`${playStoreLabel} ${playStoreName}`}
+        loading="lazy"
+        width={336}
+        height={112}
         className={`${heightClass} w-auto object-contain`}
       />
     </div>

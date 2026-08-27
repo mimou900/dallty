@@ -37,21 +37,40 @@ export function useCarouselScroll<T extends HTMLElement>() {
     const el = ref.current;
     if (!el) return;
 
+    // Reads el.scrollLeft/scrollWidth/clientWidth — real layout-geometry
+    // reads. Deferring to a rAF decouples them from whatever DOM write (this
+    // effect's own setState-triggered re-render, or anything else) happened
+    // in the same tick, so the read lands after the browser's own next paint
+    // pass instead of forcing a synchronous layout recalc immediately after
+    // a write (measured as a forced-reflow source: this hook backs every
+    // homepage carousel row, firing on every scroll/resize).
+    let frame = 0;
     const updateArrows = () => {
-      setCanScrollPrev(el.scrollLeft > 8);
-      setCanScrollNext(el.scrollLeft < el.scrollWidth - el.clientWidth - 8);
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      setProgress(maxScroll > 0 ? el.scrollLeft / maxScroll : 0);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        setCanScrollPrev(el.scrollLeft > 8);
+        setCanScrollNext(el.scrollLeft < el.scrollWidth - el.clientWidth - 8);
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        setProgress(maxScroll > 0 ? el.scrollLeft / maxScroll : 0);
+      });
     };
 
     updateArrows();
     el.addEventListener("scroll", updateArrows, { passive: true });
     window.addEventListener("resize", updateArrows);
     return () => {
+      cancelAnimationFrame(frame);
       el.removeEventListener("scroll", updateArrows);
       window.removeEventListener("resize", updateArrows);
     };
-  });
+    // Deliberately empty — was previously a missing dep array entirely
+    // (re-running, and re-attaching listeners, after EVERY render including
+    // the ones this effect's own setState calls trigger). Mount/unmount-only
+    // is correct: `ref` is stable for the component's lifetime and the
+    // listeners themselves read fresh geometry on each real scroll/resize
+    // event, so nothing here needs to react to prop/state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function scrollByCard(direction: 1 | -1) {
     const el = ref.current;
