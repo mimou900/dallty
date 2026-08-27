@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Heart } from "lucide-react";
+import { Heart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -71,10 +71,15 @@ export function FavoriteButton({
       }}
       disabled={toggle.isPending}
       aria-pressed={active}
+      aria-busy={toggle.isPending}
       aria-label={active ? `Remove ${label} from favorites` : `Add ${label} to favorites`}
-      className={`press grid size-10 shrink-0 place-items-center rounded-2xl glass-soft transition-colors disabled:opacity-60 ${className}`}
+      className={`press grid size-10 shrink-0 place-items-center rounded-2xl glass-warm transition-colors hover:bg-primary/10 disabled:opacity-60 ${className}`}
     >
-      <Heart className={`size-5 ${active ? "fill-rose text-rose" : "text-muted-foreground"}`} />
+      {toggle.isPending ? (
+        <Loader2 className="size-5 animate-spin text-primary" />
+      ) : (
+        <Heart className={`size-5 ${active ? "fill-rose text-rose" : "text-primary"}`} />
+      )}
     </button>
   );
 }

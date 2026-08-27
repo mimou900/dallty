@@ -15,6 +15,7 @@
   ],
   "recommended_title": "موصى به لك",
   "recommended_sub": "أفضل الاختيارات القريبة منك",
+  "recommended_unavailable": "تعذّر تحميل التوصيات حاليًا. يرجى المحاولة مرة أخرى بعد قليل.",
   "badge_top_rated": "الأعلى تقييمًا",
   "badge_trending": "رائج",
   "badge_popular": "شائع",

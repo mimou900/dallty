@@ -31,15 +31,15 @@ export type LiveBusiness = Business & {
  * larger follow-up — not attempted in this pass, since there is currently exactly one
  * marketplace-enabled country to test against either way.
  */
-export function useLiveBusinesses(countryCode?: string) {
+export function useLiveBusinesses(countryCode?: string, limit = 50) {
   const search = useServerFn(searchBusinesses);
   const resolvedCountry = countryCode ?? getDefaultCountry().iso_code;
 
   return useQuery({
-    queryKey: ["businesses", resolvedCountry],
+    queryKey: ["businesses", resolvedCountry, limit],
     queryFn: async (): Promise<LiveBusiness[]> => {
       const { results } = await search({
-        data: { countryCode: resolvedCountry, limit: 50 },
+        data: { countryCode: resolvedCountry, limit },
       });
       return results.map((b) => ({
         id: b.id,

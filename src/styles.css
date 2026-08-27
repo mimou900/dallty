@@ -496,6 +496,29 @@
 }
 
 /*
+ * Warm variant of .glass, built from --cream instead of --card/--glass.
+ * .glass/.glass-soft are deliberately near-neutral so they can sit on top of
+ * anything (including the hero's own colorful atmosphere) without fighting
+ * it — but that same neutrality reads as plain gray once a surface is out on
+ * the plain cream canvas below the hero, with no colorful backdrop bleeding
+ * through to warm it up. .glass-warm carries its own warmth instead of
+ * borrowing it from context: business cards, the desktop search bar, and
+ * carousel arrows all use this so the whole page reads as one warm ivory +
+ * glass + green system rather than the hero being warm and everything below
+ * it going flat white.
+ */
+@utility glass-warm {
+  background: color-mix(in oklab, var(--cream) 86%, white 14%);
+  border: 1px solid color-mix(in oklab, var(--primary) 10%, var(--cream) 90%);
+  backdrop-filter: blur(20px) saturate(140%);
+}
+
+.dark .glass-warm {
+  background: color-mix(in oklab, var(--cream) 80%, white 8%);
+  border: 1px solid color-mix(in oklab, white 12%, transparent);
+}
+
+/*
  * Dark glass — for badges/pills placed directly over a photo (business-card
  * status pills, image overlays), always paired with white/light text and
  * ideally the photo-scrim utility above. Deliberately a DIFFERENT variant
@@ -781,6 +804,21 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+/*
+ * One shared, static (non-animated) atmospheric wash for everything below the
+ * hero — a plain `background-image` on the page's `<main>`, not a per-section
+ * gradient and not another animated/blurred DOM element, so it costs nothing
+ * beyond the hero's own paint (no extra layout, no JS, no repaint triggers).
+ * Deliberately much fainter than the hero's own atmosphere: it should read as
+ * "this is still the same page" continuing past the hero, not a second hero.
+ */
+@utility bg-atmosphere-whisper {
+  background-image:
+    radial-gradient(55% 38% at 12% 0%, oklch(0.3811 0.0771 161.08 / 0.05), transparent 70%),
+    radial-gradient(46% 32% at 88% 10%, oklch(0.8462 0.1986 118.84 / 0.07), transparent 70%);
+  background-repeat: no-repeat;
 }
 
 @utility press {

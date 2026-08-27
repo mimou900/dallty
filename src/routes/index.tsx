@@ -13,6 +13,7 @@ import {
 
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { BusinessCard } from "@/components/dallty/business-card";
+import { BusinessCardSkeleton } from "@/components/dallty/business-card-skeleton";
 import {
   BusinessCarousel,
   CarouselArrows,
@@ -152,7 +153,14 @@ function Index() {
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
   const [dateTimeSheetOpen, setDateTimeSheetOpen] = useState(false);
 
-  const { data: liveBusinesses } = useLiveBusinesses(country);
+  // 12, not the hook's normal 50: "Recommended for you" only ever shows 10 cards
+  // (4 visible at once on desktop) — the search page and the service-search sheet
+  // still call the same hook with its default 50, unaffected by this.
+  const {
+    data: liveBusinesses,
+    isLoading: recommendedLoading,
+    isError: recommendedFailed,
+  } = useLiveBusinesses(country, 12);
 
   // Unfiltered, top-of-feed slice for the "Recommended for you" carousel — the
   // RPC's default sort is already relevance (rank_score: rating + review
@@ -457,11 +465,11 @@ function Index() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-6xl px-4 pb-32 md:pb-24">
+      <main className="bg-atmosphere-whisper mx-auto max-w-6xl px-4 pb-32 md:pb-24">
         {/* Recommended for you — unfiltered top-ranked picks, horizontal carousel.
             Distinct from the filterable "Nearby" grid further down: tapping a
             category below never affects this rail. */}
-        {recommended.length > 0 && (
+        {(recommendedLoading || recommended.length > 0 || recommendedFailed) && (
           <section className="mt-14 sm:mt-16">
             <SectionHeader
               title={t("recommended_title")}
@@ -481,21 +489,38 @@ function Index() {
               actions={<CarouselArrows {...recommendedCarousel} />}
             />
             <div className="mt-5 sm:mt-6">
-              <BusinessCarousel scrollRef={recommendedCarousel.ref}>
-                {recommended.map((s) => (
-                  <BusinessCard
-                    key={s.id}
-                    business={s}
-                    lang={lang}
-                    compact
-                    badge={
-                      s.id === topRatedId
-                        ? { label: t("badge_top_rated"), tone: "top-rated" }
-                        : undefined
-                    }
-                  />
-                ))}
-              </BusinessCarousel>
+              {recommendedLoading ? (
+                // Real skeleton cards, not a blank section — this is what used to
+                // render nothing until the fetch resolved, which was both the
+                // homepage's CLS source (the whole section popping into layout at
+                // once) and what made the LCP image undiscoverable until then.
+                <BusinessCarousel scrollRef={recommendedCarousel.ref}>
+                  {Array.from({ length: 4 }, (_, i) => (
+                    <BusinessCardSkeleton key={i} />
+                  ))}
+                </BusinessCarousel>
+              ) : recommendedFailed ? (
+                <p className="rounded-3xl glass-warm p-6 text-center text-sm text-muted-foreground">
+                  {t("recommended_unavailable")}
+                </p>
+              ) : (
+                <BusinessCarousel scrollRef={recommendedCarousel.ref}>
+                  {recommended.map((s, i) => (
+                    <BusinessCard
+                      key={s.id}
+                      business={s}
+                      lang={lang}
+                      compact
+                      priority={i === 0}
+                      badge={
+                        s.id === topRatedId
+                          ? { label: t("badge_top_rated"), tone: "top-rated" }
+                          : undefined
+                      }
+                    />
+                  ))}
+                </BusinessCarousel>
+              )}
             </div>
           </section>
         )}

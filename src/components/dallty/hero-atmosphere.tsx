@@ -47,7 +47,7 @@ export function HeroAtmosphere() {
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       {/* GREEN ZONE — primary. Upper-left, pure Deep Green. */}
       <div
-        className="atmosphere-blob -top-24 start-[-10%] w-[30rem] h-[24rem] sm:w-[40rem] sm:h-[32rem] lg:w-[44rem] lg:h-[36rem]"
+        className="atmosphere-blob -top-24 start-[-10%] w-[30rem] h-[24rem] sm:w-[40rem] sm:h-[32rem] lg:w-[44rem] lg:h-[36rem] xl:start-[-4%] xl:w-[58rem] xl:h-[46rem]"
         style={{
           backgroundColor: "rgb(15, 79, 59)",
           filter: "blur(130px)",
@@ -59,7 +59,7 @@ export function HeroAtmosphere() {
       />
       {/* GREEN ZONE — tint. Same area, lighter same-family tone for depth. */}
       <div
-        className="atmosphere-blob top-4 start-[6%] w-[22rem] h-[18rem] sm:w-[28rem] sm:h-[24rem] lg:w-[32rem] lg:h-[28rem]"
+        className="atmosphere-blob top-4 start-[6%] w-[22rem] h-[18rem] sm:w-[28rem] sm:h-[24rem] lg:w-[32rem] lg:h-[28rem] xl:w-[42rem] xl:h-[36rem]"
         style={{
           backgroundColor: "rgb(159, 189, 178)",
           filter: "blur(150px)",
@@ -72,7 +72,7 @@ export function HeroAtmosphere() {
       {/* WHITE separator — keeps the green zone and lime zone from blending
           into one wash; the transition should read as a clean white gap. */}
       <div
-        className="atmosphere-blob top-[20rem] start-[24%] w-[32rem] h-[26rem] sm:w-[42rem] sm:h-[34rem] lg:w-[48rem] lg:h-[38rem] sm:top-[24rem] lg:top-[28rem]"
+        className="atmosphere-blob top-[20rem] start-[24%] w-[32rem] h-[26rem] sm:w-[42rem] sm:h-[34rem] lg:w-[48rem] lg:h-[38rem] sm:top-[24rem] lg:top-[28rem] xl:w-[58rem] xl:h-[46rem]"
         style={{
           backgroundColor: "rgb(255, 255, 255)",
           filter: "blur(170px)",
@@ -85,7 +85,7 @@ export function HeroAtmosphere() {
       {/* LIME ZONE — primary. Lower-right, pure Lime — a separate area from
           the green zone. */}
       <div
-        className="atmosphere-blob top-[22rem] end-[-8%] w-[28rem] h-[22rem] sm:w-[38rem] sm:h-[30rem] lg:w-[42rem] lg:h-[34rem] sm:top-[28rem] lg:top-[32rem]"
+        className="atmosphere-blob top-[22rem] end-[-8%] w-[28rem] h-[22rem] sm:w-[38rem] sm:h-[30rem] lg:w-[42rem] lg:h-[34rem] sm:top-[28rem] lg:top-[32rem] xl:end-[-2%] xl:w-[52rem] xl:h-[42rem]"
         style={{
           backgroundColor: "rgb(204, 208, 0)",
           filter: "blur(130px)",
@@ -97,7 +97,7 @@ export function HeroAtmosphere() {
       />
       {/* LIME ZONE — tint. Same area, lighter same-family tone for depth. */}
       <div
-        className="atmosphere-blob top-[26rem] end-[4%] w-[20rem] h-[16rem] sm:w-[26rem] sm:h-[22rem] lg:w-[30rem] lg:h-[26rem] sm:top-[32rem] lg:top-[36rem]"
+        className="atmosphere-blob top-[26rem] end-[4%] w-[20rem] h-[16rem] sm:w-[26rem] sm:h-[22rem] lg:w-[30rem] lg:h-[26rem] sm:top-[32rem] lg:top-[36rem] xl:w-[38rem] xl:h-[32rem]"
         style={{
           backgroundColor: "rgb(233, 235, 145)",
           filter: "blur(150px)",

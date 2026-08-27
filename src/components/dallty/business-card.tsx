@@ -35,7 +35,7 @@ const BADGE_TONE = {
   "top-rated": { classes: "bg-lime text-primary", icon: Star },
   new: { classes: "bg-lime-subtle text-primary", icon: Sparkles },
   popular: { classes: "bg-primary-light text-primary-foreground", icon: Flame },
-  featured: { classes: "bg-primary text-primary-foreground", icon: Award },
+  featured: { classes: "bg-primary text-lime", icon: Award },
   offer: { classes: "bg-primary-surface text-primary", icon: Tag },
   trending: { classes: "bg-primary-active text-primary-foreground", icon: TrendingUp },
 } satisfies Record<BusinessBadge["tone"], { classes: string; icon: typeof Star }>;
@@ -46,6 +46,7 @@ export function BusinessCard({
   travel,
   badge,
   compact,
+  priority,
 }: {
   business: Business;
   lang: Lang;
@@ -56,6 +57,11 @@ export function BusinessCard({
    *  single outlined "Book now" CTA instead of the Details+Book pair. The
    *  richer default layout (used by search results) is unchanged. */
   compact?: boolean;
+  /** Set on the first card of the first above-the-fold rail only — it's the
+   *  homepage's LCP candidate, so it needs to load eagerly and with priority
+   *  instead of the `loading="lazy"` every other card correctly uses (they're
+   *  off-screen; deferring them is right, not a bug). */
+  priority?: boolean;
 }) {
   const { t } = useTranslation("marketplace");
   // Business's own per-listing fields are en/ar-only fallback/seed data
@@ -64,12 +70,13 @@ export function BusinessCard({
   const BadgeIcon = badge ? BADGE_TONE[badge.tone].icon : null;
 
   return (
-    <article className="press group overflow-hidden rounded-3xl glass shadow-(--shadow-card)">
-      <div className="relative aspect-[4/3] overflow-hidden">
+    <article className="press group overflow-hidden rounded-3xl glass-warm shadow-(--shadow-card)">
+      <div className={`relative overflow-hidden ${compact ? "aspect-[16/10]" : "aspect-[4/3]"}`}>
         <img
           src={business.image}
           alt={s.name}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : undefined}
           width={900}
           height={700}
           className="size-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -143,7 +150,7 @@ export function BusinessCard({
             to="/business/$businessSlug"
             params={{ businessSlug: business.slug }}
             search={{ book: true }}
-            className="press mt-3 flex min-h-11 items-center justify-center rounded-full border border-primary text-sm font-semibold text-primary"
+            className="press mt-3 flex min-h-11 items-center justify-center rounded-full border border-primary text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
           >
             {t("book")}
           </Link>

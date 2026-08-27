@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { FavoriteButton, useFavorites } from "@/components/dallty/favorite-button";
 import { ClientShell } from "@/components/dallty/client-shell";
+import { Skeleton } from "@/components/dallty/skeleton";
 
 export const Route = createFileRoute("/_authenticated/favorites")({
   head: () => ({
@@ -97,8 +98,32 @@ function FavoritesPage() {
   const empty =
     !favorites.isLoading && !businessIds.length && !staffIds.length && !serviceIds.length;
 
+  // Covers both the initial favorites-rows fetch and the per-kind fetches that follow it —
+  // each only "counts" while its own ids are non-empty, since a kind with zero saved ids
+  // never queries at all (see each query's `enabled`) and should never block on it.
+  const loading =
+    favorites.isLoading ||
+    (businessIds.length > 0 && businessesQuery.isLoading) ||
+    (staffIds.length > 0 && staffQuery.isLoading) ||
+    (serviceIds.length > 0 && servicesQuery.isLoading);
+
   return (
     <ClientShell title="Favorites" subtitle="Salons, specialists and services you saved.">
+      {loading && !empty && (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-3xl glass p-3">
+              <Skeleton variant="image" className="size-16 shrink-0 rounded-2xl" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton variant="text" className="h-3.5 w-3/5" />
+                <Skeleton variant="text" className="w-2/5" />
+              </div>
+              <Skeleton variant="circle" className="size-10 shrink-0 rounded-2xl" />
+            </div>
+          ))}
+        </div>
+      )}
+
       {empty && (
         <div className="mt-8 rounded-3xl glass p-8 text-center">
           <Heart className="mx-auto size-8 text-rose" />

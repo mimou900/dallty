@@ -15,6 +15,7 @@
   ],
   "recommended_title": "Recommended for you",
   "recommended_sub": "Top-rated picks near you",
+  "recommended_unavailable": "We couldn't load recommendations right now. Please try again shortly.",
   "badge_top_rated": "Top rated",
   "badge_trending": "Trending",
   "badge_popular": "Popular",

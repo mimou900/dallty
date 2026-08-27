@@ -72,29 +72,53 @@ export function langFromSearch(search: unknown): Lang | null {
   return isLang(value) ? value : null;
 }
 
-function readStored(): Lang | null {
-  if (typeof document === "undefined") return null;
-  try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (isLang(saved)) return saved;
-  } catch {
-    /* storage blocked */
-  }
-  const cookie = document.cookie.match(/(?:^|;\s*)dallty_lang=(\w+)/)?.[1];
-  return isLang(cookie) ? cookie : null;
+/** Reads the persisted-language cookie out of a raw `Cookie` header string — works
+ *  both server-side (from the incoming request's headers) and client-side (from
+ *  `document.cookie`, which has the exact same `name=value; name2=value2` shape),
+ *  so the same helper resolves the saved language before first paint everywhere. */
+export function langFromCookieString(cookieHeader: string | null | undefined): Lang | null {
+  const value = cookieHeader?.match(/(?:^|;\s*)dallty_lang=(\w+)/)?.[1];
+  return isLang(value) ? value : null;
 }
 
-/** Browser language, the default signal for first-time visitors. */
-function detectBrowserLang(): Lang {
-  if (typeof navigator === "undefined") return DEFAULT_LANG;
-  const candidates = navigator.languages?.length ? navigator.languages : [navigator.language];
-  for (const raw of candidates) {
-    const code = (raw || "").toLowerCase();
-    if (code.startsWith("ar")) return "ar";
-    if (code.startsWith("fr")) return "fr";
-    if (code.startsWith("en")) return "en";
+/** Same prefix-matching rule as `detectBrowserLang` below, fed by the `Accept-Language`
+ *  request header instead of `navigator.languages` — lets SSR make the same "browser
+ *  language" guess for a first-time visitor that the client would otherwise only make
+ *  after hydration, which is what used to cause a visible language flash. */
+export function langFromAcceptLanguageHeader(header: string | null | undefined): Lang | null {
+  if (!header) return null;
+  const tags = header.split(",").map((t) => t.split(";")[0].trim().toLowerCase());
+  for (const tag of tags) {
+    if (tag.startsWith("ar")) return "ar";
+    if (tag.startsWith("fr")) return "fr";
+    if (tag.startsWith("en")) return "en";
   }
-  return DEFAULT_LANG;
+  return null;
+}
+
+/**
+ * Resolves the language SSR should render with, and that the client's first hydration
+ * pass must agree on bit-for-bit — same priority the client already used post-mount
+ * (URL > saved cookie > browser language > default), just evaluated once up front
+ * instead of starting at DEFAULT_LANG and correcting itself after mount. This is the
+ * fix for the "renders in English, then flips to the saved/browser language" flash:
+ * unlike localStorage, the language cookie (and the Accept-Language header) travel
+ * with the HTTP request, so the server can make the same call the client used to only
+ * make after the fact.
+ */
+export function resolveInitialLang(params: {
+  search: unknown;
+  cookieHeader: string | null | undefined;
+  acceptLanguageHeader?: string | null;
+}): Lang {
+  return (
+    langFromSearch(params.search) ??
+    langFromCookieString(params.cookieHeader) ??
+    (params.acceptLanguageHeader
+      ? langFromAcceptLanguageHeader(params.acceptLanguageHeader)
+      : null) ??
+    DEFAULT_LANG
+  );
 }
 
 function persist(lang: Lang) {
@@ -117,7 +141,18 @@ type LocaleValue = {
 
 const LocaleContext = createContext<LocaleValue | null>(null);
 
-export function LocaleProvider({ children }: { children: ReactNode }) {
+export function LocaleProvider({
+  children,
+  initialLang,
+}: {
+  children: ReactNode;
+  /** Server-resolved via `resolveInitialLang()` (URL > saved cookie > Accept-Language
+   *  header > default) and passed down from the root route's `beforeLoad` — the whole
+   *  point is that this already matches what SSR rendered, so the first client render
+   *  needs no post-mount correction (that correction was the "renders in English, then
+   *  flips to the saved language" flash). */
+  initialLang: Lang;
+}) {
   const location = useRouterState({
     select: (state) => ({
       pathname: state.location.pathname,
@@ -126,20 +161,17 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     }),
   });
 
-  // SSR + first client render agree on the URL language, so hydration is safe.
-  const [preferred, setPreferred] = useState<Lang | null>(null);
-  const lang = location.urlLang ?? preferred ?? DEFAULT_LANG;
+  const [preferred, setPreferred] = useState<Lang>(initialLang);
+  const lang = location.urlLang ?? preferred;
 
-  // After mount: honour a saved choice, otherwise the browser language.
+  // Only fires for an explicit URL language (a hreflang link, a shared `?lang=` URL,
+  // or setLang's own history.replaceState) — the saved-preference/browser-language
+  // case is already resolved into `initialLang` above, before first paint.
   useEffect(() => {
     if (location.urlLang) {
       persist(location.urlLang);
       setPreferred(location.urlLang);
-      return;
     }
-    // Only apply the stored/browser preference in state — rewriting the URL here
-    // would fight hydration. Explicit switches (setLang) update the URL instead.
-    setPreferred(readStored() ?? detectBrowserLang());
   }, [location.urlLang]);
 
   // "common" is chrome shared by nearly every screen — always warm.

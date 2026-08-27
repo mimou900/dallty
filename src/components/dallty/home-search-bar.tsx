@@ -129,7 +129,7 @@ export function HomeSearchBar({
   const dateTimePlaceholder = t("search_datetime_placeholder");
 
   return (
-    <div className="relative z-10 mx-auto max-w-md rounded-[28px] border border-border/30 bg-card/95 p-3 shadow-elevation-high md:max-w-4xl md:rounded-full md:p-2.5 lg:max-w-5xl">
+    <div className="glass-warm relative z-10 mx-auto max-w-md rounded-[28px] p-3 shadow-elevation-high md:max-w-4xl md:rounded-full md:p-2.5 lg:max-w-5xl">
       <div className="flex flex-col gap-2 md:flex-row md:items-stretch md:gap-1">
         <FieldRow
           icon={<Search className="size-[18px]" />}

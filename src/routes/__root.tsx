@@ -8,6 +8,7 @@ import {
   Scripts,
   useRouterState,
 } from "@tanstack/react-router";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
@@ -18,9 +19,50 @@ import { supabase } from "@/integrations/supabase/client";
 import { takeNextPath } from "@/lib/next-path";
 import { Toaster } from "@/components/ui/sonner";
 import { ConnectionBanner } from "@/components/dallty/connection-banner";
-import { LocaleProvider, DEFAULT_LANG, dirFor, langFromSearch, localizedPath } from "@/lib/i18n";
-import { preloadNamespaces } from "@/lib/i18n/loader";
+import {
+  LocaleProvider,
+  DEFAULT_LANG,
+  dirFor,
+  localizedPath,
+  resolveInitialLang,
+  type Lang,
+} from "@/lib/i18n";
+import {
+  preloadNamespaces,
+  seedCache,
+  snapshotCache,
+  type NamespaceSnapshot,
+} from "@/lib/i18n/loader";
 import { ACTIVE_NAMESPACES } from "@/lib/i18n/namespaces";
+
+/** Per-language snapshot of already-fetched namespace data, carried from SSR's
+ *  `beforeLoad` down to the client via route context — see the comment on
+ *  `beforeLoad` and `seedCache`/`snapshotCache` (src/lib/i18n/loader.ts). */
+type I18nSeed = Partial<Record<Lang, NamespaceSnapshot>>;
+
+/**
+ * `@tanstack/react-start/server` (for `getRequest()`) can't be statically imported
+ * from this file at all — it's reachable from the client bundle (this is the root
+ * layout), and the build's import-protection rejects that specifier outright even
+ * inside a `typeof document` guard, since it scans imports statically rather than
+ * per-branch. `createIsomorphicFn` is the supported way to give a route hook two
+ * real per-environment implementations without either one leaking into the wrong
+ * bundle: the `.server()` callback (and its dynamic import) only ships server-side,
+ * `.client()` only ships client-side.
+ */
+const getLangSignals = createIsomorphicFn()
+  .server(async () => {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const headers = getRequest()?.headers;
+    return {
+      cookieHeader: headers?.get("cookie") ?? null,
+      acceptLanguageHeader: headers?.get("accept-language") ?? null,
+    };
+  })
+  .client(() => ({
+    cookieHeader: document.cookie as string | null,
+    acceptLanguageHeader: null as string | null,
+  }));
 
 function NotFoundComponent() {
   return (
@@ -96,8 +138,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   // non-default language's file, useTranslation()'s fallback (see
   // src/lib/i18n/hooks.ts) has real data to fall back to instead of ever
   // surfacing the raw key.
-  beforeLoad: async ({ location }) => {
-    const lang = langFromSearch(location.search) ?? DEFAULT_LANG;
+  //
+  // `lang` here is resolved with the SAME priority LocaleProvider used to only
+  // apply after mount (URL > saved cookie > Accept-Language > default) — the
+  // difference is this runs before the route renders, server-side included, by
+  // reading the cookie/header off the real request instead of the browser-only
+  // localStorage. That's what fixes the "renders in English, then flips to the
+  // saved language" flash: previously SSR always fell back to DEFAULT_LANG
+  // whenever the URL had no `?lang=`, even for a returning non-English visitor,
+  // and the client only discovered their real preference after hydration.
+  beforeLoad: async ({ location }): Promise<{ lang: Lang; i18nSeed: I18nSeed }> => {
+    const { cookieHeader, acceptLanguageHeader } = await getLangSignals();
+    const lang = resolveInitialLang({
+      search: location.search,
+      cookieHeader,
+      acceptLanguageHeader,
+    });
     try {
       await Promise.all([
         preloadNamespaces(lang, ACTIVE_NAMESPACES),
@@ -108,6 +164,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     } catch (error) {
       console.error("[i18n] failed to preload namespaces", error);
     }
+    // Ships whatever SSR just fetched down to the client as plain serializable
+    // data (see snapshotCache/seedCache in src/lib/i18n/loader.ts) — the whole
+    // point being that RootComponent can seed the client's own cache with this
+    // SYNCHRONOUSLY, during its first render, instead of the client needing to
+    // re-fetch the same namespace files itself before it has anything to render.
+    // That re-fetch gap was a real (if narrow) race: on a cold client the first
+    // render could momentarily land before the fetch resolved, showing the
+    // fallback language for a beat before flipping to the resolved one.
+    const i18nSeed: I18nSeed = { [lang]: snapshotCache(lang, ACTIVE_NAMESPACES) };
+    if (lang !== DEFAULT_LANG)
+      i18nSeed[DEFAULT_LANG] = snapshotCache(DEFAULT_LANG, ACTIVE_NAMESPACES);
+    return { lang, i18nSeed };
   },
   head: () => ({
     meta: [
@@ -167,14 +235,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 const SITE_URL = "https://dallty.com";
 
 function RootShell({ children }: { children: ReactNode }) {
-  const { pathname, searchStr, urlLang } = useRouterState({
+  const { pathname, searchStr } = useRouterState({
     select: (state) => ({
       pathname: state.location.pathname,
       searchStr: state.location.searchStr,
-      urlLang: langFromSearch(state.location.search),
     }),
   });
-  const lang = urlLang ?? "en";
+  // Server-resolved (see beforeLoad above) so the very first byte of HTML already
+  // carries the right lang/dir — no separate "urlLang ?? en" guess here that could
+  // disagree with what LocaleProvider ends up using further down the tree.
+  const { lang } = Route.useRouteContext();
 
   return (
     <html lang={lang} dir={dirFor(lang)}>
@@ -212,7 +282,15 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
+  const { queryClient, lang, i18nSeed } = Route.useRouteContext();
+  // Synchronous, not an effect — must land before <Outlet/>'s subtree does its
+  // first render, in the SAME pass, or the very race this exists to close (a
+  // child's t() call landing before the client has any data for `lang`) would
+  // still be possible. seedCache() no-ops anything already cached, so this is
+  // cheap and safe to run on every render.
+  for (const [seedLang, dict] of Object.entries(i18nSeed)) {
+    seedCache(seedLang as Lang, dict);
+  }
   const router = useRouter();
 
   useEffect(() => {
@@ -235,7 +313,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ReferenceDataProvider>
         <AuthProvider>
-          <LocaleProvider>
+          <LocaleProvider initialLang={lang}>
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
             <Toaster />
