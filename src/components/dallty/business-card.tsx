@@ -22,10 +22,32 @@ export type TravelInfo = {
   walkingMinutes: number | null;
 };
 
+/** Matches the 4 local `/salons/*.jpg` category-fallback stock photos (see
+ *  `use-live-businesses.ts`'s `CATEGORY_IMAGE_FALLBACK`) — the only images
+ *  this app controls end-to-end, so the only ones with pre-generated AVIF/
+ *  WebP variants at `-480`/`-960` widths (see `public/salons/`). A real
+ *  business's own uploaded photo is a Supabase Storage signed URL and has
+ *  no such variants; it renders through the plain `<img>` fallback below
+ *  exactly as before. */
+const STOCK_IMAGE_RE = /^\/salons\/(hair|barber|nails|spa)\.jpg$/;
+
+/** Matches the carousel's actual rendered widths (`business-carousel.tsx`):
+ *  78vw mobile, 46% from `sm`, and a ~280px card from `lg` (25% of the
+ *  max-w-6xl track minus gaps) — so the browser picks the smaller 480w
+ *  variant on phones instead of downloading the 960w one unnecessarily. */
+const STOCK_IMAGE_SIZES = "(min-width: 1024px) 280px, (min-width: 640px) 46vw, 78vw";
+
 /** One editorial badge, top-left of the image — distinct from the operational
  *  Open/Instant pills (bottom-left), which stay regardless of this prop. Only
  *  one may be set per card; callers choose which (a card is never both "New"
- *  and "Trending" at once). */
+ *  and "Trending" at once).
+ *
+ *  Deliberately few distinct background treatments (not one per tone) — Lime
+ *  is reserved for the single highest-value signal (top rated), Trending and
+ *  Popular intentionally share the same solid Deep Green (both mean "other
+ *  people are choosing this," just from different signals), New/Featured/Offer
+ *  use paler tints of the same two families. One shape, one shadow, only the
+ *  color changes. */
 export type BusinessBadge = {
   label: string;
   tone: "top-rated" | "new" | "popular" | "featured" | "offer" | "trending";
@@ -33,11 +55,11 @@ export type BusinessBadge = {
 
 const BADGE_TONE = {
   "top-rated": { classes: "bg-lime text-primary", icon: Star },
-  new: { classes: "bg-lime-subtle text-primary", icon: Sparkles },
-  popular: { classes: "bg-primary-light text-primary-foreground", icon: Flame },
+  trending: { classes: "bg-primary text-primary-foreground", icon: TrendingUp },
+  popular: { classes: "bg-primary text-primary-foreground", icon: Flame },
+  new: { classes: "bg-primary-surface text-primary", icon: Sparkles },
   featured: { classes: "bg-primary text-lime", icon: Award },
-  offer: { classes: "bg-primary-surface text-primary", icon: Tag },
-  trending: { classes: "bg-primary-active text-primary-foreground", icon: TrendingUp },
+  offer: { classes: "bg-lime-subtle text-primary", icon: Tag },
 } satisfies Record<BusinessBadge["tone"], { classes: string; icon: typeof Star }>;
 
 export function BusinessCard({
@@ -68,19 +90,37 @@ export function BusinessCard({
   // (out of scope for this migration); French falls back to English.
   const s = business[lang === "ar" ? "ar" : "en"];
   const BadgeIcon = badge ? BADGE_TONE[badge.tone].icon : null;
+  const stockMatch = business.image.match(STOCK_IMAGE_RE);
+  const stockName = stockMatch?.[1];
 
   return (
-    <article className="press group overflow-hidden rounded-3xl glass-warm shadow-(--shadow-card)">
+    <article className="group overflow-hidden rounded-3xl border border-border/50 bg-card shadow-soft transition-shadow duration-200 hover:shadow-elevation-medium">
       <div className={`relative overflow-hidden ${compact ? "aspect-[16/10]" : "aspect-[4/3]"}`}>
-        <img
-          src={business.image}
-          alt={s.name}
-          loading={priority ? "eager" : "lazy"}
-          fetchPriority={priority ? "high" : undefined}
-          width={900}
-          height={700}
-          className="size-full object-cover transition-transform duration-700 group-hover:scale-105"
-        />
+        <picture>
+          {stockName && (
+            <>
+              <source
+                type="image/avif"
+                sizes={STOCK_IMAGE_SIZES}
+                srcSet={`/salons/${stockName}-480.avif 480w, /salons/${stockName}-960.avif 960w`}
+              />
+              <source
+                type="image/webp"
+                sizes={STOCK_IMAGE_SIZES}
+                srcSet={`/salons/${stockName}-480.webp 480w, /salons/${stockName}-960.webp 960w`}
+              />
+            </>
+          )}
+          <img
+            src={business.image}
+            alt={s.name}
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
+            width={900}
+            height={700}
+            className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+          />
+        </picture>
         {/* Guarantees the badges below stay legible regardless of what's in the
             photo underneath — never rely on the photo's own contrast. */}
         <div aria-hidden className="photo-scrim absolute inset-0" />
@@ -148,7 +188,7 @@ export function BusinessCard({
             to="/business/$businessSlug"
             params={{ businessSlug: business.slug }}
             search={{ book: true }}
-            className="press mt-3 flex min-h-11 items-center justify-center rounded-full bg-(image:--gradient-lime) text-sm font-semibold text-lime-foreground shadow-(--shadow-glow-lime)"
+            className="press mt-3 flex min-h-11 items-center justify-center rounded-full bg-(image:--gradient-lime) text-sm font-semibold text-lime-foreground transition-[filter] duration-150 hover:brightness-105"
           >
             {t("book")}
           </Link>
@@ -221,7 +261,7 @@ export function BusinessCard({
               to="/business/$businessSlug"
               params={{ businessSlug: business.slug }}
               search={{ book: true }}
-              className="press block rounded-2xl bg-(image:--gradient-lime) py-3 text-center text-sm font-semibold text-lime-foreground shadow-(--shadow-glow-lime)"
+              className="press block rounded-2xl bg-(image:--gradient-lime) py-3 text-center text-sm font-semibold text-lime-foreground transition-[filter] duration-150 hover:brightness-105"
             >
               {t("book")}
             </Link>

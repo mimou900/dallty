@@ -41,6 +41,16 @@
  * recognizable "this is green" / "this is lime" center — translucent glass,
  * not fog. Motion (position+scale+opacity combined per field, five different
  * non-multiple durations 13s/16s/18s/21s/24s) is unchanged from v13.
+ *
+ * v15 — visual-cleanup pass: each field was a flat `backgroundColor` fill,
+ * which (even blurred) has a genuine hard edge at its own un-blurred radius,
+ * reading as "an obvious colored circle" rather than ambient light. Switched
+ * to a radial-gradient that already fades to transparent before the blur is
+ * applied, so there's no hard edge for the blur to soften — same colors,
+ * same sizes/positions/animation timing (untouched, since this file has a
+ * documented history of breaking on gradient-syntax changes — see the
+ * `oklch(from ...)` note above; only plain `rgba()` stops are used here,
+ * the same safe syntax that fix already established).
  */
 export function HeroAtmosphere() {
   return (
@@ -49,7 +59,8 @@ export function HeroAtmosphere() {
       <div
         className="atmosphere-blob -top-24 start-[-10%] w-[30rem] h-[24rem] sm:w-[40rem] sm:h-[32rem] lg:w-[44rem] lg:h-[36rem] xl:start-[-4%] xl:w-[58rem] xl:h-[46rem]"
         style={{
-          backgroundColor: "rgb(15, 79, 59)",
+          backgroundImage:
+            "radial-gradient(circle, rgba(15, 79, 59, 1) 0%, rgba(15, 79, 59, 0) 70%)",
           filter: "blur(130px)",
           animationName: "atmosphere-green-primary",
           animationDuration: "18s",
@@ -61,7 +72,8 @@ export function HeroAtmosphere() {
       <div
         className="atmosphere-blob top-4 start-[6%] w-[22rem] h-[18rem] sm:w-[28rem] sm:h-[24rem] lg:w-[32rem] lg:h-[28rem] xl:w-[42rem] xl:h-[36rem]"
         style={{
-          backgroundColor: "rgb(159, 189, 178)",
+          backgroundImage:
+            "radial-gradient(circle, rgba(159, 189, 178, 1) 0%, rgba(159, 189, 178, 0) 70%)",
           filter: "blur(150px)",
           animationName: "atmosphere-green-tint",
           animationDuration: "16s",
@@ -74,7 +86,8 @@ export function HeroAtmosphere() {
       <div
         className="atmosphere-blob top-[20rem] start-[24%] w-[32rem] h-[26rem] sm:w-[42rem] sm:h-[34rem] lg:w-[48rem] lg:h-[38rem] sm:top-[24rem] lg:top-[28rem] xl:w-[58rem] xl:h-[46rem]"
         style={{
-          backgroundColor: "rgb(255, 255, 255)",
+          backgroundImage:
+            "radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 70%)",
           filter: "blur(170px)",
           animationName: "atmosphere-breathe",
           animationDuration: "24s",
@@ -87,7 +100,8 @@ export function HeroAtmosphere() {
       <div
         className="atmosphere-blob top-[22rem] end-[-8%] w-[28rem] h-[22rem] sm:w-[38rem] sm:h-[30rem] lg:w-[42rem] lg:h-[34rem] sm:top-[28rem] lg:top-[32rem] xl:end-[-2%] xl:w-[52rem] xl:h-[42rem]"
         style={{
-          backgroundColor: "rgb(204, 208, 0)",
+          backgroundImage:
+            "radial-gradient(circle, rgba(204, 208, 0, 1) 0%, rgba(204, 208, 0, 0) 70%)",
           filter: "blur(130px)",
           animationName: "atmosphere-lime-primary",
           animationDuration: "21s",
@@ -99,7 +113,8 @@ export function HeroAtmosphere() {
       <div
         className="atmosphere-blob top-[26rem] end-[4%] w-[20rem] h-[16rem] sm:w-[26rem] sm:h-[22rem] lg:w-[30rem] lg:h-[26rem] sm:top-[32rem] lg:top-[36rem] xl:w-[38rem] xl:h-[32rem]"
         style={{
-          backgroundColor: "rgb(233, 235, 145)",
+          backgroundImage:
+            "radial-gradient(circle, rgba(233, 235, 145, 1) 0%, rgba(233, 235, 145, 0) 70%)",
           filter: "blur(150px)",
           animationName: "atmosphere-lime-tint",
           animationDuration: "13s",

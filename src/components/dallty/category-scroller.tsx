@@ -49,7 +49,7 @@ export function CategoryTile({
     >
       <span
         className={`grid size-14 place-items-center rounded-full transition sm:size-16 ${
-          active ? "bg-primary text-primary-foreground shadow-lg" : "bg-primary/10 text-primary"
+          active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
         }`}
       >
         <Icon className="size-6 sm:size-7" />

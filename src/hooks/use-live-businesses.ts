@@ -53,6 +53,13 @@ export function useLiveBusinesses(countryCode?: string, limit = 50) {
 
   return useQuery({
     queryKey: ["businesses", resolvedCountry, limit],
+    // No override here meant every mount — including just navigating away from the
+    // homepage and back — refetched from scratch on React Query's own defaults
+    // (`staleTime: 0`), even though this list rarely changes within a session.
+    // Matches the precedent already set by `search.tsx`/`business.$businessSlug.tsx`:
+    // a cached visit renders instantly with no network request at all, not just
+    // "no skeleton flash."
+    staleTime: 2 * 60 * 1000,
     queryFn: async (): Promise<LiveBusiness[]> => {
       const { results } = await search({
         data: { countryCode: resolvedCountry, limit },

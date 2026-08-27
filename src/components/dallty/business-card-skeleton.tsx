@@ -11,7 +11,10 @@ import { Skeleton } from "@/components/dallty/skeleton";
  */
 export function BusinessCardSkeleton() {
   return (
-    <article aria-hidden className="overflow-hidden rounded-3xl glass-warm shadow-(--shadow-card)">
+    <article
+      aria-hidden
+      className="overflow-hidden rounded-3xl border border-border/50 bg-card shadow-soft"
+    >
       <div className="relative aspect-[16/10] overflow-hidden">
         <Skeleton variant="image" className="absolute inset-0 rounded-none" />
         <Skeleton variant="button" className="absolute start-3 top-3 h-6 w-20 bg-primary/15" />

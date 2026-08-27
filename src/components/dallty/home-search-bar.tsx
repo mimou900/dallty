@@ -50,7 +50,7 @@ function FieldRow({
 
   return (
     <div
-      className={`flex min-h-11 min-w-0 flex-1 items-center rounded-[16px] bg-cream/70 md:min-h-0 md:rounded-none md:bg-transparent md:py-2.5 ${
+      className={`flex min-h-11 min-w-0 flex-1 items-center rounded-[16px] bg-cream/70 transition-colors duration-150 hover:bg-cream md:min-h-0 md:rounded-none md:bg-transparent md:py-2.5 md:hover:bg-primary/5 ${
         divider ? "md:border-e md:border-border" : ""
       }`}
       style={grow ? { flexGrow: grow } : undefined}
