@@ -310,45 +310,6 @@ function Index() {
     setServiceSheetOpen(false);
   }
 
-  // Feeds only the hero search bar's live "N shops match" summary
-  // (`resultCount` below) now that the homepage no longer has its own
-  // filterable results grid — category taps navigate straight to /search.
-  const results = useMemo(() => {
-    const list: Business[] = liveBusinesses ?? [];
-    let placed = (list as LiveBusiness[]).filter((s) => {
-      if (locationState?.kind === "place") {
-        if (s.state !== locationState.wilaya) return false;
-        if (locationState.commune && s.city !== locationState.commune) return false;
-      }
-      return true;
-    });
-    if (serviceState?.keyword) {
-      const kw = serviceState.keyword.toLowerCase();
-      placed = placed.filter((s) => s.businessType.toLowerCase().includes(kw));
-    }
-    if (serviceState?.query) {
-      const q = serviceState.query.toLowerCase();
-      placed = placed.filter(
-        (s) => s.en.name.toLowerCase().includes(q) || s.ar.name.toLowerCase().includes(q),
-      );
-    }
-    if (locationState?.kind === "current" && geo.coords) {
-      const origin = geo.coords;
-      placed = [...placed].sort((a, b) => {
-        const da =
-          a.lat != null && a.lng != null
-            ? haversineKm(origin, { lat: a.lat, lng: a.lng })
-            : Infinity;
-        const db =
-          b.lat != null && b.lng != null
-            ? haversineKm(origin, { lat: b.lat, lng: b.lng })
-            : Infinity;
-        return da - db;
-      });
-    }
-    return placed;
-  }, [liveBusinesses, locationState, serviceState, geo.coords]);
-
   function clearAllFilters() {
     setServiceState(null);
     setLocationState(null);
@@ -449,7 +410,6 @@ function Index() {
                 serviceLabel={serviceState?.label ?? null}
                 locationLabel={locationLabel}
                 dateTimeLabel={dtLabel}
-                resultCount={results.length}
                 onOpenService={() => setServiceSheetOpen(true)}
                 onOpenLocation={() => setLocationSheetOpen(true)}
                 onOpenDateTime={() => setDateTimeSheetOpen(true)}

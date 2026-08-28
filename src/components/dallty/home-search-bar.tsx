@@ -90,7 +90,6 @@ export function HomeSearchBar({
   serviceLabel,
   locationLabel,
   dateTimeLabel,
-  resultCount,
   onOpenService,
   onOpenLocation,
   onOpenDateTime,
@@ -106,8 +105,6 @@ export function HomeSearchBar({
   serviceLabel: string | null;
   locationLabel: string | null;
   dateTimeLabel: string | null;
-  /** Shown once at least one field is set — omit/undefined hides the summary row entirely. */
-  resultCount?: number;
   onOpenService: () => void;
   onOpenLocation: () => void;
   onOpenDateTime: () => void;
@@ -173,11 +170,8 @@ export function HomeSearchBar({
         </button>
       </div>
 
-      {hasSelection && resultCount !== undefined && (
-        <div className="mt-2.5 flex items-center justify-between px-1">
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
-            {resultCount} {t("shops_match")}
-          </span>
+      {hasSelection && (
+        <div className="mt-2.5 flex items-center justify-end px-1">
           <button
             type="button"
             onClick={onClearAll}

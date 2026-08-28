@@ -11,16 +11,16 @@ export function SearchResultSkeleton() {
   return (
     <article
       aria-hidden
-      className="overflow-hidden rounded-3xl border border-border/50 bg-card shadow-soft"
+      className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-soft"
     >
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[16/9] overflow-hidden">
         <Skeleton variant="image" className="absolute inset-0 rounded-none" />
         <Skeleton
           variant="circle"
-          className="absolute end-3 top-3 size-11 rounded-2xl bg-primary/15"
+          className="absolute end-2.5 top-2.5 size-9 rounded-2xl bg-primary/15"
         />
       </div>
-      <div className="space-y-2.5 p-4 sm:p-5">
+      <div className="space-y-2.5 p-3.5 sm:p-4">
         <div className="flex items-center justify-between gap-2">
           <Skeleton variant="text" className="h-4 w-2/5" />
           <Skeleton variant="text" className="h-4 w-10" />

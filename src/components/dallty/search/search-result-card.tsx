@@ -52,19 +52,20 @@ export function SearchResultCard({
   }
 
   return (
-    <article className="group overflow-hidden rounded-3xl border border-border/50 bg-card shadow-soft transition-colors duration-150 hover:border-border">
+    <article className="group overflow-hidden rounded-2xl border border-border/50 bg-card shadow-soft transition-colors duration-150 hover:border-border">
       <div className="relative">
         <ResultGallery
           images={galleryImages}
           alt={s.name}
           onImageClick={openProfile}
+          aspectClassName="aspect-[16/9]"
           priority={priority}
         />
         {badge && BadgeIcon && (
           <span
-            className={`pointer-events-none absolute start-3 top-3 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold shadow-elevation-low ${BADGE_TONE[badge.tone].classes}`}
+            className={`pointer-events-none absolute start-2.5 top-2.5 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold shadow-elevation-low ${BADGE_TONE[badge.tone].classes}`}
           >
-            <BadgeIcon className="size-3.5" />
+            <BadgeIcon className="size-3" />
             {badge.label}
           </span>
         )}
@@ -72,14 +73,14 @@ export function SearchResultCard({
           kind="business"
           targetId={business.id}
           label={s.name}
-          className="absolute end-3 top-3 !size-11"
+          className="absolute end-2.5 top-2.5 !size-9"
         />
       </div>
 
       <Link
         to="/business/$businessSlug"
         params={{ businessSlug: business.slug }}
-        className="block p-4 focus-visible:underline sm:p-5"
+        className="block p-3.5 focus-visible:underline sm:p-4"
       >
         <div className="flex items-start justify-between gap-2">
           <h2 className="min-w-0 flex-1 truncate text-base font-bold">

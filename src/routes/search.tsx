@@ -5,10 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
   CalendarDays,
+  List,
   Loader2,
   Map as MapIcon,
   MapPin,
-  Menu,
   Navigation,
   Search,
   SlidersHorizontal,
@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 
 import { BottomNav } from "@/components/dallty/bottom-nav";
-import { LanguageSwitcher } from "@/components/dallty/language-switcher";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { LiveBusiness } from "@/hooks/use-live-businesses";
 import { useSearchResults } from "@/hooks/use-search-results";
@@ -358,8 +357,6 @@ function SearchPage() {
     amenitiesList.length +
     (params.offers ? 1 : 0);
 
-  const resultCount = params.mode === "professionals" ? (professionalsQuery.data?.results.length ?? 0) : finalBusinesses.length;
-  const isLoading = params.mode === "professionals" ? professionalsQuery.isLoading : results.isLoading;
 
   // Real geocodes are used as-is; a business with none gets a stable
   // approximate point within its own wilaya instead of being dropped from
@@ -488,23 +485,23 @@ function SearchPage() {
               </button>
             )}
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={t("menu_aria")}
-                  className="grid size-11 shrink-0 place-items-center rounded-2xl border border-border/60 bg-card transition-colors duration-150 hover:bg-secondary/60"
-                >
-                  <Menu className="size-5" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="end" sideOffset={12} className="w-auto rounded-2xl border-border/60 bg-card p-2 shadow-elevation-medium">
-                <LanguageSwitcher />
-              </PopoverContent>
-            </Popover>
+            {params.mode === "establishments" && (
+              <button
+                type="button"
+                onClick={() => update({ map: !params.map })}
+                aria-label={params.map ? t("show_list") : t("show_map")}
+                className={`grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                  params.map
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/60 bg-card hover:bg-secondary/60"
+                }`}
+              >
+                {params.map ? <List className="size-5" /> : <MapIcon className="size-5" />}
+              </button>
+            )}
           </div>
 
-          {/* Row 2 — mode toggle, count, filters, map */}
+          {/* Row 2 — mode toggle, filters */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 rounded-2xl border border-border/60 bg-secondary/40 p-1">
               <button
@@ -531,12 +528,6 @@ function SearchPage() {
               </button>
             </div>
 
-            <p className="text-sm font-semibold text-muted-foreground">
-              {isLoading
-                ? t("searching")
-                : `${resultCount} ${params.mode === "professionals" ? t("professionals_found") : t("shops_found")}`}
-            </p>
-
             <div className="ms-auto flex items-center gap-2">
               <button
                 type="button"
@@ -555,20 +546,6 @@ function SearchPage() {
                   </span>
                 ) : null}
               </button>
-              {params.mode === "establishments" && (
-                <button
-                  type="button"
-                  onClick={() => update({ map: !params.map })}
-                  className={`press flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold transition-colors duration-150 ${
-                    params.map
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border/60 bg-card hover:border-border"
-                  }`}
-                >
-                  <MapIcon className="size-4" />
-                  {params.map ? t("show_list") : t("show_map")}
-                </button>
-              )}
             </div>
           </div>
 
@@ -618,7 +595,7 @@ function SearchPage() {
           </div>
         ) : params.mode === "professionals" ? (
           professionalsQuery.isLoading ? (
-            <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 8 }, (_, i) => <SearchResultSkeleton key={i} />)}
             </div>
           ) : (professionalsQuery.data?.results.length ?? 0) === 0 ? (
@@ -629,7 +606,7 @@ function SearchPage() {
               onClear={() => update({ service: "", city: "", state: "" })}
             />
           ) : (
-            <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
               {professionalsQuery.data!.results.map((p) => (
                 <ProfessionalCard
                   key={p.id}
@@ -642,7 +619,7 @@ function SearchPage() {
             </div>
           )
         ) : results.isLoading ? (
-          <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }, (_, i) => <SearchResultSkeleton key={i} />)}
           </div>
         ) : finalBusinesses.length === 0 ? (
@@ -654,7 +631,7 @@ function SearchPage() {
           />
         ) : (
           <>
-            <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
               {finalBusinesses.map((b, i) => (
                 <SearchResultCard
                   key={b.id}
