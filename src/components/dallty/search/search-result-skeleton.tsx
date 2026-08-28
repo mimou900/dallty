@@ -21,10 +21,12 @@ export function SearchResultSkeleton() {
         />
       </div>
       <div className="space-y-2.5 p-4 sm:p-5">
-        <Skeleton variant="text" className="h-4 w-3/5" />
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton variant="text" className="h-4 w-2/5" />
+          <Skeleton variant="text" className="h-4 w-10" />
+        </div>
+        <Skeleton variant="text" className="w-4/5" />
         <Skeleton variant="text" className="w-2/5" />
-        <Skeleton variant="text" className="w-1/2" />
-        <Skeleton variant="text" className="w-1/3" />
       </div>
     </article>
   );

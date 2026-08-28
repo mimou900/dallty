@@ -40,6 +40,12 @@ export function SearchResultCard({
   const km = travel?.km ?? (business.distanceKm > 0 ? business.distanceKm : null);
   const galleryImages: GalleryImage[] =
     images.length > 0 ? images : [{ id: business.id, url: business.image }];
+  // "5,0" in French/Arabic, "5.0" in English — matches the reference's
+  // locale-formatted rating exactly rather than a hardcoded period.
+  const ratingLabel = new Intl.NumberFormat(lang, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(business.rating);
 
   function openProfile() {
     void navigate({ to: "/business/$businessSlug", params: { businessSlug: business.slug } });
@@ -75,31 +81,33 @@ export function SearchResultCard({
         params={{ businessSlug: business.slug }}
         className="block p-4 focus-visible:underline sm:p-5"
       >
-        <h2 className="line-clamp-2 min-h-12 text-base font-bold">
-          {s.name}
-          {business.verified && (
-            <BadgeCheck
-              className="ms-1 inline size-4 shrink-0 align-text-bottom text-primary"
-              aria-label="Verified by Dallty"
-            />
-          )}
-        </h2>
-        <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-          <Star className="size-3.5 shrink-0 fill-gold text-gold" />
-          <span className="font-semibold text-foreground">{business.rating.toFixed(1)}</span>
-          <span>({business.reviews})</span>
-        </p>
-        <p className="mt-1 flex min-w-0 items-center gap-1 text-sm text-muted-foreground">
-          <MapPin className="size-3.5 shrink-0" />
-          <span className="truncate">
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="min-w-0 flex-1 truncate text-base font-bold">
+            {s.name}
+            {business.verified && (
+              <BadgeCheck
+                className="ms-1 inline size-4 shrink-0 align-text-bottom text-primary"
+                aria-label="Verified by Dallty"
+              />
+            )}
+          </h2>
+          <span className="flex shrink-0 items-center gap-1 pt-0.5 text-sm font-semibold text-foreground">
+            <Star className="size-3.5 shrink-0 fill-gold text-gold" />
+            {ratingLabel}
+          </span>
+        </div>
+        <p className="mt-1 flex items-start gap-1 text-sm text-muted-foreground">
+          <MapPin className="mt-0.5 size-3.5 shrink-0" />
+          <span>
             {km != null ? `${km.toFixed(1)} ${t("km")} · ` : ""}
             {s.area}
           </span>
         </p>
-        {business.category && (
-          <p className="mt-1 truncate text-sm text-muted-foreground">{business.category}</p>
-        )}
-        {business.open && <p className="mt-1 text-xs font-semibold text-primary">{t("open")}</p>}
+        <p className="mt-1 truncate text-sm text-muted-foreground">
+          {business.category ? `${business.category} · ` : ""}
+          {business.reviews} {t("reviews_label")}
+          {business.open && <span className="font-semibold text-primary"> · {t("open")}</span>}
+        </p>
       </Link>
     </article>
   );
