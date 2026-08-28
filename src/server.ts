@@ -51,9 +51,12 @@ function isH3SwallowedErrorBody(body: string): boolean {
 // CSP is scoped to the third-party origins this app actually loads from today (confirmed by
 // reading the source, not guessed): Google Maps JS API (src/lib/maps-loader.ts), Google
 // Fonts and Fontshare — Clash Display, project-ui-ux-transformation — (src/routes/__root.tsx's
-// preconnect links) for script/style/font, and Supabase (REST + Realtime websocket) for
-// connect-src — the logo is a bundled same-origin asset (src/assets/dallty-*.png), not a
-// separate host, so it needs no extra entry.
+// preconnect links) for script/style/font, Supabase (REST + Realtime websocket) for
+// connect-src, and Mapbox GL JS (src/components/dallty/search/results-map.tsx, lazy-loaded
+// only when "Afficher la carte" is opened) — style/sprite/glyph/tile data all comes through
+// `fetch()` inside its own worker (already covered by the existing `worker-src blob:` entry),
+// never `<img>`, so it only needs `connect-src`, not `img-src` — the logo is a bundled
+// same-origin asset (src/assets/dallty-*.png), not a separate host, so it needs no extra entry.
 //
 // `unsafe-inline` on script-src is a deliberate, verified exception, not an oversight:
 // TanStack Start's client hydration injects an inline bootstrap script carrying per-request
@@ -71,7 +74,7 @@ const CSP = [
   `style-src 'self' 'unsafe-inline'`,
   `font-src 'self'`,
   `img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com ${SUPABASE_ORIGIN}`,
-  `connect-src 'self' ${SUPABASE_ORIGIN} wss://cbacaplvcxytzclpiyir.supabase.co https://maps.googleapis.com`,
+  `connect-src 'self' ${SUPABASE_ORIGIN} wss://cbacaplvcxytzclpiyir.supabase.co https://maps.googleapis.com https://api.mapbox.com https://events.mapbox.com`,
   // A library in this app spins up a blob: Web Worker (confirmed by testing — the browser
   // reported a blocked `Creating a worker from 'blob:...'` without worker-src set,
   // falling back to script-src, which correctly doesn't allow blob: URLs).

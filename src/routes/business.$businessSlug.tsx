@@ -230,14 +230,21 @@ function BusinessProblem({ title }: { title: string }) {
         <Link
           to="/search"
           search={{
-            q: "",
+            service: "",
+            category: "",
             country: "",
             state: "",
             city: "",
             type: "",
-            sort: "rating",
-            instant: false,
-            open: false,
+            mode: "establishments",
+            date: "",
+            period: "",
+            sort: "best-match",
+            price: "",
+            gender: "all",
+            amenities: "",
+            offers: false,
+            map: false,
           }}
           className="press mt-5 inline-flex min-h-12 items-center rounded-2xl bg-primary px-6 text-sm font-bold text-primary-foreground"
         >

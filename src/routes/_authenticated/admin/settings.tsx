@@ -85,6 +85,24 @@ export const Route = createFileRoute("/_authenticated/admin/settings")({
 
 type Hours = { weekday: number; is_closed: boolean; opens_at: string; closes_at: string };
 
+// Same keys as `business-about.tsx`'s `AMENITY_LABELS` (the public profile's
+// read side) and the Search filter drawer's amenity/gender pills — one
+// vocabulary for the whole `amenities: string[]` column, edited here for the
+// first time (it had no dashboard UI before the Search redesign; business_type
+// above already did).
+const AMENITY_OPTIONS = [
+  { value: "wifi", label: "Free WiFi" },
+  { value: "parking", label: "Parking" },
+  { value: "coffee", label: "Complimentary coffee" },
+  { value: "wheelchair", label: "Wheelchair accessible" },
+  { value: "pet_friendly", label: "Pet friendly" },
+  { value: "home_service", label: "Home service" },
+  { value: "hotel_service", label: "Hotel service" },
+  { value: "women_only", label: "Women only" },
+  { value: "men_only", label: "Men only" },
+  { value: "kids", label: "Kids welcome" },
+];
+
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const DEFAULT_HOURS: Hours[] = DAYS.map((_, weekday) => ({
@@ -207,6 +225,7 @@ function SettingsPage() {
       opens_at: (business.opens_at ?? "09:00").slice(0, 5),
       closes_at: (business.closes_at ?? "21:00").slice(0, 5),
       categories: business.categories ?? [],
+      amenities: business.amenities ?? [],
     });
     const stored = settings.data?.hours ?? [];
     setHours(
@@ -247,6 +266,7 @@ function SettingsPage() {
         description_ar: form.description_ar ?? null,
         business_type: form.business_type ?? null,
         categories: form.categories ?? [],
+        amenities: form.amenities ?? [],
         phone: form.phone ?? null,
         business_email: form.business_email ?? null,
         business_phone: form.business_phone ?? null,
@@ -575,6 +595,36 @@ function SettingsPage() {
                         selected
                           ? (form.categories ?? []).filter((c: string) => c !== value)
                           : [...(form.categories ?? []), value],
+                      )
+                    }
+                    className={`press min-h-10 rounded-2xl px-3.5 text-sm font-semibold transition ${
+                      selected ? "bg-primary text-primary-foreground" : "glass-soft"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+
+          <Section
+            title="Amenities"
+            description="Shown on your Search listing and used by customer filters — same options as the marketplace's own filter drawer."
+          >
+            <div className="flex flex-wrap gap-2">
+              {AMENITY_OPTIONS.map(({ value, label }) => {
+                const selected = (form.amenities ?? []).includes(value);
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
+                      set(
+                        "amenities",
+                        selected
+                          ? (form.amenities ?? []).filter((a: string) => a !== value)
+                          : [...(form.amenities ?? []), value],
                       )
                     }
                     className={`press min-h-10 rounded-2xl px-3.5 text-sm font-semibold transition ${

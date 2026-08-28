@@ -284,14 +284,21 @@ function Index() {
     void navigate({
       to: "/search",
       search: {
-        q: serviceState?.query ?? "",
+        service: serviceState?.query ?? "",
+        category: "",
         country,
         state: locationState?.kind === "place" ? locationState.wilaya : "",
         city: locationState?.kind === "place" ? locationState.commune : "",
         type: serviceState?.keyword ?? "",
-        sort: locationState?.kind === "current" ? ("distance" as const) : ("rating" as const),
-        instant: false,
-        open: wantsOpenNow,
+        mode: "establishments" as const,
+        date: wantsOpenNow ? today.toISOString().slice(0, 10) : "",
+        period: "" as const,
+        sort: locationState?.kind === "current" ? ("nearest" as const) : ("best-match" as const),
+        price: "" as const,
+        gender: "all" as const,
+        amenities: "",
+        offers: false,
+        map: false,
       },
     });
   }
@@ -525,14 +532,21 @@ function Index() {
               seeAllHref="/search"
               seeAllLabel={t("see_all")}
               seeAllSearch={{
-                q: "",
+                service: "",
+                category: "",
                 country,
                 state: "",
                 city: "",
                 type: "",
-                sort: "rating",
-                instant: false,
-                open: false,
+                mode: "establishments",
+                date: "",
+                period: "",
+                sort: "best-match",
+                price: "",
+                gender: "all",
+                amenities: "",
+                offers: false,
+                map: false,
               }}
               actions={<CarouselArrows {...recommendedCarousel} />}
             />
@@ -593,14 +607,21 @@ function Index() {
             seeAllHref="/search"
             seeAllLabel={t("see_all")}
             seeAllSearch={{
-              q: "",
+              service: "",
+              category: "",
               country,
               state: "",
               city: "",
               type: "",
-              sort: "rating",
-              instant: false,
-              open: false,
+              mode: "establishments",
+              date: "",
+              period: "",
+              sort: "best-match",
+              price: "",
+              gender: "all",
+              amenities: "",
+              offers: false,
+              map: false,
             }}
             actions={<CarouselArrows {...categoriesCarousel} />}
           />
@@ -615,14 +636,21 @@ function Index() {
                     void navigate({
                       to: "/search",
                       search: {
-                        q: "",
+                        service: "",
+                        category: "",
                         country,
                         state: "",
                         city: "",
                         type: def.en ?? "",
-                        sort: "rating",
-                        instant: false,
-                        open: false,
+                        mode: "establishments",
+                        date: "",
+                        period: "",
+                        sort: "best-match",
+                        price: "",
+                        gender: "all",
+                        amenities: "",
+                        offers: false,
+                        map: false,
                       },
                     });
                   }}
@@ -642,14 +670,21 @@ function Index() {
             seeAllHref="/search"
             seeAllLabel={t("see_all")}
             seeAllSearch={{
-              q: "",
+              service: "",
+              category: "",
               country,
               state: "",
               city: "",
               type: "",
-              sort: "rating",
-              instant: false,
-              open: false,
+              mode: "establishments",
+              date: "",
+              period: "",
+              sort: "best-match",
+              price: "",
+              gender: "all",
+              amenities: "",
+              offers: false,
+              map: false,
             }}
             actions={<CarouselArrows {...trendingCarousel} />}
           />
@@ -688,14 +723,21 @@ function Index() {
             seeAllHref="/search"
             seeAllLabel={t("see_all")}
             seeAllSearch={{
-              q: "",
+              service: "",
+              category: "",
               country,
               state: "",
               city: "",
               type: "",
-              sort: "rating",
-              instant: false,
-              open: false,
+              mode: "establishments",
+              date: "",
+              period: "",
+              sort: "best-match",
+              price: "",
+              gender: "all",
+              amenities: "",
+              offers: false,
+              map: false,
             }}
             actions={<CarouselArrows {...newCarousel} />}
           />
