@@ -9,7 +9,6 @@ import {
   Loader2,
   Map as MapIcon,
   MapPin,
-  Navigation,
   Search,
   SlidersHorizontal,
   Store,
@@ -39,7 +38,7 @@ import { FilterDrawer, type FilterState } from "@/components/dallty/search/filte
 import { MobileSearchSheet } from "@/components/dallty/search/mobile-search-sheet";
 import { ServiceSearchPanel, type ServiceSelection } from "@/components/dallty/service-search-sheet";
 import { LocationPickerPanel, type LocationSelection } from "@/components/dallty/location-picker-sheet";
-import { DateTimePickerPanel, type Period } from "@/components/dallty/datetime-picker-sheet";
+import { DateTimePickerPanel, DateTimePickerSheet, type Period } from "@/components/dallty/datetime-picker-sheet";
 import { format as formatDate } from "date-fns";
 
 const ResultsMap = lazy(() => import("@/components/dallty/search/results-map"));
@@ -130,6 +129,17 @@ function SearchPage() {
   const searchProfessionalsFn = useServerFn(searchProfessionals);
   const categories = useCategories();
   const dateFnsLocale = dateFnsLocaleFor(lang);
+
+  // Search results are inherently location-relevant (distance, "nearest"
+  // sort, the map's own position dot) — unlike `useUserLocation`'s default
+  // elsewhere in the app (never auto-prompt), this page requests it
+  // automatically on load rather than behind an explicit button. A prior
+  // grant/denial is still remembered by the hook itself (localStorage), so
+  // this only ever surfaces the real browser permission prompt once.
+  useEffect(() => {
+    void geo.request();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function update(patch: Partial<SearchParams>) {
     void navigate({ search: (prev: SearchParams) => ({ ...prev, ...patch }), replace: true });
@@ -529,17 +539,64 @@ function SearchPage() {
             </div>
 
             <div className="ms-auto flex items-center gap-2">
+              {params.mode === "establishments" && params.map ? (
+                breakpoint === "desktop" ? (
+                  <Popover open={dateTimeSheetOpen} onOpenChange={setDateTimeSheetOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={t("search_time_label")}
+                        className={`grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                          params.date
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border/60 bg-card hover:bg-secondary/60"
+                        }`}
+                      >
+                        <CalendarDays className="size-5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" sideOffset={12} className="w-auto rounded-3xl border-border/60 bg-card p-0 shadow-elevation-medium">
+                      <DateTimePickerPanel
+                        initial={params.date ? { date: new Date(params.date), period: params.period || null } : null}
+                        onApply={applyDateTimeSelection}
+                        onDone={() => setDateTimeSheetOpen(false)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDateTimeSheetOpen(true)}
+                    aria-label={t("search_time_label")}
+                    className={`grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                      params.date
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border/60 bg-card hover:bg-secondary/60"
+                    }`}
+                  >
+                    <CalendarDays className="size-5" />
+                  </button>
+                )
+              ) : null}
               <button
                 type="button"
                 onClick={() => setFilterOpen(true)}
-                className={`press relative flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold transition-colors duration-150 ${
-                  activeFilterCount
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-border/60 bg-card hover:border-border"
-                }`}
+                className={
+                  params.mode === "establishments" && params.map
+                    ? `relative grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                        activeFilterCount
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border/60 bg-card hover:bg-secondary/60"
+                      }`
+                    : `press relative flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold transition-colors duration-150 ${
+                        activeFilterCount
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border/60 bg-card hover:border-border"
+                      }`
+                }
               >
                 <SlidersHorizontal className="size-4" />
-                {t("filters_title")}
+                {!(params.mode === "establishments" && params.map) && t("filters_title")}
                 {activeFilterCount ? (
                   <span className="grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-gold-foreground">
                     {activeFilterCount}
@@ -549,8 +606,10 @@ function SearchPage() {
             </div>
           </div>
 
-          {/* Row 3 — date navigation */}
-          {params.mode === "establishments" && (
+          {/* Row 3 — date navigation (list view only; map view condenses this
+              into the compact calendar-icon button in row 2 above, matching
+              the reference's map-mode header exactly). */}
+          {params.mode === "establishments" && !params.map && (
             <div className="mt-4">
               <DateNav
                 date={params.date}
@@ -563,30 +622,7 @@ function SearchPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-nav-safe pt-8 md:pb-12">
-        <div className="mb-5 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void geo.request()}
-            disabled={geo.status === "prompting"}
-            className={`press inline-flex min-h-10 items-center gap-2 rounded-2xl px-4 text-sm font-bold transition-colors duration-150 ${
-              geo.enabled
-                ? "bg-primary text-primary-foreground"
-                : "border border-border/60 bg-card hover:border-border"
-            }`}
-          >
-            {geo.status === "prompting" ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Navigation className="size-4" />
-            )}
-            {geo.enabled ? t("location_use_current_label") : t("location_use_current")}
-          </button>
-          {geo.status === "denied" && (
-            <span className="text-xs font-medium text-muted-foreground">{t("location_blocked")}</span>
-          )}
-        </div>
-
+      <main className={`mx-auto max-w-6xl px-4 pb-nav-safe md:pb-12 ${params.map ? "pt-3" : "pt-8"}`}>
         {params.mode === "establishments" && params.map ? (
           <div className="h-[70vh] overflow-hidden rounded-3xl border border-border/50">
             <Suspense fallback={<div className="grid size-full place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
@@ -657,6 +693,14 @@ function SearchPage() {
       <BottomNav tabs={[t("nav.home"), t("nav.search"), t("nav.bookings"), t("nav.favorites"), t("nav.profile")]} />
 
       <FilterDrawer open={filterOpen} initial={filterState} onClose={() => setFilterOpen(false)} onApply={applyFilters} />
+      {breakpoint !== "desktop" && (
+        <DateTimePickerSheet
+          open={dateTimeSheetOpen}
+          initial={params.date ? { date: new Date(params.date), period: params.period || null } : null}
+          onClose={() => setDateTimeSheetOpen(false)}
+          onApply={applyDateTimeSelection}
+        />
+      )}
       <MobileSearchSheet
         open={mobileSearchOpen}
         onClose={() => setMobileSearchOpen(false)}
