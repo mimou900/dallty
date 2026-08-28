@@ -554,13 +554,13 @@ function SearchPage() {
                       <button
                         type="button"
                         aria-label={t("search_time_label")}
-                        className={`grid size-8 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                        className={`grid size-8 min-[400px]:size-9 min-[480px]:size-10 min-[640px]:size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
                           params.date
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border/60 bg-card hover:bg-secondary/60"
                         }`}
                       >
-                        <CalendarDays className="size-4" />
+                        <CalendarDays className="size-4 min-[480px]:size-[18px] min-[640px]:size-5" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent align="end" sideOffset={12} className="w-auto rounded-3xl border-border/60 bg-card p-0 shadow-elevation-medium">
@@ -576,13 +576,13 @@ function SearchPage() {
                     type="button"
                     onClick={() => setDateTimeSheetOpen(true)}
                     aria-label={t("search_time_label")}
-                    className={`grid size-8 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                    className={`grid size-8 min-[400px]:size-9 min-[480px]:size-10 min-[640px]:size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
                       params.date
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border/60 bg-card hover:bg-secondary/60"
                     }`}
                   >
-                    <CalendarDays className="size-4" />
+                    <CalendarDays className="size-4 min-[480px]:size-[18px] min-[640px]:size-5" />
                   </button>
                 )
               ) : null}
@@ -590,13 +590,13 @@ function SearchPage() {
                 type="button"
                 onClick={() => setFilterOpen(true)}
                 aria-label={t("filters_title")}
-                className={`relative grid size-8 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                className={`relative grid size-8 min-[400px]:size-9 min-[480px]:size-10 min-[640px]:size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
                   activeFilterCount
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border/60 bg-card hover:bg-secondary/60"
                 }`}
               >
-                <SlidersHorizontal className="size-4" />
+                <SlidersHorizontal className="size-4 min-[480px]:size-[18px] min-[640px]:size-5" />
                 {activeFilterCount ? (
                   <span className="absolute -end-1 -top-1 grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-gold-foreground">
                     {activeFilterCount}
