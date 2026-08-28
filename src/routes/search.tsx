@@ -310,7 +310,20 @@ function SearchPage() {
   const mapPins = finalBusinesses.map((b) => {
     const real = b.lat != null && b.lng != null ? { lat: b.lat, lng: b.lng } : null;
     const approx = real ?? approximateLocationFor(b.state, b.id);
-    return { id: b.id, slug: b.slug, lat: approx?.lat ?? null, lng: approx?.lng ?? null, en: b.en, ar: b.ar };
+    return {
+      id: b.id,
+      slug: b.slug,
+      lat: approx?.lat ?? null,
+      lng: approx?.lng ?? null,
+      en: b.en,
+      ar: b.ar,
+      image: b.image,
+      rating: b.rating,
+      reviews: b.reviews,
+      category: b.category,
+      verified: b.verified,
+      distanceKm: travelMap.get(b.id)?.km ?? null,
+    };
   });
 
   return (
@@ -459,17 +472,31 @@ function SearchPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-nav-safe pt-6 md:pb-12">
-        {geo.status === "denied" && (
-          <p className="mb-3 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Navigation className="size-3.5" />
-            {t("location_blocked")}
-          </p>
-        )}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void geo.request()}
+            disabled={geo.status === "prompting"}
+            className={`press inline-flex min-h-10 items-center gap-2 rounded-2xl px-4 text-sm font-bold ${
+              geo.enabled ? "bg-primary text-primary-foreground" : "glass-soft"
+            }`}
+          >
+            {geo.status === "prompting" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Navigation className="size-4" />
+            )}
+            {geo.enabled ? t("location_use_current_label") : t("location_use_current")}
+          </button>
+          {geo.status === "denied" && (
+            <span className="text-xs font-medium text-muted-foreground">{t("location_blocked")}</span>
+          )}
+        </div>
 
         {params.mode === "establishments" && params.map ? (
           <div className="h-[70vh] overflow-hidden rounded-3xl border border-border/50">
             <Suspense fallback={<div className="grid size-full place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
-              <ResultsMap businesses={mapPins} lang={lang} />
+              <ResultsMap businesses={mapPins} lang={lang} userLocation={geo.coords} />
             </Suspense>
           </div>
         ) : params.mode === "professionals" ? (
