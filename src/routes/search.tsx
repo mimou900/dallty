@@ -29,6 +29,7 @@ import type { TravelInfo, BusinessBadge } from "@/components/dallty/business-car
 import { dirFor, useLocale } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
 import { getDefaultCountry } from "@/lib/reference-data";
+import { approximateLocationFor } from "@/lib/wilaya-coords";
 import { SearchResultCard } from "@/components/dallty/search/search-result-card";
 import { SearchResultSkeleton } from "@/components/dallty/search/search-result-skeleton";
 import { ProfessionalCard } from "@/components/dallty/search/professional-card";
@@ -300,7 +301,17 @@ function SearchPage() {
   const resultCount = params.mode === "professionals" ? (professionalsQuery.data?.results.length ?? 0) : finalBusinesses.length;
   const isLoading = params.mode === "professionals" ? professionalsQuery.isLoading : results.isLoading;
 
-  const mapPins = finalBusinesses.map((b) => ({ id: b.id, slug: b.slug, lat: b.lat, lng: b.lng, en: b.en, ar: b.ar }));
+  // Real geocodes are used as-is; a business with none gets a stable
+  // approximate point within its own wilaya instead of being dropped from
+  // the map entirely (the seed dataset has no real lat/lng at all today —
+  // see wilaya-coords.ts's doc comment). This fallback is map-display-only:
+  // it never feeds back into `b.lat/lng`, sorting, or the "X km away" text
+  // elsewhere on this page, which still require a real coordinate.
+  const mapPins = finalBusinesses.map((b) => {
+    const real = b.lat != null && b.lng != null ? { lat: b.lat, lng: b.lng } : null;
+    const approx = real ?? approximateLocationFor(b.state, b.id);
+    return { id: b.id, slug: b.slug, lat: approx?.lat ?? null, lng: approx?.lng ?? null, en: b.en, ar: b.ar };
+  });
 
   return (
     <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-background">
