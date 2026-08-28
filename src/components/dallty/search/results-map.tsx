@@ -142,8 +142,17 @@ export function ResultsMap({
       // getting trapped zooming the map), Ctrl+scroll or two-finger touch
       // still zooms/pans it, and the +/- buttons (added below) always work.
       cooperativeGestures: true,
+      // Mapbox's ToS requires its logo/attribution to stay visible and
+      // unaltered — never fully removed. Both default to bottom-left,
+      // which now sits directly under the floating BottomNav on mobile
+      // (the map is a fixed full-viewport layer, see below). Kept at
+      // bottom-left (still Mapbox's own required corner) but nudged up
+      // clear of the nav via the scoped CSS below — same safe-area-aware
+      // offset already used for the pin-preview card.
+      attributionControl: false,
     });
     mapRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+    mapRef.current.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
     return () => {
       mapRef.current?.remove();
       mapRef.current = null;
@@ -246,6 +255,17 @@ export function ResultsMap({
 
   return (
     <div className="relative size-full">
+      {/* Nudges Mapbox's own required logo/attribution control (bottom-left,
+          can't be removed per Mapbox's ToS) up clear of the floating
+          BottomNav on mobile, without touching the nav itself. Desktop's
+          BottomNav is hidden, so no offset needed there. */}
+      <style>{`
+        @media (max-width: 767px) {
+          .mapboxgl-ctrl-bottom-left {
+            bottom: calc(5.5rem + env(safe-area-inset-bottom)) !important;
+          }
+        }
+      `}</style>
       <div ref={containerRef} className="size-full" />
 
       {/* The map is a fixed full-viewport layer now (not a bounded box), so
