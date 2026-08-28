@@ -178,5 +178,11 @@
   "mobile_search_recents": "Recent",
   "gallery_prev_aria": "Previous photo",
   "gallery_next_aria": "Next photo",
-  "starting_from": "From"
+  "starting_from": "From",
+  "min_short": "min",
+  "search_targeted_area": "Targeted area",
+  "search_time_label": "Time",
+  "mobile_search_default_title": "All services and places",
+  "menu_aria": "Menu",
+  "professionals_found": "professionals found"
 }

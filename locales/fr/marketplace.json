@@ -178,5 +178,11 @@
   "mobile_search_recents": "Récentes",
   "gallery_prev_aria": "Photo précédente",
   "gallery_next_aria": "Photo suivante",
-  "starting_from": "À partir de"
+  "starting_from": "À partir de",
+  "min_short": "min",
+  "search_targeted_area": "Zone géographique ciblée",
+  "search_time_label": "Heure",
+  "mobile_search_default_title": "Tous les soins et les établissements",
+  "menu_aria": "Menu",
+  "professionals_found": "professionnels trouvés"
 }

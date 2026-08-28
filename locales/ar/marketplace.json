@@ -178,5 +178,11 @@
   "mobile_search_recents": "الأخيرة",
   "gallery_prev_aria": "الصورة السابقة",
   "gallery_next_aria": "الصورة التالية",
-  "starting_from": "ابتداءً من"
+  "starting_from": "ابتداءً من",
+  "min_short": "د",
+  "search_targeted_area": "المنطقة المستهدفة",
+  "search_time_label": "الوقت",
+  "mobile_search_default_title": "كل الخدمات والمحلات",
+  "menu_aria": "القائمة",
+  "professionals_found": "محترف تم العثور عليهم"
 }

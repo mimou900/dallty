@@ -99,22 +99,27 @@ export const searchProfessionals = createServerFn({ method: "POST" })
     }>;
 
     const staffIds = staffRows.map((s) => s.id);
-    let topServicesByStaff = new Map<string, { name: string; price: number }[]>();
+    let topServicesByStaff = new Map<
+      string,
+      { name: string; price: number; durationMinutes: number | null }[]
+    >();
     let startingPriceByStaff = new Map<string, number>();
     if (staffIds.length > 0) {
       const { data: svcRows } = await supabaseAdmin
         .from("staff_services")
-        .select("staff_id, custom_price, services(name, name_ar, price)")
+        .select("staff_id, custom_price, custom_duration_minutes, services(name, name_ar, price, duration_minutes)")
         .in("staff_id", staffIds);
       for (const row of (svcRows ?? []) as unknown as Array<{
         staff_id: string;
         custom_price: number | null;
-        services: { name: string; name_ar: string | null; price: number } | null;
+        custom_duration_minutes: number | null;
+        services: { name: string; name_ar: string | null; price: number; duration_minutes: number } | null;
       }>) {
         if (!row.services) continue;
         const price = row.custom_price ?? row.services.price;
+        const durationMinutes = row.custom_duration_minutes ?? row.services.duration_minutes ?? null;
         const list = topServicesByStaff.get(row.staff_id) ?? [];
-        if (list.length < 3) list.push({ name: row.services.name, price });
+        if (list.length < 3) list.push({ name: row.services.name, price, durationMinutes });
         topServicesByStaff.set(row.staff_id, list);
         const current = startingPriceByStaff.get(row.staff_id);
         if (current === undefined || price < current) startingPriceByStaff.set(row.staff_id, price);

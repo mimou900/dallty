@@ -4,19 +4,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
+  CalendarDays,
   Loader2,
   Map as MapIcon,
+  MapPin,
+  Menu,
   Navigation,
   Search,
   SlidersHorizontal,
   Store,
   User,
-  X,
 } from "lucide-react";
 
 import { BottomNav } from "@/components/dallty/bottom-nav";
-import { LogoMark } from "@/components/dallty/logo";
 import { LanguageSwitcher } from "@/components/dallty/language-switcher";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { LiveBusiness } from "@/hooks/use-live-businesses";
 import { useSearchResults } from "@/hooks/use-search-results";
 import { useBusinessGalleries } from "@/hooks/use-business-galleries";
@@ -26,9 +28,9 @@ import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { getTravelTimes } from "@/lib/geo.functions";
 import { searchProfessionals } from "@/lib/professional-search.functions";
 import type { TravelInfo, BusinessBadge } from "@/components/dallty/business-card";
-import { dirFor, useLocale } from "@/lib/i18n";
+import { dirFor, useLocale, dateFnsLocaleFor } from "@/lib/i18n";
 import { useTranslation } from "@/lib/i18n/hooks";
-import { getDefaultCountry } from "@/lib/reference-data";
+import { getDefaultCountry, useCategories, translate } from "@/lib/reference-data";
 import { approximateLocationFor } from "@/lib/wilaya-coords";
 import { SearchResultCard } from "@/components/dallty/search/search-result-card";
 import { SearchResultSkeleton } from "@/components/dallty/search/search-result-skeleton";
@@ -36,7 +38,10 @@ import { ProfessionalCard } from "@/components/dallty/search/professional-card";
 import { DateNav } from "@/components/dallty/search/date-nav";
 import { FilterDrawer, type FilterState } from "@/components/dallty/search/filter-drawer";
 import { MobileSearchSheet } from "@/components/dallty/search/mobile-search-sheet";
-import type { Period } from "@/components/dallty/datetime-picker-sheet";
+import { ServiceSearchPanel, type ServiceSelection } from "@/components/dallty/service-search-sheet";
+import { LocationPickerPanel, type LocationSelection } from "@/components/dallty/location-picker-sheet";
+import { DateTimePickerPanel, type Period } from "@/components/dallty/datetime-picker-sheet";
+import { format as formatDate } from "date-fns";
 
 const ResultsMap = lazy(() => import("@/components/dallty/search/results-map"));
 
@@ -112,19 +117,74 @@ function SearchPage() {
   const navigate = useNavigate({ from: "/search" });
   const { lang } = useLocale();
   const { t } = useTranslation(["marketplace", "common"]);
-  const [draft, setDraft] = useState(params.service);
   const [filterOpen, setFilterOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [serviceSheetOpen, setServiceSheetOpen] = useState(false);
+  const [serviceQuery, setServiceQuery] = useState(params.service);
+  const [locationSheetOpen, setLocationSheetOpen] = useState(false);
+  const [dateTimeSheetOpen, setDateTimeSheetOpen] = useState(false);
   const breakpoint = useBreakpoint();
   const country = getDefaultCountry().iso_code;
 
   const geo = useUserLocation();
   const fetchTravel = useServerFn(getTravelTimes);
   const searchProfessionalsFn = useServerFn(searchProfessionals);
+  const categories = useCategories();
+  const dateFnsLocale = dateFnsLocaleFor(lang);
 
   function update(patch: Partial<SearchParams>) {
     void navigate({ search: (prev: SearchParams) => ({ ...prev, ...patch }), replace: true });
   }
+
+  // Desktop 3-segment search bar + the mobile full-screen sheet both need to
+  // translate the same three picker components' selection payloads into
+  // this route's own URL param shape — one mapping, reused both places.
+  // These return a *patch* rather than calling `update()` themselves: the
+  // mobile sheet resolves all three fields at once and must merge them into
+  // a single `navigate()` call — three back-to-back `update()` calls would
+  // each read the same stale `prev` and the last one would silently clobber
+  // the other two (all three use `replace: true`).
+  function serviceSelectionPatch(selection: ServiceSelection): Partial<SearchParams> {
+    return selection.kind === "category"
+      ? { service: "", category: selection.value }
+      : { service: selection.value, category: "" };
+  }
+  function locationSelectionPatch(selection: LocationSelection): Partial<SearchParams> {
+    if (selection.kind === "current") {
+      void geo.request();
+      return { state: "", city: "" };
+    }
+    return { state: selection.wilaya, city: selection.commune };
+  }
+  function dateTimeSelectionPatch(selection: { date: Date; period: Period | null } | null): Partial<SearchParams> {
+    return {
+      date: selection ? formatDate(selection.date, "yyyy-MM-dd") : "",
+      period: selection?.period ?? "",
+    };
+  }
+  function applyServiceSelection(selection: ServiceSelection) {
+    update(serviceSelectionPatch(selection));
+  }
+  function applyLocationSelection(selection: LocationSelection) {
+    update(locationSelectionPatch(selection));
+  }
+  function applyDateTimeSelection(selection: { date: Date; period: Period | null } | null) {
+    update(dateTimeSelectionPatch(selection));
+  }
+
+  const serviceLabel =
+    params.service ||
+    (params.category
+      ? (categories.data?.find((c) => c.default_name === params.category) &&
+          translate(categories.data!.find((c) => c.default_name === params.category)!, lang)) ||
+        params.category
+      : null);
+  const locationLabel = params.city ? `${params.state} · ${params.city}` : params.state || null;
+  const dateTimeLabel = params.date
+    ? params.date === todayISO()
+      ? t("today")
+      : formatDate(new Date(params.date), "EEE d MMM", { locale: dateFnsLocale })
+    : null;
 
   const amenitiesList = useMemo(
     () => (params.amenities ? params.amenities.split(",").filter(Boolean) : []),
@@ -330,64 +390,118 @@ function SearchPage() {
     <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-cream text-cream-foreground">
       <header className="sticky top-0 z-40 px-4 pt-4">
         <div className="mx-auto max-w-6xl rounded-3xl border border-border/60 bg-card p-4 shadow-soft sm:p-5">
-          {/* Row 1 — logo, search, menu */}
+          {/* Row 1 — back, search bar, menu */}
           <div className="flex items-center gap-3">
             <Link to="/" aria-label={t("back_home")} className="grid size-11 shrink-0 place-items-center rounded-2xl border border-border/60 bg-card transition-colors duration-150 hover:bg-secondary/60">
               <ArrowLeft className="size-5 rtl:rotate-180" />
             </Link>
-            <Link to="/" aria-label={t("dallty_home")} className="hidden items-center gap-2 sm:flex">
-              <LogoMark className="size-9" />
-            </Link>
 
             {breakpoint === "desktop" ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  update({ service: draft });
-                }}
-                className="group relative flex min-w-0 flex-1 items-center"
-              >
-                <label className="flex min-h-12 w-full min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 transition-colors duration-150 focus-within:border-primary">
-                  <Search className="size-5 shrink-0 text-muted-foreground" />
-                  <input
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
-                    placeholder={t("search_service_placeholder")}
-                    aria-label={t("search_btn")}
-                  />
-                  {draft ? (
+              <div className="flex min-h-14 min-w-0 flex-1 items-stretch rounded-full border border-border/60 bg-card">
+                <Popover open={serviceSheetOpen} onOpenChange={setServiceSheetOpen}>
+                  <PopoverTrigger asChild>
                     <button
                       type="button"
-                      onClick={() => {
-                        setDraft("");
-                        update({ service: "" });
-                      }}
-                      aria-label={t("search_clear_aria")}
-                      className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary/60"
+                      className="flex min-w-0 flex-[4] items-center gap-2.5 rounded-s-full border-e border-border/60 px-5 text-start transition-colors duration-150 hover:bg-secondary/30"
                     >
-                      <X className="size-4" />
+                      <Search className="size-[18px] shrink-0 text-primary" />
+                      <span className={`min-w-0 flex-1 truncate text-[0.95rem] ${serviceLabel ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                        {serviceLabel ?? t("search_service_placeholder")}
+                      </span>
                     </button>
-                  ) : null}
-                  <button type="submit" className="press hidden min-h-9 shrink-0 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground sm:flex">
-                    {t("search_btn")}
-                  </button>
-                </label>
-              </form>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" sideOffset={12} className="w-auto rounded-3xl border-border/60 bg-card p-0 shadow-elevation-medium">
+                    <ServiceSearchPanel
+                      query={serviceQuery}
+                      onQueryChange={setServiceQuery}
+                      onSelectCategory={(cat) => {
+                        applyServiceSelection({ kind: "category", value: cat.default_name, label: translate(cat, lang) });
+                        setServiceSheetOpen(false);
+                      }}
+                      onSelectBusiness={(slug) => {
+                        setServiceSheetOpen(false);
+                        void navigate({ to: "/business/$businessSlug", params: { businessSlug: slug } });
+                      }}
+                      onSubmitQuery={(q) => {
+                        applyServiceSelection({ kind: "query", value: q });
+                        setServiceSheetOpen(false);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover open={locationSheetOpen} onOpenChange={setLocationSheetOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-[3] items-center gap-2.5 border-e border-border/60 px-5 text-start transition-colors duration-150 hover:bg-secondary/30"
+                    >
+                      <MapPin className="size-[18px] shrink-0 text-primary" />
+                      <span className={`min-w-0 flex-1 truncate text-[0.95rem] ${locationLabel || geo.enabled ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                        {geo.enabled ? t("location_use_current_label") : (locationLabel ?? t("search_location_placeholder"))}
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" sideOffset={12} className="w-auto rounded-3xl border-border/60 bg-card p-0 shadow-elevation-medium">
+                    <LocationPickerPanel
+                      geo={geo}
+                      onSelect={applyLocationSelection}
+                      onDone={() => setLocationSheetOpen(false)}
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover open={dateTimeSheetOpen} onOpenChange={setDateTimeSheetOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-[3] items-center gap-2.5 rounded-e-full px-5 text-start transition-colors duration-150 hover:bg-secondary/30"
+                    >
+                      <CalendarDays className="size-[18px] shrink-0 text-primary" />
+                      <span className={`min-w-0 flex-1 truncate text-[0.95rem] ${dateTimeLabel ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                        {dateTimeLabel ?? t("search_time_label")}
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" sideOffset={12} className="w-auto rounded-3xl border-border/60 bg-card p-0 shadow-elevation-medium">
+                    <DateTimePickerPanel
+                      initial={params.date ? { date: new Date(params.date), period: params.period || null } : null}
+                      onApply={applyDateTimeSelection}
+                      onDone={() => setDateTimeSheetOpen(false)}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setMobileSearchOpen(true)}
-                className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 text-start"
+                className="flex min-h-14 min-w-0 flex-1 flex-col items-start justify-center overflow-hidden rounded-2xl border border-border/60 bg-card px-4 text-start"
               >
-                <Search className="size-5 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                  {params.service || t("search_service_placeholder")}
+                <span className="block w-full truncate text-base font-bold">
+                  {serviceLabel || t("mobile_search_default_title")}
+                </span>
+                <span className="mt-0.5 block w-full truncate text-xs text-muted-foreground">
+                  {dateTimeLabel ?? t("search_time_label")} ·{" "}
+                  {geo.enabled ? t("location_use_current_label") : (locationLabel ?? t("search_targeted_area"))}
                 </span>
               </button>
             )}
 
-            <LanguageSwitcher variant="icon" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={t("menu_aria")}
+                  className="grid size-11 shrink-0 place-items-center rounded-2xl border border-border/60 bg-card transition-colors duration-150 hover:bg-secondary/60"
+                >
+                  <Menu className="size-5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={12} className="w-auto rounded-2xl border-border/60 bg-card p-2 shadow-elevation-medium">
+                <LanguageSwitcher />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Row 2 — mode toggle, count, filters, map */}
@@ -418,7 +532,9 @@ function SearchPage() {
             </div>
 
             <p className="text-sm font-semibold text-muted-foreground">
-              {isLoading ? t("searching") : `${resultCount} ${t("shops_found")}`}
+              {isLoading
+                ? t("searching")
+                : `${resultCount} ${params.mode === "professionals" ? t("professionals_found") : t("shops_found")}`}
             </p>
 
             <div className="ms-auto flex items-center gap-2">
@@ -570,12 +686,9 @@ function SearchPage() {
         onSearch={({ service, location, dateTime }) => {
           setMobileSearchOpen(false);
           update({
-            service: service?.kind === "query" ? service.value : "",
-            category: service?.kind === "category" ? service.value : "",
-            state: location?.kind === "place" ? location.wilaya : "",
-            city: location?.kind === "place" ? location.commune : "",
-            date: dateTime ? dateTime.date.toISOString().slice(0, 10) : "",
-            period: dateTime?.period ?? "",
+            ...(service ? serviceSelectionPatch(service) : { service: "", category: "" }),
+            ...(location ? locationSelectionPatch(location) : {}),
+            ...dateTimeSelectionPatch(dateTime),
           });
         }}
       />
