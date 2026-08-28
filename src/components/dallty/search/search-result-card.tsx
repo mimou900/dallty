@@ -46,7 +46,7 @@ export function SearchResultCard({
   }
 
   return (
-    <article className="group overflow-hidden rounded-3xl border border-border/50 bg-card shadow-soft transition-colors duration-150 hover:border-border hover:bg-secondary">
+    <article className="group overflow-hidden rounded-3xl border border-border/50 bg-card shadow-soft transition-colors duration-150 hover:border-border">
       <div className="relative">
         <ResultGallery
           images={galleryImages}

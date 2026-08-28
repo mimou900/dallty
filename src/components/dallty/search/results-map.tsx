@@ -32,7 +32,7 @@ export type MapPin = {
 function pinMarkup(selected: boolean) {
   const scale = selected ? 1.15 : 1;
   return `
-    <svg width="${34 * scale}" height="${44 * scale}" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))">
+    <svg width="${34 * scale}" height="${44 * scale}" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">
       <path d="M17 0C7.6 0 0 7.6 0 17c0 12.75 17 27 17 27s17-14.25 17-27C34 7.6 26.4 0 17 0z"
             fill="${selected ? "var(--color-lime)" : "var(--color-primary)"}" />
       <circle cx="17" cy="17" r="11" fill="${selected ? "var(--color-primary)" : "white"}" opacity="${selected ? 1 : 0.14}" />
@@ -44,9 +44,56 @@ function pinMarkup(selected: boolean) {
     </svg>`;
 }
 
+/** Clean Dallty-green cluster bubble with a white count — same family as
+ *  the individual pin (deep green, white glyph), just a plain circle since
+ *  a cluster doesn't point at one exact spot the way a single business does. */
+function clusterMarkup(count: number) {
+  const size = count >= 10 ? 40 : 34;
+  return `
+    <div style="
+      width:${size}px;height:${size}px;border-radius:9999px;
+      background:var(--color-primary);color:white;
+      display:flex;align-items:center;justify-content:center;
+      font:700 ${count >= 10 ? 13 : 12}px system-ui,sans-serif;
+      border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,.3);
+    ">${count}</div>`;
+}
+
 function formatDistance(km: number, t: (key: "km") => string) {
   if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${km.toFixed(1)} ${t("km")}`;
+}
+
+type Located = MapPin & { lat: number; lng: number };
+
+/** Greedy pixel-distance clustering at the current zoom — points whose
+ *  projected screen positions land within `threshold` px of each other
+ *  become one cluster bubble; everything else stays its own pin. Re-runs
+ *  on `moveend` (pan settled or zoom settled), so panning/zooming in
+ *  regroups exactly the way the brief describes ("cluster → individual
+ *  pins as the user zooms in") without needing a GeoJSON/supercluster
+ *  source — the existing per-business `Marker` + custom SVG pin approach
+ *  (proven, keeps click → preview-card working) stays intact. */
+function clusterPins(map: mapboxgl.Map, pins: Located[], threshold = 42) {
+  const points = pins.map((pin) => ({ pin, screen: map.project([pin.lng, pin.lat]) }));
+  const used = new Set<number>();
+  const groups: { pin: Located; screen: mapboxgl.Point }[][] = [];
+  for (let i = 0; i < points.length; i++) {
+    if (used.has(i)) continue;
+    const group = [points[i]];
+    used.add(i);
+    for (let j = i + 1; j < points.length; j++) {
+      if (used.has(j)) continue;
+      const dx = points[i].screen.x - points[j].screen.x;
+      const dy = points[i].screen.y - points[j].screen.y;
+      if (Math.sqrt(dx * dx + dy * dy) < threshold) {
+        group.push(points[j]);
+        used.add(j);
+      }
+    }
+    groups.push(group);
+  }
+  return groups;
 }
 
 /**
@@ -58,8 +105,10 @@ function formatDistance(km: number, t: (key: "km") => string) {
  * Clicking a pin doesn't navigate immediately — it opens a compact preview
  * card (photo, name, distance, area, category) anchored to the bottom of
  * the map, same interaction shape as the reference; the card itself is the
- * link to the business profile. `userLocation`, when the visitor has
- * granted it, gets its own small dot marker.
+ * link to the business profile. Businesses sitting close together at the
+ * current zoom collapse into a single Dallty-green cluster bubble
+ * (clicking it zooms in); `userLocation`, when the visitor has granted it,
+ * gets its own small dot marker, unaffected by clustering.
  */
 export function ResultsMap({
   businesses,
@@ -72,7 +121,7 @@ export function ResultsMap({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { t } = useTranslation("marketplace");
@@ -101,51 +150,82 @@ export function ResultsMap({
     };
   }, []);
 
-  // Rebuild markers when the result set changes; re-style in place (no
-  // rebuild) when only the selection changes, so clicking a pin doesn't
-  // flicker every marker.
+  // Rebuilds the marker set — either from a new result list, a changed
+  // selection, or the map settling after a pan/zoom (re-clustering).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = new Map();
 
     const located = businesses.filter(
-      (b): b is MapPin & { lat: number; lng: number } => b.lat != null && b.lng != null,
+      (b): b is Located => b.lat != null && b.lng != null,
     );
-    for (const b of located) {
-      const el = document.createElement("button");
-      el.type = "button";
-      el.setAttribute("aria-label", lang === "ar" ? b.ar.name : b.en.name);
-      el.style.cssText = "background:none;border:none;padding:0;cursor:pointer;line-height:0;";
-      el.innerHTML = pinMarkup(false);
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        setSelectedId(b.id);
-      });
-      const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
-        .setLngLat([b.lng, b.lat])
-        .addTo(map);
-      markersRef.current.set(b.id, marker);
+
+    function render() {
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+      for (const group of clusterPins(map!, located)) {
+        if (group.length === 1) {
+          const b = group[0].pin;
+          const el = document.createElement("button");
+          el.type = "button";
+          el.setAttribute("aria-label", lang === "ar" ? b.ar.name : b.en.name);
+          el.style.cssText = "background:none;border:none;padding:0;cursor:pointer;line-height:0;";
+          el.innerHTML = pinMarkup(b.id === selectedId);
+          el.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setSelectedId(b.id);
+          });
+          markersRef.current.push(
+            new mapboxgl.Marker({ element: el, anchor: "bottom" }).setLngLat([b.lng, b.lat]).addTo(map!),
+          );
+        } else {
+          const avgLng = group.reduce((sum, g) => sum + g.pin.lng, 0) / group.length;
+          const avgLat = group.reduce((sum, g) => sum + g.pin.lat, 0) / group.length;
+          const el = document.createElement("button");
+          el.type = "button";
+          el.setAttribute("aria-label", `${group.length}`);
+          el.style.cssText = "background:none;border:none;padding:0;cursor:pointer;line-height:0;";
+          el.innerHTML = clusterMarkup(group.length);
+          el.addEventListener("click", (e) => {
+            e.stopPropagation();
+            map!.easeTo({ center: [avgLng, avgLat], zoom: Math.min(map!.getZoom() + 2.5, 16) });
+          });
+          markersRef.current.push(
+            new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([avgLng, avgLat]).addTo(map!),
+          );
+        }
+      }
     }
 
-    if (located.length > 0 && !userLocation) {
-      const bounds = new mapboxgl.LngLatBounds();
-      located.forEach((b) => bounds.extend([b.lng, b.lat]));
-      map.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 0 });
-    }
+    if (map.loaded()) render();
+    else map.once("load", render);
+    map.on("moveend", render);
+    return () => {
+      map.off("moveend", render);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businesses, lang]);
+  }, [businesses, lang, selectedId]);
 
-  // Restyle just the selected/unselected pins in place.
+  // Fit bounds once when a fresh result set (or the visitor's own location)
+  // arrives — separate from the clustering re-render above, which must NOT
+  // re-fit on every pan/zoom or the map would fight the visitor's own
+  // navigation.
   useEffect(() => {
-    for (const [id, marker] of markersRef.current) {
-      marker.getElement().innerHTML = pinMarkup(id === selectedId);
-    }
-  }, [selectedId]);
+    const map = mapRef.current;
+    if (!map) return;
+    const located = businesses.filter((b): b is Located => b.lat != null && b.lng != null);
+    if (located.length === 0 && !userLocation) return;
+    const bounds = new mapboxgl.LngLatBounds();
+    if (userLocation) bounds.extend([userLocation.lng, userLocation.lat]);
+    located.forEach((b) => bounds.extend([b.lng, b.lat]));
+    const fit = () => map.fitBounds(bounds, { padding: 70, maxZoom: 14, duration: 0 });
+    if (map.loaded()) fit();
+    else map.once("load", fit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businesses, userLocation]);
 
-  // Real "current location" dot — separate from business pins, updates
-  // without touching them.
+  // Real "current location" dot — separate from business pins/clusters,
+  // updates without touching them.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -159,15 +239,6 @@ export function ResultsMap({
     userMarkerRef.current = new mapboxgl.Marker({ element: el })
       .setLngLat([userLocation.lng, userLocation.lat])
       .addTo(map);
-
-    const located = businesses.filter(
-      (b): b is MapPin & { lat: number; lng: number } => b.lat != null && b.lng != null,
-    );
-    const bounds = new mapboxgl.LngLatBounds();
-    bounds.extend([userLocation.lng, userLocation.lat]);
-    located.forEach((b) => bounds.extend([b.lng, b.lat]));
-    map.fitBounds(bounds, { padding: 70, maxZoom: 14, duration: 0 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocation]);
 
   const selected = businesses.find((b) => b.id === selectedId) ?? null;
@@ -179,7 +250,7 @@ export function ResultsMap({
 
       {selected && s && (
         <div className="absolute inset-x-3 bottom-3 z-10">
-          <div className="relative overflow-hidden rounded-3xl bg-card shadow-xl">
+          <div className="relative overflow-hidden rounded-3xl bg-card shadow-elevation-medium">
             <button
               type="button"
               onClick={() => setSelectedId(null)}

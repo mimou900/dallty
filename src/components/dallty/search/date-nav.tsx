@@ -65,8 +65,10 @@ export function DateNav({
         <button
           type="button"
           onClick={() => onDateChange("")}
-          className={`press min-h-9 shrink-0 rounded-full px-3.5 text-sm font-semibold transition-colors duration-150 ${
-            date === "" ? "bg-primary text-primary-foreground" : "glass-soft"
+          className={`press min-h-9 shrink-0 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 ${
+            date === ""
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border/60 bg-card hover:border-border"
           }`}
         >
           {t("date_any_day")}
@@ -79,8 +81,10 @@ export function DateNav({
               key={iso}
               type="button"
               onClick={() => onDateChange(iso)}
-              className={`press min-h-9 shrink-0 rounded-full px-3.5 text-sm font-semibold transition-colors duration-150 ${
-                date === iso ? "bg-primary text-primary-foreground" : "glass-soft"
+              className={`press min-h-9 shrink-0 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 ${
+                date === iso
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border/60 bg-card hover:border-border"
               }`}
             >
               {label}
@@ -94,8 +98,10 @@ export function DateNav({
           <button
             type="button"
             aria-label={t("select_time_label")}
-            className={`press flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-colors duration-150 ${
-              period ? "bg-primary text-primary-foreground" : "glass-soft"
+            className={`press flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 ${
+              period
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border/60 bg-card hover:border-border"
             }`}
           >
             <Clock className="size-4" />

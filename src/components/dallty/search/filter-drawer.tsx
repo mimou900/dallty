@@ -72,8 +72,10 @@ function Pill({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`press min-h-10 rounded-2xl px-4 text-sm font-semibold transition-colors duration-150 ${
-        active ? "bg-primary text-primary-foreground" : "glass-soft"
+      className={`press min-h-10 rounded-2xl border px-4 text-sm font-semibold transition-colors duration-150 ${
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border/60 bg-card hover:border-border"
       }`}
     >
       {children}
@@ -98,8 +100,8 @@ function FilterBody({ draft, setDraft }: { draft: FilterState; setDraft: (f: Fil
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-5">
-      <div>
+    <div className="divide-y divide-border/50 p-4 sm:p-5">
+      <div className="pb-6">
         <GroupLabel>{t("filter_sort_label")}</GroupLabel>
         <div className="flex flex-wrap gap-2">
           <Pill active={draft.sort === "best-match"} onClick={() => setDraft({ ...draft, sort: "best-match" })}>
@@ -114,7 +116,7 @@ function FilterBody({ draft, setDraft }: { draft: FilterState; setDraft: (f: Fil
         </div>
       </div>
 
-      <div>
+      <div className="py-6">
         <GroupLabel>{t("filter_price_label")}</GroupLabel>
         <div className="flex flex-wrap gap-2">
           <Pill active={draft.price === ""} onClick={() => setDraft({ ...draft, price: "" })}>
@@ -128,7 +130,7 @@ function FilterBody({ draft, setDraft }: { draft: FilterState; setDraft: (f: Fil
         </div>
       </div>
 
-      <div>
+      <div className="py-6">
         <GroupLabel>{t("filter_shop_type_label")}</GroupLabel>
         <div className="flex flex-wrap gap-2">
           <Pill active={draft.shopType === ""} onClick={() => setDraft({ ...draft, shopType: "" })}>
@@ -142,7 +144,7 @@ function FilterBody({ draft, setDraft }: { draft: FilterState; setDraft: (f: Fil
         </div>
       </div>
 
-      <div>
+      <div className="py-6">
         <GroupLabel>{t("filter_gender_label")}</GroupLabel>
         <div className="flex flex-wrap gap-2">
           <Pill active={draft.gender === "all"} onClick={() => setDraft({ ...draft, gender: "all" })}>
@@ -157,7 +159,7 @@ function FilterBody({ draft, setDraft }: { draft: FilterState; setDraft: (f: Fil
         </div>
       </div>
 
-      <div>
+      <div className="py-6">
         <GroupLabel>{t("filter_amenities_label")}</GroupLabel>
         <div className="flex flex-wrap gap-2">
           {AMENITY_KEYS.map((key) => (
@@ -168,7 +170,7 @@ function FilterBody({ draft, setDraft }: { draft: FilterState; setDraft: (f: Fil
         </div>
       </div>
 
-      <div>
+      <div className="pt-6">
         <GroupLabel>{t("filter_booking_options_label")}</GroupLabel>
         <Pill active={draft.offers} onClick={() => setDraft({ ...draft, offers: !draft.offers })}>
           {t("filter_has_offers")}
@@ -235,7 +237,7 @@ export function FilterDrawer({
         <button
           type="button"
           onClick={() => setDraft(EMPTY_FILTERS)}
-          className="press flex-1 rounded-2xl glass-soft py-3 text-center text-sm font-bold"
+          className="press flex-1 rounded-2xl border border-border/60 bg-card py-3 text-center text-sm font-bold hover:border-border"
         >
           {t("filter_clear_all")}
         </button>

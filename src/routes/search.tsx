@@ -327,17 +327,12 @@ function SearchPage() {
   });
 
   return (
-    <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-background">
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="glow-blob -top-40 start-[-10%] size-[36rem]" />
-        <div className="glow-blob top-1/4 end-[-15%] size-[30rem]" style={{ animationDelay: "-8s" }} />
-      </div>
-
+    <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-cream text-cream-foreground">
       <header className="sticky top-0 z-40 px-4 pt-4">
-        <div className="mx-auto max-w-6xl rounded-3xl glass p-3 shadow-xl sm:p-4">
+        <div className="mx-auto max-w-6xl rounded-3xl border border-border/60 bg-card p-4 shadow-soft sm:p-5">
           {/* Row 1 — logo, search, menu */}
           <div className="flex items-center gap-3">
-            <Link to="/" aria-label={t("back_home")} className="grid size-11 shrink-0 place-items-center rounded-2xl glass-soft">
+            <Link to="/" aria-label={t("back_home")} className="grid size-11 shrink-0 place-items-center rounded-2xl border border-border/60 bg-card transition-colors duration-150 hover:bg-secondary/60">
               <ArrowLeft className="size-5 rtl:rotate-180" />
             </Link>
             <Link to="/" aria-label={t("dallty_home")} className="hidden items-center gap-2 sm:flex">
@@ -352,7 +347,7 @@ function SearchPage() {
                 }}
                 className="group relative flex min-w-0 flex-1 items-center"
               >
-                <label className="flex min-h-12 w-full min-w-0 items-center gap-3 rounded-2xl bg-card/85 px-4 ring-1 ring-border/60 transition focus-within:ring-2 focus-within:ring-primary">
+                <label className="flex min-h-12 w-full min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 transition-colors duration-150 focus-within:border-primary">
                   <Search className="size-5 shrink-0 text-muted-foreground" />
                   <input
                     value={draft}
@@ -369,7 +364,7 @@ function SearchPage() {
                         update({ service: "" });
                       }}
                       aria-label={t("search_clear_aria")}
-                      className="grid size-8 shrink-0 place-items-center rounded-full glass-soft"
+                      className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary/60"
                     >
                       <X className="size-4" />
                     </button>
@@ -383,7 +378,7 @@ function SearchPage() {
               <button
                 type="button"
                 onClick={() => setMobileSearchOpen(true)}
-                className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl bg-card/85 px-4 text-start ring-1 ring-border/60"
+                className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 text-start"
               >
                 <Search className="size-5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
@@ -396,8 +391,8 @@ function SearchPage() {
           </div>
 
           {/* Row 2 — mode toggle, count, filters, map */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-2xl glass-soft p-1">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-2xl border border-border/60 bg-secondary/40 p-1">
               <button
                 type="button"
                 onClick={() => update({ mode: "establishments" })}
@@ -430,8 +425,10 @@ function SearchPage() {
               <button
                 type="button"
                 onClick={() => setFilterOpen(true)}
-                className={`press relative flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold ${
-                  activeFilterCount ? "bg-primary text-primary-foreground" : "glass-soft"
+                className={`press relative flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold transition-colors duration-150 ${
+                  activeFilterCount
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border/60 bg-card hover:border-border"
                 }`}
               >
                 <SlidersHorizontal className="size-4" />
@@ -446,8 +443,10 @@ function SearchPage() {
                 <button
                   type="button"
                   onClick={() => update({ map: !params.map })}
-                  className={`press flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold ${
-                    params.map ? "bg-primary text-primary-foreground" : "glass-soft"
+                  className={`press flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold transition-colors duration-150 ${
+                    params.map
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border/60 bg-card hover:border-border"
                   }`}
                 >
                   <MapIcon className="size-4" />
@@ -459,7 +458,7 @@ function SearchPage() {
 
           {/* Row 3 — date navigation */}
           {params.mode === "establishments" && (
-            <div className="mt-3">
+            <div className="mt-4">
               <DateNav
                 date={params.date}
                 period={params.period || null}
@@ -471,14 +470,16 @@ function SearchPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-nav-safe pt-6 md:pb-12">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+      <main className="mx-auto max-w-6xl px-4 pb-nav-safe pt-8 md:pb-12">
+        <div className="mb-5 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => void geo.request()}
             disabled={geo.status === "prompting"}
-            className={`press inline-flex min-h-10 items-center gap-2 rounded-2xl px-4 text-sm font-bold ${
-              geo.enabled ? "bg-primary text-primary-foreground" : "glass-soft"
+            className={`press inline-flex min-h-10 items-center gap-2 rounded-2xl px-4 text-sm font-bold transition-colors duration-150 ${
+              geo.enabled
+                ? "bg-primary text-primary-foreground"
+                : "border border-border/60 bg-card hover:border-border"
             }`}
           >
             {geo.status === "prompting" ? (
@@ -501,7 +502,7 @@ function SearchPage() {
           </div>
         ) : params.mode === "professionals" ? (
           professionalsQuery.isLoading ? (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 8 }, (_, i) => <SearchResultSkeleton key={i} />)}
             </div>
           ) : (professionalsQuery.data?.results.length ?? 0) === 0 ? (
@@ -512,7 +513,7 @@ function SearchPage() {
               onClear={() => update({ service: "", city: "", state: "" })}
             />
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
               {professionalsQuery.data!.results.map((p) => (
                 <ProfessionalCard
                   key={p.id}
@@ -525,7 +526,7 @@ function SearchPage() {
             </div>
           )
         ) : results.isLoading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }, (_, i) => <SearchResultSkeleton key={i} />)}
           </div>
         ) : finalBusinesses.length === 0 ? (
@@ -537,7 +538,7 @@ function SearchPage() {
           />
         ) : (
           <>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
               {finalBusinesses.map((b, i) => (
                 <SearchResultCard
                   key={b.id}
@@ -594,7 +595,7 @@ function EmptyState({
   onClear: () => void;
 }) {
   return (
-    <div className="mt-8 rounded-3xl glass p-10 text-center">
+    <div className="mt-8 rounded-3xl border border-border/60 bg-card p-10 text-center shadow-soft">
       <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-accent text-accent-foreground">
         <Search className="size-6" />
       </span>
