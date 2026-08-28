@@ -18,7 +18,7 @@ export function CategoryScroller({
   return (
     <div
       ref={scrollRef}
-      className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:gap-4 lg:grid lg:grid-cols-9 lg:overflow-visible"
+      className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 scroll-ps-4 sm:gap-4 lg:grid lg:grid-cols-9 lg:overflow-visible"
     >
       {Children.map(children, (child) => (
         <div className="w-20 shrink-0 snap-start sm:w-24 lg:w-auto">{child}</div>

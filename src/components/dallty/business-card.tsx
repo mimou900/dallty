@@ -53,7 +53,7 @@ export type BusinessBadge = {
   tone: "top-rated" | "new" | "popular" | "featured" | "offer" | "trending";
 };
 
-const BADGE_TONE = {
+export const BADGE_TONE = {
   "top-rated": { classes: "bg-lime text-primary", icon: Star },
   trending: { classes: "bg-primary text-primary-foreground", icon: TrendingUp },
   popular: { classes: "bg-primary text-primary-foreground", icon: Flame },
@@ -118,12 +118,15 @@ export function BusinessCard({
             fetchPriority={priority ? "high" : undefined}
             width={900}
             height={700}
-            className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+            className={`size-full object-cover transition-transform duration-200 ${compact ? "group-hover:scale-[1.01]" : "group-hover:scale-[1.02]"}`}
           />
         </picture>
-        {/* Guarantees the badges below stay legible regardless of what's in the
-            photo underneath — never rely on the photo's own contrast. */}
-        <div aria-hidden className="photo-scrim absolute inset-0" />
+        {/* Non-compact (search-results) card only — unchanged from before.
+            Compact (homepage carousel) cards skip the scrim entirely: the
+            badge/favorite below both carry their own solid-enough background,
+            so a full-image dark gradient was darkening the photo for no
+            legibility reason it actually needed. */}
+        {!compact && <div aria-hidden className="photo-scrim absolute inset-0" />}
         {badge && BadgeIcon && (
           <span
             className={`absolute start-3 top-3 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold shadow-elevation-low ${BADGE_TONE[badge.tone].classes}`}
@@ -138,31 +141,42 @@ export function BusinessCard({
           label={s.name}
           className="absolute end-3 top-3 !size-11"
         />
-        <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
-          <span className="rounded-full glass-dark px-3 py-1 text-xs font-semibold">
-            {business.open ? t("open") : t("closed")}
-          </span>
-          {business.instant && (
-            <span className="flex items-center gap-1 rounded-full bg-gold px-3 py-1 text-xs font-semibold text-gold-foreground">
-              <Zap className="size-3.5" />
-              {t("instant")}
+        {/* Non-compact only. Compact cards drop the Instant-booking overlay
+            entirely and move "open now" into the information area below the
+            image (never "closed" — see the compact content block) instead of
+            a large image-blocking status pill. */}
+        {!compact && (
+          <div className="absolute bottom-3 start-3 flex flex-wrap gap-2">
+            <span className="rounded-full glass-dark px-3 py-1 text-xs font-semibold">
+              {business.open ? t("open") : t("closed")}
             </span>
-          )}
-        </div>
+            {business.instant && (
+              <span className="flex items-center gap-1 rounded-full bg-gold px-3 py-1 text-xs font-semibold text-gold-foreground">
+                <Zap className="size-3.5" />
+                {t("instant")}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {compact ? (
-        <div className="p-4 sm:p-5">
+        <div className="flex flex-col p-4 sm:p-5">
           <Link
             to="/business/$businessSlug"
             params={{ businessSlug: business.slug }}
             className="block rounded-lg focus-visible:underline"
           >
-            <h2 className="flex items-center gap-1.5 truncate text-base font-bold hover:underline">
-              <span className="truncate">{s.name}</span>
+            {/* Reserves 2 lines of height regardless of actual name length —
+                a 1-line name and a 2-line name leave rating/location/Book at
+                the exact same vertical position. `line-clamp-2` needs block
+                (not flex) display, so the verified check rides inline with
+                the text instead of in its own flex row. */}
+            <h2 className="line-clamp-2 min-h-12 text-base font-bold hover:underline">
+              {s.name}
               {business.verified && (
                 <BadgeCheck
-                  className="size-4 shrink-0 text-primary"
+                  className="ms-1 inline size-4 shrink-0 align-text-bottom text-primary"
                   aria-label="Verified by Dallty"
                 />
               )}
@@ -182,6 +196,14 @@ export function BusinessCard({
               <MapPin className="size-3.5 shrink-0" />
               <span className="truncate">{s.area}</span>
             </p>
+            {/* Availability is already part of the same data the rest of the
+                card renders from (open_now comes back on the same query as
+                name/rating/image — nothing here is a separate, slower
+                check), so there's nothing to wait on or show a loading state
+                for. Closed shows nothing at all, matching a normal card. */}
+            {business.open && (
+              <p className="mt-1 text-xs font-semibold text-primary">{t("open")}</p>
+            )}
           </Link>
 
           <Link

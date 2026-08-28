@@ -184,7 +184,7 @@ export function BusinessCarousel({
       aria-roledescription="carousel"
       aria-label={label}
       onKeyDown={handleKeyDown}
-      className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+      className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 scroll-ps-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
     >
       {Children.map(children, (child) => (
         <div className="w-[78vw] shrink-0 snap-start sm:w-[46%] lg:w-[calc(25%-0.75rem)]">
