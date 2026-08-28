@@ -61,14 +61,15 @@ export function DateNav({
 
   return (
     <div className="flex items-center gap-2">
-      <div className="scrollbar-hide flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+      {/* Reference-matched: dates are a plain text tab row with an
+          underline on the active one, not pill buttons — the pill/border
+          treatment is reserved for the separate time trigger below. */}
+      <div className="scrollbar-hide flex min-w-0 flex-1 items-center gap-4 overflow-x-auto">
         <button
           type="button"
           onClick={() => onDateChange("")}
-          className={`press min-h-9 shrink-0 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 ${
-            date === ""
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border/60 bg-card hover:border-border"
+          className={`press shrink-0 border-b-2 pb-1 text-sm transition-colors duration-150 ${
+            date === "" ? "border-foreground font-bold text-foreground" : "border-transparent text-muted-foreground"
           }`}
         >
           {t("date_any_day")}
@@ -81,10 +82,10 @@ export function DateNav({
               key={iso}
               type="button"
               onClick={() => onDateChange(iso)}
-              className={`press min-h-9 shrink-0 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 ${
+              className={`press shrink-0 border-b-2 pb-1 text-sm transition-colors duration-150 ${
                 date === iso
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border/60 bg-card hover:border-border"
+                  ? "border-foreground font-bold text-foreground"
+                  : "border-transparent text-muted-foreground"
               }`}
             >
               {label}

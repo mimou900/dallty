@@ -130,7 +130,11 @@ export function ResultsMap({
     if (!containerRef.current || mapRef.current) return;
     mapRef.current = new mapboxgl.Map({
       container: containerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
+      // "streets-v12" instead of the flatter/grayer "light-v11" — closer to
+      // the reference's more colorful basemap (visible green parks, blue
+      // water, labeled streets) without touching anything Dallty actually
+      // owns (pins, controls, UI chrome all stay as already built).
+      style: "mapbox://styles/mapbox/streets-v12",
       // Algiers — the only marketplace-enabled country today (confirmed
       // during planning); re-centers immediately below once real pins exist.
       center: [3.05, 36.75],
