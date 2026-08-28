@@ -248,8 +248,12 @@ export function ResultsMap({
     <div className="relative size-full">
       <div ref={containerRef} className="size-full" />
 
+      {/* The map is a fixed full-viewport layer now (not a bounded box), so
+          this card's `bottom` offset is relative to the real viewport edge —
+          needs extra clearance on mobile to clear the floating BottomNav
+          (hidden from `md` up, where `bottom-3` is correct). */}
       {selected && s && (
-        <div className="absolute inset-x-3 bottom-3 z-10">
+        <div className="absolute inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 md:bottom-3">
           <div className="relative overflow-hidden rounded-3xl bg-card shadow-elevation-medium">
             <button
               type="button"

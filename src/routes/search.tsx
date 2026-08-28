@@ -393,9 +393,19 @@ function SearchPage() {
     };
   });
 
+  const isMapView = params.mode === "establishments" && params.map;
+
   return (
     <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-cream text-cream-foreground">
-      <header className="sticky top-0 z-40 px-4 pt-4">
+      {isMapView && (
+        <div className="fixed inset-0 z-0">
+          <Suspense fallback={<div className="grid size-full place-items-center bg-cream"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+            <ResultsMap businesses={mapPins} lang={lang} userLocation={geo.coords} />
+          </Suspense>
+        </div>
+      )}
+
+      <header className={`${isMapView ? "fixed" : "sticky"} top-0 z-40 w-full px-4 pt-4`}>
         <div className="mx-auto max-w-6xl rounded-3xl border border-border/60 bg-card p-4 shadow-soft sm:p-5">
           {/* Row 1 — back, search bar, menu */}
           <div className="flex items-center gap-3">
@@ -539,7 +549,7 @@ function SearchPage() {
             </div>
 
             <div className="ms-auto flex items-center gap-2">
-              {params.mode === "establishments" && params.map ? (
+              {params.mode === "establishments" ? (
                 breakpoint === "desktop" ? (
                   <Popover open={dateTimeSheetOpen} onOpenChange={setDateTimeSheetOpen}>
                     <PopoverTrigger asChild>
@@ -581,24 +591,16 @@ function SearchPage() {
               <button
                 type="button"
                 onClick={() => setFilterOpen(true)}
-                className={
-                  params.mode === "establishments" && params.map
-                    ? `relative grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
-                        activeFilterCount
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border/60 bg-card hover:bg-secondary/60"
-                      }`
-                    : `press relative flex min-h-10 items-center gap-1.5 rounded-2xl px-3.5 text-sm font-bold transition-colors duration-150 ${
-                        activeFilterCount
-                          ? "bg-primary text-primary-foreground"
-                          : "border border-border/60 bg-card hover:border-border"
-                      }`
-                }
+                aria-label={t("filters_title")}
+                className={`relative grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                  activeFilterCount
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/60 bg-card hover:bg-secondary/60"
+                }`}
               >
                 <SlidersHorizontal className="size-4" />
-                {!(params.mode === "establishments" && params.map) && t("filters_title")}
                 {activeFilterCount ? (
-                  <span className="grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-gold-foreground">
+                  <span className="absolute -end-1 -top-1 grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-gold-foreground">
                     {activeFilterCount}
                   </span>
                 ) : null}
@@ -622,14 +624,8 @@ function SearchPage() {
         </div>
       </header>
 
-      <main className={`mx-auto max-w-6xl px-4 pb-nav-safe md:pb-12 ${params.map ? "pt-3" : "pt-8"}`}>
-        {params.mode === "establishments" && params.map ? (
-          <div className="h-[70vh] overflow-hidden rounded-3xl border border-border/50">
-            <Suspense fallback={<div className="grid size-full place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
-              <ResultsMap businesses={mapPins} lang={lang} userLocation={geo.coords} />
-            </Suspense>
-          </div>
-        ) : params.mode === "professionals" ? (
+      <main className={isMapView ? "hidden" : "mx-auto max-w-6xl px-4 pb-nav-safe pt-8 md:pb-12"}>
+        {params.mode === "professionals" ? (
           professionalsQuery.isLoading ? (
             <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 8 }, (_, i) => <SearchResultSkeleton key={i} />)}
