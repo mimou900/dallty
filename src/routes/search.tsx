@@ -11,8 +11,6 @@ import {
   MapPin,
   Search,
   SlidersHorizontal,
-  Store,
-  User,
 } from "lucide-react";
 
 import { BottomNav } from "@/components/dallty/bottom-nav";
@@ -421,7 +419,7 @@ function SearchPage() {
                       type="button"
                       className="flex min-w-0 flex-[4] items-center gap-2.5 rounded-s-full border-e border-border/60 px-5 text-start transition-colors duration-150 hover:bg-secondary/30"
                     >
-                      <Search className="size-[18px] shrink-0 text-primary" />
+                      <Search className="size-4 shrink-0 text-primary" />
                       <span className={`min-w-0 flex-1 truncate text-[0.95rem] ${serviceLabel ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
                         {serviceLabel ?? t("search_service_placeholder")}
                       </span>
@@ -453,7 +451,7 @@ function SearchPage() {
                       type="button"
                       className="flex min-w-0 flex-[3] items-center gap-2.5 border-e border-border/60 px-5 text-start transition-colors duration-150 hover:bg-secondary/30"
                     >
-                      <MapPin className="size-[18px] shrink-0 text-primary" />
+                      <MapPin className="size-4 shrink-0 text-primary" />
                       <span className={`min-w-0 flex-1 truncate text-[0.95rem] ${locationLabel || geo.enabled ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
                         {geo.enabled ? t("location_use_current_label") : (locationLabel ?? t("search_location_placeholder"))}
                       </span>
@@ -521,34 +519,34 @@ function SearchPage() {
             )}
           </div>
 
-          {/* Row 2 — mode toggle, filters */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-2xl border border-border/60 bg-secondary/40 p-1">
+          {/* Row 2 — mode toggle, calendar, filters, all on one line
+              (kept from wrapping to a second row at narrow widths by
+              trimming the toggle down to text-only). */}
+          <div className="mt-4 flex flex-nowrap items-center gap-1">
+            <div className="flex min-w-0 shrink items-center gap-0.5 rounded-2xl border border-border/60 bg-secondary/40 p-0.5">
               <button
                 type="button"
                 onClick={() => update({ mode: "establishments" })}
                 aria-pressed={params.mode === "establishments"}
-                className={`press flex min-h-9 items-center gap-1.5 rounded-xl px-3.5 text-sm font-bold transition-colors ${
+                className={`press min-h-9 shrink-0 rounded-xl px-2 text-[13px] font-bold transition-colors ${
                   params.mode === "establishments" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                 }`}
               >
-                <Store className="size-4" />
                 {t("mode_establishments")}
               </button>
               <button
                 type="button"
                 onClick={() => update({ mode: "professionals" })}
                 aria-pressed={params.mode === "professionals"}
-                className={`press flex min-h-9 items-center gap-1.5 rounded-xl px-3.5 text-sm font-bold transition-colors ${
+                className={`press min-h-9 shrink-0 rounded-xl px-2 text-[13px] font-bold transition-colors ${
                   params.mode === "professionals" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                 }`}
               >
-                <User className="size-4" />
                 {t("mode_professionals")}
               </button>
             </div>
 
-            <div className="ms-auto flex items-center gap-2">
+            <div className="ms-auto flex shrink-0 items-center gap-1">
               {params.mode === "establishments" ? (
                 breakpoint === "desktop" ? (
                   <Popover open={dateTimeSheetOpen} onOpenChange={setDateTimeSheetOpen}>
@@ -556,13 +554,13 @@ function SearchPage() {
                       <button
                         type="button"
                         aria-label={t("search_time_label")}
-                        className={`grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                        className={`grid size-8 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
                           params.date
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border/60 bg-card hover:bg-secondary/60"
                         }`}
                       >
-                        <CalendarDays className="size-5" />
+                        <CalendarDays className="size-4" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent align="end" sideOffset={12} className="w-auto rounded-3xl border-border/60 bg-card p-0 shadow-elevation-medium">
@@ -578,13 +576,13 @@ function SearchPage() {
                     type="button"
                     onClick={() => setDateTimeSheetOpen(true)}
                     aria-label={t("search_time_label")}
-                    className={`grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                    className={`grid size-8 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
                       params.date
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border/60 bg-card hover:bg-secondary/60"
                     }`}
                   >
-                    <CalendarDays className="size-5" />
+                    <CalendarDays className="size-4" />
                   </button>
                 )
               ) : null}
@@ -592,7 +590,7 @@ function SearchPage() {
                 type="button"
                 onClick={() => setFilterOpen(true)}
                 aria-label={t("filters_title")}
-                className={`relative grid size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                className={`relative grid size-8 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
                   activeFilterCount
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border/60 bg-card hover:bg-secondary/60"
@@ -613,12 +611,7 @@ function SearchPage() {
               the reference's map-mode header exactly). */}
           {params.mode === "establishments" && !params.map && (
             <div className="mt-4">
-              <DateNav
-                date={params.date}
-                period={params.period || null}
-                onDateChange={(date) => update({ date })}
-                onPeriodChange={(period) => update({ period: period ?? "" })}
-              />
+              <DateNav date={params.date} onDateChange={(date) => update({ date })} />
             </div>
           )}
         </div>
