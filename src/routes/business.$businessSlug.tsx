@@ -232,7 +232,6 @@ function BusinessProblem({ title }: { title: string }) {
           search={{
             service: "",
             category: "",
-            country: "",
             state: "",
             city: "",
             type: "",

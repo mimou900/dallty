@@ -286,7 +286,6 @@ function Index() {
       search: {
         service: serviceState?.query ?? "",
         category: "",
-        country,
         state: locationState?.kind === "place" ? locationState.wilaya : "",
         city: locationState?.kind === "place" ? locationState.commune : "",
         type: serviceState?.keyword ?? "",
@@ -318,7 +317,6 @@ function Index() {
 
   const browseSearch = {
     q: "",
-    country,
     state: "",
     city: "",
     type: "",
@@ -494,7 +492,6 @@ function Index() {
               seeAllSearch={{
                 service: "",
                 category: "",
-                country,
                 state: "",
                 city: "",
                 type: "",
@@ -569,7 +566,6 @@ function Index() {
             seeAllSearch={{
               service: "",
               category: "",
-              country,
               state: "",
               city: "",
               type: "",
@@ -598,7 +594,6 @@ function Index() {
                       search: {
                         service: "",
                         category: "",
-                        country,
                         state: "",
                         city: "",
                         type: def.en ?? "",
@@ -632,7 +627,6 @@ function Index() {
             seeAllSearch={{
               service: "",
               category: "",
-              country,
               state: "",
               city: "",
               type: "",
@@ -685,7 +679,6 @@ function Index() {
             seeAllSearch={{
               service: "",
               category: "",
-              country,
               state: "",
               city: "",
               type: "",

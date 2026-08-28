@@ -12,6 +12,18 @@ import { z } from "zod";
 
 const SORTS = ["relevance", "distance", "rating"] as const;
 
+// Map's "Search this area" (brief §10-12): a client-supplied viewport box.
+// Not a security boundary by itself — the country + marketplace_enabled gate
+// inside search_businesses_page() is what actually restricts access; this is
+// purely a narrowing filter on top of that, so an absurd/oversized box just
+// gets ignored (see `boundsForQuery` below) rather than rejected as invalid.
+const boundsInput = z.object({
+  minLat: z.number().min(-90).max(90),
+  maxLat: z.number().min(-90).max(90),
+  minLng: z.number().min(-180).max(180),
+  maxLng: z.number().min(-180).max(180),
+});
+
 const searchInput = z.object({
   countryCode: z.string().length(2),
   query: z.string().trim().max(120).optional(),
@@ -26,6 +38,7 @@ const searchInput = z.object({
   cursorScore: z.number().optional(),
   cursorId: z.string().uuid().optional(),
   limit: z.number().int().min(1).max(50).optional(),
+  bounds: boundsInput.optional(),
 });
 
 export type SearchBusinessesInput = z.infer<typeof searchInput>;
@@ -44,6 +57,18 @@ export const searchBusinesses = createServerFn({ method: "POST" })
     const { getRequest } = await import("@tanstack/react-start/server");
 
     const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
+
+    // A box still spanning most of the country isn't a real "search this area" —
+    // it's a wide, low-signal query pretending to be a viewport one. Ignored
+    // rather than rejected: the RPC's own 50-row cap already bounds the cost,
+    // this just keeps a too-broad box from silently replacing the normal
+    // country+filters query with something that looks precise but isn't.
+    const MAX_BBOX_DEGREES = 10;
+    const b = data.bounds;
+    const bbox =
+      b && b.maxLat - b.minLat <= MAX_BBOX_DEGREES && b.maxLng - b.minLng <= MAX_BBOX_DEGREES
+        ? b
+        : undefined;
 
     // Rate-limit check and the actual search used to run sequentially (two full DB
     // round-trips back to back on every single call, unconditionally) — the search
@@ -69,6 +94,10 @@ export const searchBusinesses = createServerFn({ method: "POST" })
         _cursor_score: data.cursorScore ?? undefined,
         _cursor_id: data.cursorId ?? undefined,
         _limit: data.limit ?? 20,
+        _min_lat: bbox?.minLat,
+        _max_lat: bbox?.maxLat,
+        _min_lng: bbox?.minLng,
+        _max_lng: bbox?.maxLng,
       }),
     ]);
     if (rateLimitOutcome.status === "rejected") throw rateLimitOutcome.reason;

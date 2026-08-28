@@ -16,7 +16,7 @@ import {
 import { BottomNav } from "@/components/dallty/bottom-nav";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { LiveBusiness } from "@/hooks/use-live-businesses";
-import { useSearchResults } from "@/hooks/use-search-results";
+import { useSearchResults, type ViewportBounds } from "@/hooks/use-search-results";
 import { useBusinessGalleries } from "@/hooks/use-business-galleries";
 import { useBusinessFilterExtras } from "@/hooks/use-business-filter-extras";
 import { useUserLocation, haversineKm } from "@/hooks/use-user-location";
@@ -46,7 +46,6 @@ type SearchMode = "establishments" | "professionals";
 type SearchParams = {
   service: string;
   category: string;
-  country: string;
   state: string;
   city: string;
   type: string;
@@ -68,7 +67,10 @@ export const Route = createFileRoute("/search")({
   validateSearch: (search: Record<string, unknown>): SearchParams => ({
     service: typeof search.service === "string" ? search.service : "",
     category: typeof search.category === "string" ? search.category : "",
-    country: typeof search.country === "string" ? search.country : "",
+    // Country is deliberately NOT a URL param — it's not a customer search
+    // choice, it's the marketplace boundary. Resolved server-appropriately
+    // below (`country` const) instead of trusted from the client, so
+    // `?country=XX` in a hand-crafted URL has zero effect (brief §4/§25/§41).
     state: typeof search.state === "string" ? search.state : "",
     city: typeof search.city === "string" ? search.city : "",
     type: typeof search.type === "string" ? search.type : "",
@@ -119,6 +121,13 @@ function SearchPage() {
   const [serviceQuery, setServiceQuery] = useState(params.service);
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
   const [dateTimeSheetOpen, setDateTimeSheetOpen] = useState(false);
+  // Map's "Search this area" (brief §10-12) — the viewport actually
+  // committed to the search query, distinct from the map's live/uncommitted
+  // pan position (tracked inside ResultsMap itself). Cleared whenever the
+  // customer changes the search context some other way (a new city, a new
+  // service, ...) so a stale viewport never silently overrides a fresh
+  // search — that reset lives in the effect below.
+  const [mapBounds, setMapBounds] = useState<ViewportBounds | undefined>(undefined);
   const breakpoint = useBreakpoint();
   const country = getDefaultCountry().iso_code;
 
@@ -138,6 +147,16 @@ function SearchPage() {
     void geo.request();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A committed map viewport only makes sense for the search context it was
+  // drawn for — changing the city/service/category/sort/mode some other way
+  // (location picker, filter drawer, mode toggle) abandons it so the next
+  // search runs the plain country+filters query again, not a now-unrelated
+  // old bounding box.
+  useEffect(() => {
+    setMapBounds(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.city, params.state, params.service, params.category, params.sort, params.mode]);
 
   function update(patch: Partial<SearchParams>) {
     void navigate({ search: (prev: SearchParams) => ({ ...prev, ...patch }), replace: true });
@@ -227,7 +246,7 @@ function SearchPage() {
   const wantsOpenNow = params.date === todayISO() && params.period === "";
 
   const results = useSearchResults({
-    countryCode: params.country || country,
+    countryCode: country,
     query: params.service || undefined,
     category: params.category || undefined,
     city: params.city || undefined,
@@ -235,15 +254,16 @@ function SearchPage() {
     lng: geo.coords?.lng,
     sort: SORT_TO_RPC[params.sort],
     pageSize: 16,
+    bounds: mapBounds,
   });
 
   const professionalsQuery = useQuery({
-    queryKey: ["professionals-search", params.country || country, params.service, params.city, params.sort],
+    queryKey: ["professionals-search", country, params.service, params.city, params.sort],
     enabled: params.mode === "professionals",
     queryFn: () =>
       searchProfessionalsFn({
         data: {
-          countryCode: params.country || country,
+          countryCode: country,
           query: params.service || undefined,
           city: params.city || undefined,
           sort: SORT_TO_RPC[params.sort],
@@ -366,12 +386,15 @@ function SearchPage() {
     (params.offers ? 1 : 0);
 
 
-  // Real geocodes are used as-is; a business with none gets a stable
-  // approximate point within its own wilaya instead of being dropped from
-  // the map entirely (the seed dataset has no real lat/lng at all today —
-  // see wilaya-coords.ts's doc comment). This fallback is map-display-only:
-  // it never feeds back into `b.lat/lng`, sorting, or the "X km away" text
-  // elsewhere on this page, which still require a real coordinate.
+  // Real geocodes are used as-is (every live business now has one — see
+  // the country-scoping migration's backfill); a business with none still
+  // gets a stable approximate point within its own wilaya rather than being
+  // dropped from the map entirely, so a future business created before
+  // being geocoded doesn't just vanish from map mode. This fallback is
+  // map-display-only: it never feeds back into `b.lat/lng`, sorting, or the
+  // "X km away" text elsewhere on this page, which still require a real
+  // coordinate (brief §23 — never invent a business's real location, only
+  // its map pin's display position).
   const mapPins = finalBusinesses.map((b) => {
     const real = b.lat != null && b.lng != null ? { lat: b.lat, lng: b.lng } : null;
     const approx = real ?? approximateLocationFor(b.state, b.id);
@@ -392,14 +415,51 @@ function SearchPage() {
   });
 
   const isMapView = params.mode === "establishments" && params.map;
+  // Brief §5 — a map with nothing to place (no located pins at all, and no
+  // GPS to at least center on) degenerates into `fitBounds()` on an empty,
+  // unextended `LngLatBounds()` — effectively a worldwide view. Guarded
+  // here instead of inside ResultsMap so the "choose a location" card can
+  // reuse this page's own location UI rather than duplicating it.
+  const hasMapContext = Boolean(geo.coords) || mapPins.some((p) => p.lat != null && p.lng != null);
 
   return (
     <div dir={dirFor(lang)} className="relative min-h-dvh overflow-x-hidden bg-cream text-cream-foreground">
-      {isMapView && (
+      {isMapView && hasMapContext && (
         <div className="fixed inset-0 z-0">
           <Suspense fallback={<div className="grid size-full place-items-center bg-cream"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
-            <ResultsMap businesses={mapPins} lang={lang} userLocation={geo.coords} />
+            <ResultsMap
+              businesses={mapPins}
+              lang={lang}
+              userLocation={geo.coords}
+              onSearchThisArea={setMapBounds}
+            />
           </Suspense>
+        </div>
+      )}
+      {isMapView && !hasMapContext && (
+        <div className="fixed inset-0 z-0 grid place-items-center bg-secondary/40 px-6">
+          <div className="flex max-w-xs flex-col items-center gap-4 text-center">
+            <div className="grid size-14 place-items-center rounded-full bg-card shadow-soft">
+              <MapPin className="size-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">{t("map_choose_location_title")}</p>
+            <div className="flex flex-col items-stretch gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileSearchOpen(true)}
+                className="press rounded-2xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground"
+              >
+                {t("map_choose_location_cta")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void geo.request()}
+                className="press rounded-2xl border border-border/60 bg-card px-5 py-2.5 text-sm font-bold text-foreground"
+              >
+                {t("location_use_current_label")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

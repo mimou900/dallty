@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Link } from "@tanstack/react-router";
-import { BadgeCheck, MapPin as MapPinIcon, Star, X } from "lucide-react";
+import { BadgeCheck, MapPin as MapPinIcon, RefreshCw, Star, X } from "lucide-react";
 
 import type { Lang } from "@/lib/dallty-content";
+import type { ViewportBounds } from "@/hooks/use-search-results";
 import { FavoriteButton } from "@/components/dallty/favorite-button";
 import { useTranslation } from "@/lib/i18n/hooks";
 
@@ -114,10 +115,17 @@ export function ResultsMap({
   businesses,
   lang,
   userLocation,
+  onSearchThisArea,
 }: {
   businesses: MapPin[];
   lang: Lang;
   userLocation?: { lat: number; lng: number } | null;
+  /** Brief §10-12 — called (already debounced, user-pans only) with the
+   *  settled viewport whenever it's moved meaningfully away from the last
+   *  bounds actually searched. `search.tsx` owns the "meaningfully" check
+   *  and re-fetches; this component only ever reports + renders the pill,
+   *  never fetches on its own — the map is not a second search engine. */
+  onSearchThisArea?: (bounds: ViewportBounds) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -125,6 +133,20 @@ export function ResultsMap({
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { t } = useTranslation("marketplace");
+
+  // Only ever auto-`fitBounds` once (the initial load) — after that, the
+  // visitor's own pan/zoom is authoritative. Without this, every "Search
+  // this area" result (or an infinite-scroll page loading more pins) would
+  // silently recenter the map out from under them.
+  const hasFitRef = useRef(false);
+  // The bounds actually last searched (mirrors search.tsx's own committed
+  // bounds) — the baseline the "moved meaningfully" check below compares
+  // against. Search.tsx also owns a copy for its cache key; this one just
+  // drives the pill's visibility so it doesn't need a round-trip re-render.
+  const searchedCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [showSearchArea, setShowSearchArea] = useState(false);
+  const pendingBoundsRef = useRef<ViewportBounds | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -219,23 +241,71 @@ export function ResultsMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businesses, lang, selectedId]);
 
-  // Fit bounds once when a fresh result set (or the visitor's own location)
-  // arrives — separate from the clustering re-render above, which must NOT
+  // Fit bounds exactly once (the initial load — see `hasFitRef`'s doc
+  // comment) — separate from the clustering re-render above, which must NOT
   // re-fit on every pan/zoom or the map would fight the visitor's own
   // navigation.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || hasFitRef.current) return;
     const located = businesses.filter((b): b is Located => b.lat != null && b.lng != null);
     if (located.length === 0 && !userLocation) return;
     const bounds = new mapboxgl.LngLatBounds();
     if (userLocation) bounds.extend([userLocation.lng, userLocation.lat]);
     located.forEach((b) => bounds.extend([b.lng, b.lat]));
-    const fit = () => map.fitBounds(bounds, { padding: 70, maxZoom: 14, duration: 0 });
+    const fit = () => {
+      map.fitBounds(bounds, { padding: 70, maxZoom: 14, duration: 0 });
+      const c = bounds.getCenter();
+      searchedCenterRef.current = { lat: c.lat, lng: c.lng };
+      hasFitRef.current = true;
+    };
     if (map.loaded()) fit();
     else map.once("load", fit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businesses, userLocation]);
+
+  // "Search this area" (brief §10-12): user-initiated pans/zooms only
+  // (`e.originalEvent` is unset for programmatic moves like the `fitBounds`
+  // above, so this never fires from our own camera moves) — debounced
+  // ~400ms so a drag/fling doesn't fire a burst of comparisons, and only
+  // shown once the viewport center has moved past roughly half the current
+  // viewport's own span away from the bounds last actually searched.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    function onMoveEnd(e: mapboxgl.MapboxEvent & { originalEvent?: unknown }) {
+      if (!e.originalEvent) return; // programmatic move (fitBounds/easeTo) — ignore
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        const b = map!.getBounds();
+        if (!b) return;
+        const bounds: ViewportBounds = {
+          minLat: b.getSouth(),
+          maxLat: b.getNorth(),
+          minLng: b.getWest(),
+          maxLng: b.getEast(),
+        };
+        pendingBoundsRef.current = bounds;
+        const baseline = searchedCenterRef.current;
+        if (!baseline) {
+          setShowSearchArea(true);
+          return;
+        }
+        const center = map!.getCenter();
+        const latSpan = bounds.maxLat - bounds.minLat;
+        const lngSpan = bounds.maxLng - bounds.minLng;
+        const movedFarEnough =
+          Math.abs(center.lat - baseline.lat) > latSpan * 0.5 ||
+          Math.abs(center.lng - baseline.lng) > lngSpan * 0.5;
+        setShowSearchArea(movedFarEnough);
+      }, 400);
+    }
+    map.on("moveend", onMoveEnd);
+    return () => {
+      map.off("moveend", onMoveEnd);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   // Real "current location" dot — separate from business pins/clusters,
   // updates without touching them.
@@ -257,6 +327,17 @@ export function ResultsMap({
   const selected = businesses.find((b) => b.id === selectedId) ?? null;
   const s = selected ? (lang === "ar" ? selected.ar : selected.en) : null;
 
+  function handleSearchThisArea() {
+    const bounds = pendingBoundsRef.current;
+    if (!bounds) return;
+    searchedCenterRef.current = {
+      lat: (bounds.minLat + bounds.maxLat) / 2,
+      lng: (bounds.minLng + bounds.maxLng) / 2,
+    };
+    setShowSearchArea(false);
+    onSearchThisArea?.(bounds);
+  }
+
   return (
     <div className="relative size-full">
       {/* Nudges Mapbox's own required logo/attribution control (bottom-left,
@@ -271,6 +352,23 @@ export function ResultsMap({
         }
       `}</style>
       <div ref={containerRef} className="size-full" />
+
+      {/* Brief §11 — never reloads on every pan; only offered once the
+          viewport has moved meaningfully, and only actually re-searches on
+          tap. Sits below the header card (a separate fixed layer above this
+          one), well clear of the pin-preview card and BottomNav below. */}
+      {showSearchArea && (
+        <div className="absolute inset-x-0 top-[12rem] z-10 flex justify-center px-3">
+          <button
+            type="button"
+            onClick={handleSearchThisArea}
+            className="press flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2.5 text-sm font-bold text-background shadow-elevation-medium"
+          >
+            <RefreshCw className="size-3.5" />
+            {t("search_this_area")}
+          </button>
+        </div>
+      )}
 
       {/* The map is a fixed full-viewport layer now (not a bounded box), so
           this card's `bottom` offset is relative to the real viewport edge —

@@ -44,6 +44,21 @@ export const searchProfessionals = createServerFn({ method: "POST" })
 
     const ip = clientIpFromHeaders(getRequest()?.headers ?? new Headers());
     const eff_limit = Math.min(Math.max(data.limit ?? 20, 1), 50);
+    const countryCode = data.countryCode.toUpperCase();
+
+    // Mirrors search_businesses_page()'s own gate exactly (brief §4/§25/§41):
+    // this query filters by businesses.country_code directly (no RPC in front
+    // of it to enforce this), so the check has to live here instead. A
+    // disabled/unknown country returns an empty result, not an error — same
+    // "no enumeration hint" behavior as the RPC, not a distinguishable failure
+    // a client could use to probe which country codes exist.
+    const { data: marketRow } = await supabaseAdmin
+      .from("countries")
+      .select("iso_code")
+      .eq("iso_code", countryCode)
+      .eq("marketplace_enabled", true)
+      .maybeSingle();
+    if (!marketRow) return { results: [] };
 
     const [rateLimitOutcome, staffOutcome] = await Promise.allSettled([
       assertRateLimit(supabaseAdmin, `marketplace_professionals:${ip}`, 60, 10),
@@ -59,7 +74,7 @@ export const searchProfessionals = createServerFn({ method: "POST" })
           .eq("is_active", true)
           .eq("businesses.is_listed", true)
           .eq("businesses.is_active", true)
-          .eq("businesses.country_code", data.countryCode.toUpperCase())
+          .eq("businesses.country_code", countryCode)
           .limit(eff_limit);
         if (data.city) q = q.eq("businesses.city", data.city);
         if (data.regionState) q = q.eq("businesses.district", data.regionState);

@@ -6,6 +6,8 @@ import { mapSearchRowToLiveBusiness, type LiveBusiness } from "@/hooks/use-live-
 
 export type ServerSort = "relevance" | "distance" | "rating";
 
+export type ViewportBounds = { minLat: number; maxLat: number; minLng: number; maxLng: number };
+
 export type SearchResultsParams = {
   countryCode: string;
   query?: string;
@@ -17,7 +19,19 @@ export type SearchResultsParams = {
   verifiedOnly?: boolean;
   sort: ServerSort;
   pageSize?: number;
+  /** Map's "Search this area" viewport, committed only when the user taps
+   *  the trigger — not the live/uncommitted map position (see
+   *  `results-map.tsx`'s `onBoundsChange`). Rounded into the query key below
+   *  so a sub-pixel pan doesn't invalidate the cache/refetch. */
+  bounds?: ViewportBounds;
 };
+
+function roundBounds(b: ViewportBounds | undefined) {
+  if (!b) return "";
+  // ~110m precision (3 decimal degrees) — enough to dedupe near-identical
+  // "Search this area" taps without merging genuinely different viewports.
+  return [b.minLat, b.maxLat, b.minLng, b.maxLng].map((n) => n.toFixed(3)).join(",");
+}
 
 type Cursor = { score: number; id: string } | null;
 
@@ -55,6 +69,7 @@ export function useSearchResults(params: SearchResultsParams) {
       Boolean(params.verifiedOnly),
       params.sort,
       pageSize,
+      roundBounds(params.bounds),
     ],
     initialPageParam: null as Cursor,
     queryFn: async ({ pageParam }: { pageParam: Cursor }) => {
@@ -72,6 +87,7 @@ export function useSearchResults(params: SearchResultsParams) {
           cursorScore: pageParam?.score,
           cursorId: pageParam?.id,
           limit: pageSize,
+          bounds: params.bounds,
         },
       });
       return { results: results.map(mapSearchRowToLiveBusiness), nextCursor };
