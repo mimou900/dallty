@@ -523,12 +523,12 @@ function SearchPage() {
               (kept from wrapping to a second row at narrow widths by
               trimming the toggle down to text-only). */}
           <div className="mt-4 flex flex-nowrap items-center gap-1">
-            <div className="flex min-w-0 shrink items-center gap-0.5 rounded-2xl border border-border/60 bg-secondary/40 p-0.5">
+            <div className="scrollbar-hide flex min-w-0 shrink items-center gap-0.5 overflow-x-auto rounded-2xl border border-border/60 bg-secondary/40 p-0.5">
               <button
                 type="button"
                 onClick={() => update({ mode: "establishments" })}
                 aria-pressed={params.mode === "establishments"}
-                className={`press min-h-9 shrink-0 rounded-xl px-2 text-[13px] font-bold transition-colors ${
+                className={`press min-h-9 shrink-0 whitespace-nowrap rounded-xl px-2.5 text-[13px] font-bold transition-colors ${
                   params.mode === "establishments" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                 }`}
               >
@@ -538,7 +538,7 @@ function SearchPage() {
                 type="button"
                 onClick={() => update({ mode: "professionals" })}
                 aria-pressed={params.mode === "professionals"}
-                className={`press min-h-9 shrink-0 rounded-xl px-2 text-[13px] font-bold transition-colors ${
+                className={`press min-h-9 shrink-0 whitespace-nowrap rounded-xl px-2.5 text-[13px] font-bold transition-colors ${
                   params.mode === "professionals" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                 }`}
               >
@@ -554,13 +554,13 @@ function SearchPage() {
                       <button
                         type="button"
                         aria-label={t("search_time_label")}
-                        className={`grid size-8 min-[400px]:size-9 min-[480px]:size-10 min-[640px]:size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                        className={`grid size-10 min-[430px]:size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
                           params.date
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border/60 bg-card hover:bg-secondary/60"
                         }`}
                       >
-                        <CalendarDays className="size-4 min-[480px]:size-[18px] min-[640px]:size-5" />
+                        <CalendarDays className="size-[18px] min-[430px]:size-5" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent align="end" sideOffset={12} className="w-auto rounded-3xl border-border/60 bg-card p-0 shadow-elevation-medium">
@@ -576,13 +576,13 @@ function SearchPage() {
                     type="button"
                     onClick={() => setDateTimeSheetOpen(true)}
                     aria-label={t("search_time_label")}
-                    className={`grid size-8 min-[400px]:size-9 min-[480px]:size-10 min-[640px]:size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                    className={`grid size-10 min-[430px]:size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
                       params.date
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border/60 bg-card hover:bg-secondary/60"
                     }`}
                   >
-                    <CalendarDays className="size-4 min-[480px]:size-[18px] min-[640px]:size-5" />
+                    <CalendarDays className="size-[18px] min-[430px]:size-5" />
                   </button>
                 )
               ) : null}
@@ -590,13 +590,13 @@ function SearchPage() {
                 type="button"
                 onClick={() => setFilterOpen(true)}
                 aria-label={t("filters_title")}
-                className={`relative grid size-8 min-[400px]:size-9 min-[480px]:size-10 min-[640px]:size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
+                className={`relative grid size-10 min-[430px]:size-11 shrink-0 place-items-center rounded-2xl border transition-colors duration-150 ${
                   activeFilterCount
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border/60 bg-card hover:bg-secondary/60"
                 }`}
               >
-                <SlidersHorizontal className="size-4 min-[480px]:size-[18px] min-[640px]:size-5" />
+                <SlidersHorizontal className="size-[18px] min-[430px]:size-5" />
                 {activeFilterCount ? (
                   <span className="absolute -end-1 -top-1 grid size-5 place-items-center rounded-full bg-gold text-[10px] font-extrabold text-gold-foreground">
                     {activeFilterCount}
