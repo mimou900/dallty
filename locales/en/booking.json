@@ -3,7 +3,35 @@
   "customer": {
     "cancel_title": "Cancel booking?",
     "keep": "Keep booking",
-    "confirm": "Cancel appointment"
+    "confirm": "Cancel appointment",
+    "page_title": "Your bookings",
+    "page_subtitle": "Live status for every appointment you booked.",
+    "filter_all": "All",
+    "next_appointment": "Next appointment",
+    "upcoming": "Upcoming",
+    "empty_all": "No upcoming bookings",
+    "empty_confirmed": "No confirmed bookings",
+    "empty_pending": "No pending bookings",
+    "empty_cancelled": "No cancelled bookings",
+    "empty_completed": "No completed bookings",
+    "no_bookings_title": "Nothing booked yet",
+    "discover_cta": "Discover services",
+    "call_salon": "Call salon",
+    "get_directions": "Get directions",
+    "reschedule": "Reschedule",
+    "cancel": "Cancel",
+    "business_details": "Business details",
+    "book_again": "Book again",
+    "leave_review": "Leave a review",
+    "confirm_slot": "Confirm slot",
+    "reference_label": "Reference"
+  },
+  "status": {
+    "confirmed": "Confirmed",
+    "pending": "Pending",
+    "cancelled": "Cancelled",
+    "completed": "Completed",
+    "no_show": "No-show"
   },
   "admin": {
     "cancel_title": "Cancel appointment?",

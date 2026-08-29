@@ -3,7 +3,35 @@
   "customer": {
     "cancel_title": "Annuler la réservation ?",
     "keep": "Conserver la réservation",
-    "confirm": "Annuler le rendez-vous"
+    "confirm": "Annuler le rendez-vous",
+    "page_title": "Vos réservations",
+    "page_subtitle": "Le statut en direct de chaque rendez-vous réservé.",
+    "filter_all": "Tout",
+    "next_appointment": "Prochain rendez-vous",
+    "upcoming": "À venir",
+    "empty_all": "Aucune réservation à venir",
+    "empty_confirmed": "Aucune réservation confirmée",
+    "empty_pending": "Aucune réservation en attente",
+    "empty_cancelled": "Aucune réservation annulée",
+    "empty_completed": "Aucune réservation terminée",
+    "no_bookings_title": "Rien de réservé pour l'instant",
+    "discover_cta": "Découvrir les services",
+    "call_salon": "Appeler le salon",
+    "get_directions": "Itinéraire",
+    "reschedule": "Reporter",
+    "cancel": "Annuler",
+    "business_details": "Détails du salon",
+    "book_again": "Réserver à nouveau",
+    "leave_review": "Laisser un avis",
+    "confirm_slot": "Confirmer le créneau",
+    "reference_label": "Référence"
+  },
+  "status": {
+    "confirmed": "Confirmée",
+    "pending": "En attente",
+    "cancelled": "Annulée",
+    "completed": "Terminée",
+    "no_show": "Absence"
   },
   "admin": {
     "cancel_title": "Annuler le rendez-vous ?",

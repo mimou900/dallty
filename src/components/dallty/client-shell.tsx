@@ -16,6 +16,7 @@ export function ClientShell({
   children,
   width = "max-w-3xl",
   surface = "default",
+  atmosphere = true,
 }: {
   title: string;
   subtitle?: string;
@@ -25,6 +26,11 @@ export function ClientShell({
   /** "cream" swaps the page canvas for the brand's warm editorial cream instead
    *  of the site-wide mint neutral — opt in per page, see the --cream token. */
   surface?: "default" | "cream";
+  /** The homepage-style animated green glow-blobs, on by default (every
+   *  existing page keeps them). Set false for pages that want a calmer,
+   *  flatter canvas — e.g. Bookings, which is deliberately quieter than the
+   *  homepage hero. */
+  atmosphere?: boolean;
 }) {
   const { lang } = useLocale();
   const { t } = useTranslation("common");
@@ -35,13 +41,15 @@ export function ClientShell({
         surface === "cream" ? "bg-cream text-cream-foreground" : ""
       }`}
     >
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="glow-blob -top-32 start-[-10%] size-[34rem]" />
-        <div
-          className="glow-blob bottom-0 end-[-10%] size-[30rem]"
-          style={{ animationDelay: "-8s" }}
-        />
-      </div>
+      {atmosphere && (
+        <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+          <div className="glow-blob -top-32 start-[-10%] size-[34rem]" />
+          <div
+            className="glow-blob bottom-0 end-[-10%] size-[30rem]"
+            style={{ animationDelay: "-8s" }}
+          />
+        </div>
+      )}
 
       <SiteHeader lang={lang} />
 

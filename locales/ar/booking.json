@@ -3,7 +3,35 @@
   "customer": {
     "cancel_title": "إلغاء الحجز؟",
     "keep": "احتفظ بالحجز",
-    "confirm": "إلغاء الموعد"
+    "confirm": "إلغاء الموعد",
+    "page_title": "حجوزاتك",
+    "page_subtitle": "الحالة المباشرة لكل موعد قمت بحجزه.",
+    "filter_all": "الكل",
+    "next_appointment": "الموعد القادم",
+    "upcoming": "القادمة",
+    "empty_all": "لا توجد حجوزات قادمة",
+    "empty_confirmed": "لا توجد حجوزات مؤكدة",
+    "empty_pending": "لا توجد حجوزات قيد الانتظار",
+    "empty_cancelled": "لا توجد حجوزات ملغاة",
+    "empty_completed": "لا توجد حجوزات مكتملة",
+    "no_bookings_title": "لا يوجد حجز حتى الآن",
+    "discover_cta": "اكتشف الخدمات",
+    "call_salon": "اتصل بالصالون",
+    "get_directions": "الاتجاهات",
+    "reschedule": "إعادة الجدولة",
+    "cancel": "إلغاء",
+    "business_details": "تفاصيل الصالون",
+    "book_again": "احجز مرة أخرى",
+    "leave_review": "أضف تقييمًا",
+    "confirm_slot": "تأكيد الموعد",
+    "reference_label": "المرجع"
+  },
+  "status": {
+    "confirmed": "مؤكد",
+    "pending": "قيد الانتظار",
+    "cancelled": "ملغى",
+    "completed": "مكتمل",
+    "no_show": "لم يحضر"
   },
   "admin": {
     "cancel_title": "إلغاء الموعد؟",
