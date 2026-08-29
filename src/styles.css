@@ -414,13 +414,10 @@
   --radius: 1.25rem;
 
   /*
-   * Canvas — soft mint-tinted neutral, ON the brand green's hue (161°)
-   * rather than the previous off-hue warm cream (was hue ~93°). Chroma is
-   * kept very low (0.014) so it still reads as "a light neutral," not "a
-   * green page" — just one that visibly belongs to the same family as the
-   * brand color, per brief §5-6.
+   * Canvas — pure white, site-wide default (explicit user request:
+   * previously a soft mint-tinted neutral on the brand green's hue).
    */
-  --background: oklch(0.975 0.014 161);
+  --background: oklch(1 0 0);
   --foreground: oklch(0.2 0.024 160);
   --card: oklch(0.995 0.004 120);
   --card-foreground: oklch(0.2 0.024 160);
