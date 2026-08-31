@@ -216,6 +216,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-accent: var(--secondary-accent);
+  --color-secondary-accent-foreground: var(--secondary-accent-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
@@ -414,43 +416,52 @@
   --radius: 1.25rem;
 
   /*
-   * Canvas — pure white, site-wide default (explicit user request:
-   * previously a soft mint-tinted neutral on the brand green's hue).
+   * DALLTY MASTER SYSTEM — the authoritative token set (explicit user spec).
+   * Values below tagged "master system" are exact hex from that spec, not
+   * hand-converted oklch approximations, so they stay pixel-exact.
    */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.2 0.024 160);
-  --card: oklch(0.995 0.004 120);
-  --card-foreground: oklch(0.2 0.024 160);
-  --popover: oklch(0.995 0.004 120);
-  --popover-foreground: oklch(0.2 0.024 160);
+  --background: #f7f5ee; /* master system: BACKGROUND */
+  --foreground: #15231f; /* master system: TEXT */
+  --card: #ffffff; /* master system: SURFACE */
+  --card-foreground: #15231f;
+  --popover: #ffffff;
+  --popover-foreground: #15231f;
 
-  /* Deep Green — structure/identity (brand #0F4F35). */
-  --primary: oklch(0.3811 0.0771 161.08);
+  /* Deep Green — structure/identity. */
+  --primary: #0f4f3b; /* master system: PRIMARY BRAND */
   --primary-foreground: oklch(0.99 0.005 150);
-  /* Hover/active/light/surface — same hue as --primary, only lightness/chroma
-     move, so every state still reads as "the same green." */
+  /* Hover/light/surface — same hue as --primary, only lightness/chroma move,
+     so every state still reads as "the same green." --primary-active is the
+     master system's DARK ACCENT (#082F24) — its natural home is the
+     darkest/pressed state of the brand green. */
   --primary-hover: oklch(0.335 0.075 161);
-  --primary-active: oklch(0.29 0.07 161);
+  --primary-active: #082f24; /* master system: DARK ACCENT */
   --primary-light: oklch(0.56 0.1 161);
-  --primary-surface: oklch(0.94 0.028 161);
+  --primary-surface: #e7efea; /* master system: SOFT SURFACE */
   --secondary: oklch(0.955 0.014 161);
   --secondary-foreground: oklch(0.3 0.03 161);
+  /* New token, not a replacement for --secondary above (which stays the
+     existing light background tint used everywhere today — badges,
+     inactive tabs — swapping it for a solid mid-tone would turn all of
+     those solid dark sage-green). This is the master system's own
+     SECONDARY role, available for whatever's designed to use it next. */
+  --secondary-accent: #557a6b; /* master system: SECONDARY */
+  --secondary-accent-foreground: #ffffff;
   --muted: oklch(0.955 0.012 161);
-  --muted-foreground: oklch(0.5 0.02 161);
-  --accent: oklch(0.94 0.03 161);
+  --muted-foreground: #66756f; /* master system: MUTED TEXT */
+  --accent: #e7efea; /* master system: SOFT SURFACE (same role as --primary-surface) */
   --accent-foreground: oklch(0.32 0.05 161);
 
-  /* Cream (brand #F7F5EE) — deliberately NOT --background (see the canvas note
-     above): kept as its own opt-in token for surfaces that specifically want
-     the brand's warm editorial cream rather than the site-wide mint neutral,
-     e.g. the profile page's canvas. */
-  --cream: oklch(0.97 0.01 93.5);
-  --cream-foreground: oklch(0.2 0.024 160);
+  /* Cream (brand #F7F5EE) — now identical to --background above (the master
+     system's BACKGROUND is this exact color); kept as its own token since
+     `bg-cream` is already used as an explicit opt-in class in a few places. */
+  --cream: #f7f5ee;
+  --cream-foreground: #15231f;
 
   --gold: oklch(0.78 0.115 85);
   --gold-foreground: oklch(0.28 0.05 85);
-  /* Lime — primary action / energy (brand #C0DD00). CTA buttons only. */
-  --lime: oklch(0.8462 0.1986 118.84);
+  /* Lime — primary action / energy. CTA buttons only. */
+  --lime: #ccd000; /* master system: SIGNATURE ACCENT */
   --lime-foreground: oklch(0.28 0.05 161);
   /* A pale tint of Lime for low-emphasis badges (e.g. "New") that still need
      to read as lime-family, not the bold CTA-strength lime above. */
@@ -477,9 +488,9 @@
 
   --destructive: oklch(0.6 0.2 25);
   --destructive-foreground: oklch(0.99 0.005 150);
-  --border: oklch(0.9 0.016 161);
+  --border: #d8e0db; /* master system: BORDER */
   --input: oklch(0.92 0.014 161);
-  --ring: oklch(0.3811 0.0771 161.08);
+  --ring: #0f4f3b;
 
   /* Glass — Level 2 (see the .glass utilities below). Base surface is a warm
      near-white rather than green-tinted, so translucent cards stay legible
