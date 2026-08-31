@@ -2,6 +2,10 @@
   "brand": "Dallty",
   "tagline": "Trouvez. Réservez. Détendez-vous.",
   "sign_in": "Se connecter",
+  "logged_out": {
+    "cta": "Connexion / Inscription",
+    "discover": "Découvrir les services"
+  },
   "footer": "© 2026 Dallty. Trouvez. Réservez. Détendez-vous.",
   "language": "Langue",
   "nav": {

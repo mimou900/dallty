@@ -15,6 +15,8 @@
     "empty_cancelled": "No cancelled bookings",
     "empty_completed": "No completed bookings",
     "no_bookings_title": "Nothing booked yet",
+    "logged_out_title": "Log in to view your appointments",
+    "logged_out_subtitle": "Book appointments on Dallty and view them here once you've logged in.",
     "discover_cta": "Discover services",
     "call_salon": "Call salon",
     "get_directions": "Get directions",

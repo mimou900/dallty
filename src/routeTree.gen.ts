@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BookingsRouteImport } from './routes/bookings'
+import { Route as FavoritesRouteImport } from './routes/favorites'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -21,9 +23,7 @@ import { Route as VerifyOtpRouteImport } from './routes/verify-otp'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedAvailabilityRouteImport } from './routes/_authenticated/availability'
-import { Route as AuthenticatedBookingsRouteImport } from './routes/_authenticated/bookings'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedFavoritesRouteImport } from './routes/_authenticated/favorites'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthEmailHookRouteImport } from './routes/auth/email-hook'
 import { Route as BusinessIdBusinessIdRouteImport } from './routes/business-id.$businessId'
@@ -76,6 +76,16 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookingsRoute = BookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FavoritesRoute = FavoritesRouteImport.update({
+  id: '/favorites',
+  path: '/favorites',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -122,19 +132,9 @@ const AuthenticatedAvailabilityRoute =
     path: '/availability',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedBookingsRoute = AuthenticatedBookingsRouteImport.update({
-  id: '/bookings',
-  path: '/bookings',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedFavoritesRoute = AuthenticatedFavoritesRouteImport.update({
-  id: '/favorites',
-  path: '/favorites',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
@@ -354,6 +354,8 @@ const AuthenticatedAdminPlatformUsersRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/bookings': typeof BookingsRoute
+  '/favorites': typeof FavoritesRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -363,9 +365,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/account': typeof AuthenticatedAccountRoute
   '/availability': typeof AuthenticatedAvailabilityRoute
-  '/bookings': typeof AuthenticatedBookingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/email-hook': typeof AuthEmailHookRoute
   '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
@@ -407,6 +407,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/bookings': typeof BookingsRoute
+  '/favorites': typeof FavoritesRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -415,9 +417,7 @@ export interface FileRoutesByTo {
   '/verify-otp': typeof VerifyOtpRoute
   '/account': typeof AuthenticatedAccountRoute
   '/availability': typeof AuthenticatedAvailabilityRoute
-  '/bookings': typeof AuthenticatedBookingsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/favorites': typeof AuthenticatedFavoritesRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/email-hook': typeof AuthEmailHookRoute
   '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
@@ -461,6 +461,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/bookings': typeof BookingsRoute
+  '/favorites': typeof FavoritesRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -470,9 +472,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/availability': typeof AuthenticatedAvailabilityRoute
-  '/_authenticated/bookings': typeof AuthenticatedBookingsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/favorites': typeof AuthenticatedFavoritesRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/auth/email-hook': typeof AuthEmailHookRoute
   '/business-id/$businessId': typeof BusinessIdBusinessIdRoute
@@ -516,6 +516,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/bookings'
+    | '/favorites'
     | '/login'
     | '/privacy'
     | '/reset-password'
@@ -525,9 +527,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/account'
     | '/availability'
-    | '/bookings'
     | '/dashboard'
-    | '/favorites'
     | '/profile'
     | '/auth/email-hook'
     | '/business-id/$businessId'
@@ -569,6 +569,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/bookings'
+    | '/favorites'
     | '/login'
     | '/privacy'
     | '/reset-password'
@@ -577,9 +579,7 @@ export interface FileRouteTypes {
     | '/verify-otp'
     | '/account'
     | '/availability'
-    | '/bookings'
     | '/dashboard'
-    | '/favorites'
     | '/profile'
     | '/auth/email-hook'
     | '/business-id/$businessId'
@@ -622,6 +622,8 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/bookings'
+    | '/favorites'
     | '/login'
     | '/privacy'
     | '/reset-password'
@@ -631,9 +633,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/account'
     | '/_authenticated/availability'
-    | '/_authenticated/bookings'
     | '/_authenticated/dashboard'
-    | '/_authenticated/favorites'
     | '/_authenticated/profile'
     | '/auth/email-hook'
     | '/business-id/$businessId'
@@ -677,6 +677,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  BookingsRoute: typeof BookingsRoute
+  FavoritesRoute: typeof FavoritesRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -711,6 +713,20 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings': {
+      id: '/bookings'
+      path: '/bookings'
+      fullPath: '/bookings'
+      preLoaderRoute: typeof BookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/favorites': {
+      id: '/favorites'
+      path: '/favorites'
+      fullPath: '/favorites'
+      preLoaderRoute: typeof FavoritesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -776,25 +792,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAvailabilityRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/bookings': {
-      id: '/_authenticated/bookings'
-      path: '/bookings'
-      fullPath: '/bookings'
-      preLoaderRoute: typeof AuthenticatedBookingsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/favorites': {
-      id: '/_authenticated/favorites'
-      path: '/favorites'
-      fullPath: '/favorites'
-      preLoaderRoute: typeof AuthenticatedFavoritesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/profile': {
@@ -1145,9 +1147,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedAvailabilityRoute: typeof AuthenticatedAvailabilityRoute
-  AuthenticatedBookingsRoute: typeof AuthenticatedBookingsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedFavoritesRoute: typeof AuthenticatedFavoritesRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedRescheduleBookingIdRoute: typeof AuthenticatedRescheduleBookingIdRoute
 }
@@ -1156,9 +1156,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedAvailabilityRoute: AuthenticatedAvailabilityRoute,
-  AuthenticatedBookingsRoute: AuthenticatedBookingsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedFavoritesRoute: AuthenticatedFavoritesRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedRescheduleBookingIdRoute: AuthenticatedRescheduleBookingIdRoute,
 }
@@ -1180,6 +1178,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  BookingsRoute: BookingsRoute,
+  FavoritesRoute: FavoritesRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,

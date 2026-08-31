@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
@@ -20,10 +20,11 @@ import { toast } from "sonner";
 import { formatMoney } from "@/lib/countries";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { landingForRoles, resolveLanding } from "@/lib/post-login";
+import { landingForRoles } from "@/lib/post-login";
 import { useManagedBusinesses } from "@/lib/admin";
 import { claimGuestBookingsForCurrentUser } from "@/lib/account.functions";
 import { ClientShell } from "@/components/dallty/client-shell";
+import { LoggedOutCard } from "@/components/dallty/logged-out-card";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import {
@@ -45,15 +46,11 @@ import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 const STATUS_FILTERS = ["all", "confirmed", "pending", "cancelled", "completed"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
-export const Route = createFileRoute("/_authenticated/bookings")({
-  // Owners/staff/admins manage appointments in their own dashboard — never here.
-  // Booking itself stays open to every role; only this list view is customer-only.
-  beforeLoad: async ({ context }) => {
-    const userId = (context as { user?: { id: string } }).user?.id;
-    if (!userId) return;
-    const landing = await resolveLanding(userId);
-    if (landing !== "/bookings") throw redirect({ to: landing, replace: true });
-  },
+export const Route = createFileRoute("/bookings")({
+  // Owners/staff/admins manage appointments in their own dashboard, redirected
+  // there by the `useEffect` below once their role is known client-side —
+  // no `beforeLoad` gate here (this route is intentionally NOT nested under
+  // `_authenticated`, see `LoggedOutCard`'s doc comment for why).
   // `?open=<bookingId>` auto-opens that booking's detail drawer — the target every
   // notification's deep_link points at (see notify_booking_audience() /
   // notify_waitlist_on_free_slot()), since there's no separate /bookings/:id route.
@@ -251,7 +248,7 @@ function mapsHref(business: BookingRow["businesses"]) {
 }
 
 function BookingsPage() {
-  const { user, primaryRole, roles } = useAuth();
+  const { user, primaryRole, roles, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { open: openParam, status } = Route.useSearch();
@@ -435,6 +432,36 @@ function BookingsPage() {
   }, [bookings, statusFilter]);
 
   const hasAnyBookings = bookings.length > 0;
+
+  // This route is deliberately NOT nested under `_authenticated` (see the
+  // top of this file) so a signed-out visitor lands on the real page
+  // instead of being bounced straight to `/auth` — they see what the page
+  // is for and can choose to sign in. `authLoading` guards against a false
+  // "logged out" flash for a visitor who *is* signed in, while the
+  // session is still resolving on first load.
+  if (authLoading) {
+    return (
+      <ClientShell title={t("customer.page_title")} subtitle={t("customer.page_subtitle")} surface="cream">
+        <div className="mt-6 space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-3xl bg-muted" />
+          ))}
+        </div>
+      </ClientShell>
+    );
+  }
+  if (!user) {
+    return (
+      <ClientShell title={t("customer.page_title")} subtitle={t("customer.page_subtitle")} surface="cream">
+        <LoggedOutCard
+          icon={CalendarDays}
+          title={t("customer.logged_out_title")}
+          subtitle={t("customer.logged_out_subtitle")}
+          nextPath="/bookings"
+        />
+      </ClientShell>
+    );
+  }
 
   return (
     <ClientShell

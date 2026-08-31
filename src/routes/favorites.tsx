@@ -7,9 +7,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { FavoriteButton, useFavorites } from "@/components/dallty/favorite-button";
 import { ClientShell } from "@/components/dallty/client-shell";
+import { LoggedOutCard } from "@/components/dallty/logged-out-card";
 import { Skeleton } from "@/components/dallty/skeleton";
 
-export const Route = createFileRoute("/_authenticated/favorites")({
+// Intentionally NOT nested under `_authenticated` — a signed-out visitor
+// sees this page's own logged-out state instead of being redirected
+// straight to `/auth` (see LoggedOutCard's doc comment).
+export const Route = createFileRoute("/favorites")({
   head: () => ({
     meta: [
       { title: "Saved salons & specialists — Dallty" },
@@ -31,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/favorites")({
 });
 
 function FavoritesPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const favorites = useFavorites();
   const rows = favorites.data ?? [];
 
@@ -106,6 +110,44 @@ function FavoritesPage() {
     (businessIds.length > 0 && businessesQuery.isLoading) ||
     (staffIds.length > 0 && staffQuery.isLoading) ||
     (serviceIds.length > 0 && servicesQuery.isLoading);
+
+  // This route is deliberately NOT nested under `_authenticated` (see the
+  // route comment above) so a signed-out visitor sees this page's own
+  // logged-out state instead of being bounced straight to `/auth`.
+  // `favorites`/`recentQuery` both stay `enabled: Boolean(user)` internally,
+  // so without this branch a signed-out visitor would see `loading` stuck
+  // true forever (a disabled query never leaves "pending") instead of the
+  // logged-out card.
+  if (authLoading) {
+    return (
+      <ClientShell title="Favorites" subtitle="Salons, specialists and services you saved.">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-3xl glass p-3">
+              <Skeleton variant="image" className="size-16 shrink-0 rounded-2xl" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton variant="text" className="h-3.5 w-3/5" />
+                <Skeleton variant="text" className="w-2/5" />
+              </div>
+              <Skeleton variant="circle" className="size-10 shrink-0 rounded-2xl" />
+            </div>
+          ))}
+        </div>
+      </ClientShell>
+    );
+  }
+  if (!user) {
+    return (
+      <ClientShell title="Favorites" subtitle="Salons, specialists and services you saved.">
+        <LoggedOutCard
+          icon={Heart}
+          title="Log in to view your favorites"
+          subtitle="Search and save your favorite salons and specialists on Dallty once you've logged in."
+          nextPath="/favorites"
+        />
+      </ClientShell>
+    );
+  }
 
   return (
     <ClientShell title="Favorites" subtitle="Salons, specialists and services you saved.">

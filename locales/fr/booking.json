@@ -15,6 +15,8 @@
     "empty_cancelled": "Aucune réservation annulée",
     "empty_completed": "Aucune réservation terminée",
     "no_bookings_title": "Rien de réservé pour l'instant",
+    "logged_out_title": "Connectez-vous pour voir vos rendez-vous",
+    "logged_out_subtitle": "Réservez des rendez-vous sur Dallty et retrouvez-les ici une fois connecté(e).",
     "discover_cta": "Découvrir les services",
     "call_salon": "Appeler le salon",
     "get_directions": "Itinéraire",

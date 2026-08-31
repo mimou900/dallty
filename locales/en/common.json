@@ -2,6 +2,10 @@
   "brand": "Dallty",
   "tagline": "Find. Book. Relax.",
   "sign_in": "Sign in",
+  "logged_out": {
+    "cta": "Log-In / Sign Up",
+    "discover": "Discover services"
+  },
   "footer": "© 2026 Dallty. Find. Book. Relax.",
   "language": "Language",
   "nav": {
