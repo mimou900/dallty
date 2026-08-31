@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Clock3, Heart, Scissors, Sparkles, Store } from "lucide-react";
+import { Bookmark, Clock3, Scissors, Sparkles, Store } from "lucide-react";
 
 import { formatMoney } from "@/lib/countries";
 import { supabase } from "@/integrations/supabase/client";
@@ -120,7 +120,7 @@ function FavoritesPage() {
   // logged-out card.
   if (authLoading) {
     return (
-      <ClientShell title="Favorites" subtitle="Salons, specialists and services you saved.">
+      <ClientShell title="Saved" subtitle="Salons, specialists and services you've saved.">
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 4 }, (_, i) => (
             <div key={i} className="flex items-center gap-3 rounded-3xl glass p-3">
@@ -138,11 +138,11 @@ function FavoritesPage() {
   }
   if (!user) {
     return (
-      <ClientShell title="Favorites" subtitle="Salons, specialists and services you saved.">
+      <ClientShell title="Saved" subtitle="Salons, specialists and services you've saved.">
         <LoggedOutCard
-          icon={Heart}
-          title="Log in to view your favorites"
-          subtitle="Search and save your favorite salons and specialists on Dallty once you've logged in."
+          icon={Bookmark}
+          title="Log in to view your saved items"
+          subtitle="Save salons and specialists on Dallty and find them here once you've logged in."
           nextPath="/favorites"
         />
       </ClientShell>
@@ -168,10 +168,10 @@ function FavoritesPage() {
 
       {empty && (
         <div className="mt-8 rounded-3xl glass p-8 text-center">
-          <Heart className="mx-auto size-8 text-rose" />
+          <Bookmark className="mx-auto size-8 text-primary" />
           <p className="mt-3 text-base font-bold">Nothing saved yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tap the heart on a salon, specialist or service to keep it here.
+            Tap the bookmark on a salon, specialist or service to keep it here.
           </p>
           <Link
             to="/"

@@ -12,7 +12,7 @@
     "home": "Accueil",
     "search": "Recherche",
     "bookings": "Réservations",
-    "favorites": "Favoris",
+    "favorites": "Enregistrés",
     "profile": "Profil"
   },
   "menu": {
@@ -21,7 +21,7 @@
     "explore": "Découvrir",
     "search": "Recherche",
     "bookings": "Mes réservations",
-    "favorites": "Favoris",
+    "favorites": "Enregistrés",
     "account": "Compte",
     "notifications": "Notifications",
     "dashboard": "Tableau de bord",

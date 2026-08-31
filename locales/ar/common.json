@@ -12,7 +12,7 @@
     "home": "الرئيسية",
     "search": "بحث",
     "bookings": "حجوزاتي",
-    "favorites": "المفضلة",
+    "favorites": "المحفوظات",
     "profile": "حسابي"
   },
   "menu": {
@@ -21,7 +21,7 @@
     "explore": "استكشف",
     "search": "بحث",
     "bookings": "حجوزاتي",
-    "favorites": "المفضلة",
+    "favorites": "المحفوظات",
     "account": "حسابي",
     "notifications": "الإشعارات",
     "dashboard": "لوحة التحكم",

@@ -12,7 +12,7 @@
     "home": "Home",
     "search": "Search",
     "bookings": "Bookings",
-    "favorites": "Favorites",
+    "favorites": "Saved",
     "profile": "Profile"
   },
   "menu": {
@@ -21,7 +21,7 @@
     "explore": "Explore",
     "search": "Search",
     "bookings": "My bookings",
-    "favorites": "Favorites",
+    "favorites": "Saved",
     "account": "Account",
     "notifications": "Notifications",
     "dashboard": "Dashboard",

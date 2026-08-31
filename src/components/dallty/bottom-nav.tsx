@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Calendar, Heart, Home, Search, User } from "lucide-react";
+import { Bookmark, Calendar, Home, Search, User } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { landingForRoles } from "@/lib/post-login";
@@ -8,7 +8,7 @@ const baseItems = [
   { to: "/", icon: Home },
   { to: "/search", icon: Search },
   { to: "/bookings", icon: Calendar },
-  { to: "/favorites", icon: Heart },
+  { to: "/favorites", icon: Bookmark },
   { to: "/profile", icon: User },
 ] as const;
 

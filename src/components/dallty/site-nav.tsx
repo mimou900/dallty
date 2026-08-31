@@ -1,9 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  Bookmark,
   Briefcase,
   Calendar,
   ChevronDown,
-  Heart,
   LayoutDashboard,
   Search,
   Sparkles,
@@ -75,7 +75,7 @@ function useNavLinks(lang: Lang) {
     { to: "/" as const, label: m.explore, icon: Sparkles },
     { to: "/search" as const, label: m.search, icon: Search },
     { to: "/bookings" as const, label: m.bookings, icon: Calendar },
-    { to: "/favorites" as const, label: m.favorites, icon: Heart },
+    { to: "/favorites" as const, label: m.favorites, icon: Bookmark },
     { to: "/profile" as const, label: m.account, icon: User },
   ];
 

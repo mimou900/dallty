@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Heart, Loader2 } from "lucide-react";
+import { Bookmark, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +40,7 @@ export function FavoriteButton({
 
   const toggle = useMutation({
     mutationFn: async () => {
-      if (!user) throw new Error("Sign in to save favorites");
+      if (!user) throw new Error("Sign in to save");
       if (existing) {
         const { error } = await supabase.from("favorites").delete().eq("id", existing.id);
         if (error) throw error;
@@ -72,13 +72,13 @@ export function FavoriteButton({
       disabled={toggle.isPending}
       aria-pressed={active}
       aria-busy={toggle.isPending}
-      aria-label={active ? `Remove ${label} from favorites` : `Add ${label} to favorites`}
+      aria-label={active ? `Remove ${label} from saved` : `Save ${label}`}
       className={`press grid size-10 shrink-0 place-items-center rounded-2xl glass-warm transition-colors hover:bg-primary/10 disabled:opacity-60 ${className}`}
     >
       {toggle.isPending ? (
         <Loader2 className="size-5 animate-spin text-primary" />
       ) : (
-        <Heart className={`size-5 ${active ? "fill-rose text-rose" : "text-primary"}`} />
+        <Bookmark className={`size-5 ${active ? "fill-primary text-primary" : "text-primary"}`} />
       )}
     </button>
   );
