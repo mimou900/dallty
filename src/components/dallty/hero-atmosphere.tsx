@@ -1,132 +1,108 @@
 /**
- * Animated atmospheric background for the homepage hero.
+ * Homepage hero background — "moving mint atmosphere" (explicit spec,
+ * Aleric screenshot used as visual reference for the *background only*;
+ * no Aleric branding/content/layout involved). Full replacement of the
+ * static "Jade Sky" gradient (`@/components/ui/jade-sky`) that was here
+ * before — that component stays available elsewhere, just isn't used for
+ * the hero anymore. This is also the second replacement of the ORIGINAL
+ * Deep-Green/Lime "zones" atmosphere that lived in this same file/export
+ * earlier in the project (see styles.css's v13/v14 history comment) —
+ * reusing that name/slot rather than adding a third hero-background file.
  *
- * Three real bugs fixed here (found by inspecting actual computed layout, not just
- * computed style values):
+ * The brief is explicit that this must NOT read as "distinct colored
+ * blobs" or "an animated gradient" — one continuous, near-motionless field
+ * of soft light. Two layers make that happen:
  *
- * 1. Colors: an earlier pass used `oklch(from var(--x) l c h / a)` (CSS
- *    relative-color syntax), which isn't universally parsed — an unsupported color
- *    function inside a gradient invalidates the whole background-image, silently
- *    dropping it to `none`. Now plain `rgba()`.
- * 2. Position: `top`/`bottom` PERCENTAGES on an absolutely positioned element
- *    resolve against the containing block's height — and this hero wrapper's height
- *    is "auto" (sized by its own content), which is exactly the case the CSS spec
- *    treats as indeterminate for that calculation. Vertical offsets are fixed
- *    spacing-scale values instead; horizontal (start/end) stays percentage-based
- *    since width is never "auto" the same way.
- * 3. Stacking context: the hero wrapper (`<div className="relative">` in
- *    routes/index.tsx) had `position: relative` with no `z-index`, which does NOT
- *    establish a new stacking context. This layer's `-z-10` therefore escaped past
- *    that wrapper entirely and painted behind a distant opaque ancestor
- *    (`bg-cream` on the page root), making every color/opacity/blur tweak
- *    invisible regardless of its values. Fixed by adding `isolate` to that wrapper.
+ * 1. A STATIC 3-stop vertical gradient (#FBFFFC -> #ECFFF1 -> #DEFFE5) —
+ *    the actual foundation color, painted once, never animated. This
+ *    alone would already look correct as a still image.
+ * 2. Three large, heavily-blurred radial fields in colors already close
+ *    to that base, at low opacity, slowly drifting (translate3d + scale +
+ *    opacity only — see the `mint-field-*` keyframes in styles.css) so
+ *    they lighten/deepen regions of the base over a 20-30s loop instead
+ *    of reading as their own shape. A fourth, extremely faint Lime field
+ *    is the brief's "tiny atmospheric influence" — opacity peaks at 0.05,
+ *    nowhere near a visible yellow-green tint.
  *
- * v14 — color-fidelity refinement of v13's Deep Green / Lime system. v13 put
- * three green-family fields (primary + pale-green + a "green secondary") in
- * overlapping territory with only one lime field, which is exactly what reads
- * as "gray-green mud" instead of clean, recognizable green/lime separation.
- * Reorganized into two distinct ZONES with a white field between them:
- *
- * - GREEN ZONE (one area of the hero): pure Deep Green `#0F4F3B` primary +
- *   a lighter same-family tint (`#9FBDB2`) for depth.
- * - LIME ZONE (a different area): pure Lime `#CCD000` primary + a lighter
- *   same-family tint (`#E9EB91`). Lime's peak opacity is tuned LOWER than
- *   Green's (see `@keyframes atmosphere-lime-primary` in styles.css) because
- *   the same alpha reads more neon on Lime than on Deep Green — it's an
- *   inherently more luminant hue.
- * - A white "breathe" field sits between the two zones so the transition
- *   reads as green → clean white → lime, not one blended wash.
- *
- * Blur is reduced from v13 (was up to 210px) so each field keeps a
- * recognizable "this is green" / "this is lime" center — translucent glass,
- * not fog. Motion (position+scale+opacity combined per field, five different
- * non-multiple durations 13s/16s/18s/21s/24s) is unchanged from v13.
- *
- * v15 — visual-cleanup pass: each field was a flat `backgroundColor` fill,
- * which (even blurred) has a genuine hard edge at its own un-blurred radius,
- * reading as "an obvious colored circle" rather than ambient light. Switched
- * to a radial-gradient that already fades to transparent before the blur is
- * applied, so there's no hard edge for the blur to soften — same colors,
- * same sizes/positions/animation timing (untouched, since this file has a
- * documented history of breaking on gradient-syntax changes — see the
- * `oklch(from ...)` note above; only plain `rgba()` stops are used here,
- * the same safe syntax that fix already established).
+ * Vertical offsets are fixed rem values, not percentages — this hero
+ * wrapper is auto-height (sized by its own content), and percentage
+ * top/bottom on an absolutely positioned child resolves against that as
+ * indeterminate (a real bug hit and fixed earlier in this exact file;
+ * horizontal start/end stays percentage-based since width is never "auto"
+ * the same way). `prefers-reduced-motion` needs no special-casing here —
+ * styles.css already freezes every animation globally for it, and every
+ * field's start/end keyframe state is itself a valid, fully-formed still
+ * frame of the atmosphere, so freezing anywhere in the loop still looks
+ * like "the same atmosphere," per the brief's own reduced-motion ask.
  */
 export function HeroAtmosphere() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      {/* GREEN ZONE — primary. Upper-left, pure Deep Green. */}
+      {/* The actual background — everything below only ever lightens/deepens this. */}
       <div
-        className="atmosphere-blob -top-24 start-[-10%] w-[30rem] h-[24rem] sm:w-[40rem] sm:h-[32rem] lg:w-[44rem] lg:h-[36rem] xl:start-[-4%] xl:w-[58rem] xl:h-[46rem]"
+        className="absolute inset-0"
+        style={{
+          backgroundImage: "linear-gradient(180deg, #FBFFFC 0%, #ECFFF1 55%, #DEFFE5 100%)",
+        }}
+      />
+
+      {/* Near-white glow — upper field, largest and softest. */}
+      <div
+        className="atmosphere-blob -top-20 start-[-8%] w-[36rem] h-[30rem] sm:w-[48rem] sm:h-[40rem] lg:w-[58rem] lg:h-[46rem] xl:w-[68rem] xl:h-[54rem]"
         style={{
           backgroundImage:
-            "radial-gradient(circle, rgba(15, 79, 59, 1) 0%, rgba(15, 79, 59, 0) 70%)",
-          filter: "blur(130px)",
-          animationName: "atmosphere-green-primary",
-          animationDuration: "18s",
+            "radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 68%)",
+          filter: "blur(140px)",
+          animationName: "mint-field-white",
+          animationDuration: "26s",
           animationDelay: "0s",
           animationTimingFunction: "ease-in-out",
         }}
       />
-      {/* GREEN ZONE — tint. Same area, lighter same-family tone for depth. */}
+
+      {/* Mid mint (#ECFFF1 family) — opposite side, center height. */}
       <div
-        className="atmosphere-blob top-4 start-[6%] w-[22rem] h-[18rem] sm:w-[28rem] sm:h-[24rem] lg:w-[32rem] lg:h-[28rem] xl:w-[42rem] xl:h-[36rem]"
+        className="atmosphere-blob top-10 end-[-6%] w-[32rem] h-[26rem] sm:w-[44rem] sm:h-[36rem] lg:w-[54rem] lg:h-[42rem] xl:w-[62rem] xl:h-[48rem]"
         style={{
           backgroundImage:
-            "radial-gradient(circle, rgba(159, 189, 178, 1) 0%, rgba(159, 189, 178, 0) 70%)",
+            "radial-gradient(circle, rgba(236, 255, 241, 0.95) 0%, rgba(236, 255, 241, 0) 68%)",
           filter: "blur(150px)",
-          animationName: "atmosphere-green-tint",
-          animationDuration: "16s",
-          animationDelay: "-5s",
-          animationTimingFunction: "ease-in-out",
-        }}
-      />
-      {/* WHITE separator — keeps the green zone and lime zone from blending
-          into one wash; the transition should read as a clean white gap. */}
-      <div
-        className="atmosphere-blob top-[20rem] start-[24%] w-[32rem] h-[26rem] sm:w-[42rem] sm:h-[34rem] lg:w-[48rem] lg:h-[38rem] sm:top-[24rem] lg:top-[28rem] xl:w-[58rem] xl:h-[46rem]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 70%)",
-          filter: "blur(170px)",
-          animationName: "atmosphere-breathe",
-          animationDuration: "24s",
+          animationName: "mint-field-mid",
+          animationDuration: "30s",
           animationDelay: "-12s",
           animationTimingFunction: "ease-in-out",
         }}
       />
-      {/* LIME ZONE — primary. Lower-right, pure Lime — a separate area from
-          the green zone. */}
+
+      {/* Deeper pale mint (#DEFFE5 family) — anchors the richer lower hero. */}
       <div
-        className="atmosphere-blob top-[22rem] end-[-8%] w-[28rem] h-[22rem] sm:w-[38rem] sm:h-[30rem] lg:w-[42rem] lg:h-[34rem] sm:top-[28rem] lg:top-[32rem] xl:end-[-2%] xl:w-[52rem] xl:h-[42rem]"
+        className="atmosphere-blob top-[18rem] start-[6%] w-[36rem] h-[28rem] sm:top-[22rem] sm:w-[48rem] sm:h-[38rem] lg:top-[26rem] lg:w-[58rem] lg:h-[44rem] xl:top-[30rem] xl:w-[66rem] xl:h-[50rem]"
         style={{
           backgroundImage:
-            "radial-gradient(circle, rgba(204, 208, 0, 1) 0%, rgba(204, 208, 0, 0) 70%)",
-          filter: "blur(130px)",
-          animationName: "atmosphere-lime-primary",
-          animationDuration: "21s",
-          animationDelay: "-8s",
-          animationTimingFunction: "ease-in-out",
-        }}
-      />
-      {/* LIME ZONE — tint. Same area, lighter same-family tone for depth. */}
-      <div
-        className="atmosphere-blob top-[26rem] end-[4%] w-[20rem] h-[16rem] sm:w-[26rem] sm:h-[22rem] lg:w-[30rem] lg:h-[26rem] sm:top-[32rem] lg:top-[36rem] xl:w-[38rem] xl:h-[32rem]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, rgba(233, 235, 145, 1) 0%, rgba(233, 235, 145, 0) 70%)",
-          filter: "blur(150px)",
-          animationName: "atmosphere-lime-tint",
-          animationDuration: "13s",
+            "radial-gradient(circle, rgba(222, 255, 229, 0.95) 0%, rgba(222, 255, 229, 0) 68%)",
+          filter: "blur(160px)",
+          animationName: "mint-field-deep",
+          animationDuration: "24s",
           animationDelay: "-6s",
           animationTimingFunction: "ease-in-out",
         }}
       />
-      {/* Fade to Cream — a fixed height at the very bottom of the hero wrapper, so
-          the atmosphere stays visible through most of the hero and only dissolves
-          in the final stretch (a percentage height here has the exact same
-          auto-height-parent problem as top/bottom above). */}
-      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-cream sm:h-32 lg:h-40" />
+
+      {/* Lime — a whisper, never a visible color. Small and far softer than
+          the mint fields above; exists purely so the atmosphere still
+          feels like Dallty. */}
+      <div
+        className="atmosphere-blob top-[12rem] end-[10%] w-[18rem] h-[15rem] sm:top-[15rem] sm:w-[24rem] sm:h-[20rem] lg:top-[18rem] lg:w-[28rem] lg:h-[24rem]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, rgba(204, 208, 0, 0.35) 0%, rgba(204, 208, 0, 0) 65%)",
+          filter: "blur(150px)",
+          animationName: "mint-field-lime",
+          animationDuration: "28s",
+          animationDelay: "-18s",
+          animationTimingFunction: "ease-in-out",
+        }}
+      />
     </div>
   );
 }

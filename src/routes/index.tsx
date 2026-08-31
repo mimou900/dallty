@@ -26,7 +26,7 @@ import { ProfessionalCTA } from "@/components/dallty/professional-cta";
 import { AppDownloadSection } from "@/components/dallty/app-download-section";
 import { Footer, type FooterColumnData } from "@/components/dallty/footer/footer";
 import { SectionHeader } from "@/components/dallty/section-header";
-import { GradientBackground } from "@/components/ui/jade-sky";
+import { HeroAtmosphere } from "@/components/dallty/hero-atmosphere";
 import { HomeSearchBar } from "@/components/dallty/home-search-bar";
 import { ServiceSearchSheet, ServiceSearchPanel } from "@/components/dallty/service-search-sheet";
 import {
@@ -388,16 +388,7 @@ function Index() {
           above a differently-colored hero. Nothing below this wrapper is affected —
           it's sized to its own content, not the viewport. */}
       <div className="relative isolate">
-        {/* GradientBackground's own root div hardcodes `position: relative` +
-            `height: 100%` inline (see jade-sky.tsx) — it fills an explicitly
-            *sized* parent, not an auto-height one, and inline styles beat any
-            className passed to it. So it's wrapped in its own absolutely-
-            positioned, explicitly-bounded layer here (same composition the
-            component's own demo uses: a sized box, then `h-full w-full`
-            inside it) rather than asked to position itself directly. */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <GradientBackground className="h-full w-full" />
-        </div>
+        <HeroAtmosphere />
 
         <SiteHeader lang={lang} />
 

@@ -420,7 +420,7 @@
    * Values below tagged "master system" are exact hex from that spec, not
    * hand-converted oklch approximations, so they stay pixel-exact.
    */
-  --background: #f7f5ee; /* master system: BACKGROUND */
+  --background: #ffffff; /* explicit follow-up: full site background -> white */
   --foreground: #15231f; /* master system: TEXT */
   --card: #ffffff; /* master system: SURFACE */
   --card-foreground: #15231f;
@@ -452,10 +452,12 @@
   --accent: #e7efea; /* master system: SOFT SURFACE (same role as --primary-surface) */
   --accent-foreground: oklch(0.32 0.05 161);
 
-  /* Cream (brand #F7F5EE) — now identical to --background above (the master
-     system's BACKGROUND is this exact color); kept as its own token since
-     `bg-cream` is already used as an explicit opt-in class in a few places. */
-  --cream: #f7f5ee;
+  /* Cream — now identical to --background above (explicit follow-up: the
+     FULL site background, including pages that opt into `bg-cream`
+     specifically like the homepage/Search/Bookings, is white). Kept as its
+     own token rather than deleted since `bg-cream` is still a real class
+     used in several places — it just now resolves to the same white. */
+  --cream: #ffffff;
   --cream-foreground: #15231f;
 
   --gold: oklch(0.78 0.115 85);
@@ -769,169 +771,114 @@
 /*
  * Homepage hero atmosphere (see src/components/dallty/hero-atmosphere.tsx).
  *
- * v13 — Dallty's own Deep Green / Lime identity, tuned to "medium"
- * visibility — clearly visible on load, not barely-there ambient drift, not
- * bold contest-for-dominance intensity either. Five fields, five different
- * non-multiple durations (13s/16s/18s/21s/24s), staggered delays. Each
- * field's own keyframe combines translate + scale + opacity in ONE
- * animation, amplitude ~60-180 real px, scale ~0.95-1.08, opacity within an
- * already-visible band (never fading toward invisible).
- *
- * v14 — color-fidelity fix. The v13 layout (green primary + lime primary +
- * one pale-green field + one white field + one green secondary) put THREE
- * green-family fields and only one lime field in overlapping territory,
- * which is what read as "gray-green mud" rather than clean green/lime
- * separation. Same five keyframe shapes, but reorganized into two clearly
- * separated ZONES with a white field between them:
- * - GREEN ZONE: `atmosphere-green-primary` (pure #0F4F3B) + `atmosphere-
- *   green-tint` (a lighter same-family tint) — one area of the hero.
- * - LIME ZONE: `atmosphere-lime-primary` (pure #CCD000, peak opacity
- *   lowered vs. green's since Lime is inherently more luminant — the same
- *   alpha reads "hotter"/more neon on Lime than on Deep Green) +
- *   `atmosphere-lime-tint` — a different area of the hero.
- * - `atmosphere-breathe` (white) sits between the two zones so the
- *   transition reads as "green field → white → lime field," not one
- *   blended wash.
- * Blur is also reduced from v13 (was up to 210px) so each field keeps a
- * recognizable, "this is green" / "this is lime" center rather than
- * dissolving into fog.
+ * v16 — full replacement, Aleric-reference "moving mint atmosphere" (explicit
+ * spec). Previous versions (v13/v14, kept only in history) were two
+ * spatially-distinct Deep-Green/Lime "zones" — clearly visible individual
+ * fields, by design. This brief wants the opposite: ONE continuous soft
+ * field of light, near-white at top fading to a slightly richer pale mint
+ * at the bottom, where no individual shape is ever visible. That means:
+ * - A static 3-stop vertical base gradient (#FBFFFC -> #ECFFF1 -> #DEFFE5)
+ *   painted directly in the component, not animated — it's the foundation
+ *   every field blends into, not a field itself.
+ * - Three large radial fields in colors already close to the base
+ *   (near-white + the two mint stops), at LOW peak opacity (0.22-0.4, vs.
+ *   v14's 0.4-0.68) specifically so they lighten/deepen regions of the
+ *   base rather than reading as their own shape.
+ *   `mint-field-lime` is a fourth, extremely faint field (opacity 0.05
+ *   peak) — a "tiny atmospheric influence," per the brief's explicit "do
+ *   NOT let lime become a visible yellow-green background."
+ * - Same technical shape as v14 (translate3d + scale + opacity only, one
+ *   keyframe per field, `atmosphere-blob` utility below) — proven
+ *   GPU-cheap, and this file's own established motion vocabulary — just
+ *   slower (24-30s vs. 13-24s, per the brief's "20-30s" ask) and much
+ *   lower amplitude (opacity/scale drift only, ~6-10% translate vs.
+ *   v14's ~9-20%) so the movement reads as "breathing," not "traveling."
  */
-@keyframes atmosphere-green-primary {
+@keyframes mint-field-white {
   0% {
     transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.48;
-  }
-  17% {
-    transform: translate3d(11%, -9%, 0) scale(1.05);
-    opacity: 0.6;
-  }
-  35% {
-    transform: translate3d(18%, 4%, 0) scale(0.97);
-    opacity: 0.68;
-  }
-  52% {
-    transform: translate3d(9%, 14%, 0) scale(1.08);
-    opacity: 0.58;
-  }
-  70% {
-    transform: translate3d(-8%, 8%, 0) scale(0.96);
-    opacity: 0.5;
-  }
-  86% {
-    transform: translate3d(-13%, -6%, 0) scale(1.03);
-    opacity: 0.54;
-  }
-  100% {
-    transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.48;
-  }
-}
-
-@keyframes atmosphere-lime-primary {
-  0% {
-    transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.4;
-  }
-  19% {
-    transform: translate3d(-12%, 10%, 0) scale(1.06);
-    opacity: 0.5;
-  }
-  38% {
-    transform: translate3d(-20%, -5%, 0) scale(0.96);
-    opacity: 0.55;
-  }
-  56% {
-    transform: translate3d(-10%, -16%, 0) scale(1.07);
-    opacity: 0.46;
-  }
-  74% {
-    transform: translate3d(9%, -9%, 0) scale(0.95);
-    opacity: 0.42;
-  }
-  90% {
-    transform: translate3d(14%, 6%, 0) scale(1.04);
-    opacity: 0.44;
-  }
-  100% {
-    transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.4;
-  }
-}
-
-@keyframes atmosphere-green-tint {
-  0% {
-    transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.3;
-  }
-  22% {
-    transform: translate3d(8%, -12%, 0) scale(1.07);
-    opacity: 0.42;
-  }
-  44% {
-    transform: translate3d(15%, 6%, 0) scale(0.94);
-    opacity: 0.45;
-  }
-  66% {
-    transform: translate3d(-6%, 13%, 0) scale(1.05);
-    opacity: 0.34;
-  }
-  84% {
-    transform: translate3d(-12%, -4%, 0) scale(0.98);
-    opacity: 0.32;
-  }
-  100% {
-    transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.3;
-  }
-}
-
-@keyframes atmosphere-breathe {
-  0% {
-    transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.25;
-  }
-  25% {
-    transform: translate3d(-9%, -7%, 0) scale(1.06);
-    opacity: 0.4;
-  }
-  50% {
-    transform: translate3d(-4%, 10%, 0) scale(0.95);
     opacity: 0.28;
   }
-  75% {
-    transform: translate3d(10%, 5%, 0) scale(1.04);
+  22% {
+    transform: translate3d(5%, -4%, 0) scale(1.04);
     opacity: 0.36;
+  }
+  48% {
+    transform: translate3d(8%, 2%, 0) scale(0.97);
+    opacity: 0.4;
+  }
+  74% {
+    transform: translate3d(3%, 6%, 0) scale(1.03);
+    opacity: 0.32;
   }
   100% {
     transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.25;
+    opacity: 0.28;
   }
 }
 
-@keyframes atmosphere-lime-tint {
+@keyframes mint-field-mid {
   0% {
     transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.2;
-  }
-  20% {
-    transform: translate3d(14%, 8%, 0) scale(1.08);
-    opacity: 0.32;
-  }
-  40% {
-    transform: translate3d(20%, -6%, 0) scale(0.94);
-    opacity: 0.35;
-  }
-  60% {
-    transform: translate3d(6%, -14%, 0) scale(1.05);
     opacity: 0.24;
   }
+  26% {
+    transform: translate3d(-6%, 4%, 0) scale(1.05);
+    opacity: 0.32;
+  }
+  55% {
+    transform: translate3d(-9%, -3%, 0) scale(0.96);
+    opacity: 0.36;
+  }
   80% {
-    transform: translate3d(-10%, -4%, 0) scale(0.97);
-    opacity: 0.22;
+    transform: translate3d(-3%, -6%, 0) scale(1.03);
+    opacity: 0.27;
   }
   100% {
     transform: translate3d(0%, 0%, 0) scale(1);
-    opacity: 0.2;
+    opacity: 0.24;
+  }
+}
+
+@keyframes mint-field-deep {
+  0% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+    opacity: 0.3;
+  }
+  30% {
+    transform: translate3d(4%, -5%, 0) scale(1.04);
+    opacity: 0.38;
+  }
+  58% {
+    transform: translate3d(7%, 3%, 0) scale(0.97);
+    opacity: 0.42;
+  }
+  82% {
+    transform: translate3d(2%, 5%, 0) scale(1.02);
+    opacity: 0.33;
+  }
+  100% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+    opacity: 0.3;
+  }
+}
+
+@keyframes mint-field-lime {
+  0% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+    opacity: 0.02;
+  }
+  35% {
+    transform: translate3d(-5%, 5%, 0) scale(1.06);
+    opacity: 0.05;
+  }
+  65% {
+    transform: translate3d(5%, -4%, 0) scale(0.95);
+    opacity: 0.04;
+  }
+  100% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+    opacity: 0.02;
   }
 }
 
