@@ -419,52 +419,66 @@
    * DALLTY MASTER SYSTEM — the authoritative token set (explicit user spec).
    * Values below tagged "master system" are exact hex from that spec, not
    * hand-converted oklch approximations, so they stay pixel-exact.
+   *
+   * Refined a second time (explicit follow-up, same role structure as the
+   * original spec — mapped by NAME, e.g. "PRIMARY BRAND"/"BORDER", not by
+   * guessing from the old hex): Deep Forest/Forest Green/Fresh Lime/Pale
+   * Mint/Near White/Pure White/Muted Green-Gray/Soft Border. Two real role
+   * shifts, not just hex refinements: Deep Forest (#083C2F) is now named
+   * "main dark brand/text" — it replaces the old flat #15231F as
+   * --foreground directly, rather than staying confined to --primary-active
+   * (the darkest/pressed green state, which it still also covers — one
+   * color, both jobs, matching the spec's own "main dark brand" framing).
+   * Pale Mint (#F2F8F3, "soft sections") is a new, lighter step below Soft
+   * Mint — given its own token (--muted) rather than overloading
+   * --accent/--primary-surface, which stay mapped to Soft Mint.
    */
-  --background: #ffffff; /* explicit follow-up: full site background -> white */
-  --foreground: #15231f; /* master system: TEXT */
-  --card: #ffffff; /* master system: SURFACE */
-  --card-foreground: #15231f;
+  --background: #fafcf9; /* master system: Near White — Main canvas */
+  --foreground: #083c2f; /* master system: Deep Forest — Main dark brand/text */
+  --card: #ffffff; /* master system: Pure White — Cards/surfaces */
+  --card-foreground: #083c2f;
   --popover: #ffffff;
-  --popover-foreground: #15231f;
+  --popover-foreground: #083c2f;
 
-  /* Deep Green — structure/identity. */
-  --primary: #0f4f3b; /* master system: PRIMARY BRAND */
+  /* Forest Green — structure/identity. */
+  --primary: #0e5a43; /* master system: Forest Green — Primary actions */
   --primary-foreground: oklch(0.99 0.005 150);
   /* Hover/light/surface — same hue as --primary, only lightness/chroma move,
-     so every state still reads as "the same green." --primary-active is the
-     master system's DARK ACCENT (#082F24) — its natural home is the
-     darkest/pressed state of the brand green. */
+     so every state still reads as "the same green." --primary-active is
+     Deep Forest — the darkest/pressed state of the brand green, and per the
+     spec's own "main dark brand" framing, the same color as --foreground. */
   --primary-hover: oklch(0.335 0.075 161);
-  --primary-active: #082f24; /* master system: DARK ACCENT */
+  --primary-active: #083c2f; /* master system: Deep Forest */
   --primary-light: oklch(0.56 0.1 161);
-  --primary-surface: #e7efea; /* master system: SOFT SURFACE */
+  --primary-surface: #e8f3ea; /* master system: Soft Mint — Secondary backgrounds */
   --secondary: oklch(0.955 0.014 161);
   --secondary-foreground: oklch(0.3 0.03 161);
   /* New token, not a replacement for --secondary above (which stays the
      existing light background tint used everywhere today — badges,
      inactive tabs — swapping it for a solid mid-tone would turn all of
      those solid dark sage-green). This is the master system's own
-     SECONDARY role, available for whatever's designed to use it next. */
+     SECONDARY role from the original spec pass; the refined palette didn't
+     name a direct successor, so it's left as-is rather than guessed at. */
   --secondary-accent: #557a6b; /* master system: SECONDARY */
   --secondary-accent-foreground: #ffffff;
-  --muted: oklch(0.955 0.012 161);
-  --muted-foreground: #66756f; /* master system: MUTED TEXT */
-  --accent: #e7efea; /* master system: SOFT SURFACE (same role as --primary-surface) */
+  --muted: #f2f8f3; /* master system: Pale Mint — Soft sections */
+  --muted-foreground: #65756d; /* master system: Muted Green-Gray — Secondary text */
+  --accent: #e8f3ea; /* master system: Soft Mint (same role as --primary-surface) */
   --accent-foreground: oklch(0.32 0.05 161);
 
   /* Cream — now identical to --background above (explicit follow-up: the
      FULL site background, including pages that opt into `bg-cream`
-     specifically like the homepage/Search/Bookings, is white). Kept as its
-     own token rather than deleted since `bg-cream` is still a real class
-     used in several places — it just now resolves to the same white. */
-  --cream: #ffffff;
-  --cream-foreground: #15231f;
+     specifically like the homepage/Search/Bookings, is Near White). Kept as
+     its own token rather than deleted since `bg-cream` is still a real
+     class used in several places — it just now resolves to the same value. */
+  --cream: #fafcf9;
+  --cream-foreground: #083c2f;
 
   --gold: oklch(0.78 0.115 85);
   --gold-foreground: oklch(0.28 0.05 85);
   /* Lime — primary action / energy. CTA buttons only. */
-  --lime: #ccd000; /* master system: SIGNATURE ACCENT */
-  --lime-foreground: oklch(0.28 0.05 161);
+  --lime: #c6e83a; /* master system: Fresh Lime — Signature CTA/accent */
+  --lime-foreground: #083c2f; /* master system: Deep Forest — same "dark brand text" role */
   /* A pale tint of Lime for low-emphasis badges (e.g. "New") that still need
      to read as lime-family, not the bold CTA-strength lime above. */
   --lime-subtle: oklch(0.95 0.05 118.84);
@@ -490,9 +504,9 @@
 
   --destructive: oklch(0.6 0.2 25);
   --destructive-foreground: oklch(0.99 0.005 150);
-  --border: #d8e0db; /* master system: BORDER */
+  --border: #dce6e0; /* master system: Soft Border — Borders/dividers */
   --input: oklch(0.92 0.014 161);
-  --ring: #0f4f3b;
+  --ring: #0e5a43;
 
   /* Glass — Level 2 (see the .glass utilities below). Base surface is a warm
      near-white rather than green-tinted, so translucent cards stay legible

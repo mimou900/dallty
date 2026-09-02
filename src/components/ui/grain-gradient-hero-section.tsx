@@ -24,45 +24,44 @@ import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
  * hero wrapper is `position: relative` in routes/index.tsx), never
  * intercepting clicks, never affecting the hero's content-driven height.
  *
- * Color-blend intent (brief): white/soft-green should visually dominate;
- * Deep Green/Sage are ambient depth; Lime is a bare highlight, never a
- * visible yellow-green area. Low `intensity` keeps color bands from
- * aggressively bleeding into each other (which is what would make Lime
- * read as its own "section"); high `softness` removes any hard edges.
+ * Color-blend intent (brief, refined pass with an explicit target
+ * distribution — see the constants below): Near White/Pure White should
+ * visually dominate (~65%), Pale Mint is its own soft zone (~20%), Deep
+ * Forest/Forest Green are ambient depth (~10%/~4%), Fresh Lime is a bare
+ * highlight (~1%), never a visible yellow-green area. Low `intensity`
+ * keeps color bands from aggressively bleeding into each other (which is
+ * what would make Lime read as its own "section"); high `softness`
+ * removes any hard edges.
  */
 
-// A first pass at colorBack=white + these 4 colors straight from the
-// brief's own hex values, at intensity 0.12, rendered as an obviously-
-// strong green field with a visibly yellow-green lime band — exactly
-// what the brief calls "too strong" (§25). Lower intensity + higher scale
-// alone only fixed ONE frame of the animation: this shader's "wave"
-// pattern redistributes color area a lot as it moves, so a combination
-// that looks right at t=0 can still drift to the headline sitting on a
-// near-solid dark-green patch a couple of seconds later (confirmed by
-// screenshotting across time, not assumed from a single render). Fixed
-// by giving Sage/Deep Green partial alpha (8-digit hex, same underlying
-// brand color, not a substitution) so neither can ever fully saturate an
-// area regardless of animation phase — contrast now holds for the whole
-// loop, not just one lucky frame.
-const LIGHT_COLOR_BACK = "#FFFFFF";
-const LIGHT_COLORS = ["#FFFFFF", "#E7EFEA", "#557A6B99", "#0F4F3B66", "#CCD00030"];
+// Refined palette pass (explicit follow-up), with an explicit target
+// distribution this time: ~65% near-white/white, ~20% pale mint, ~10% deep
+// green, ~4% forest green, ~1% lime. `colors` area isn't literally
+// percentage-controllable (no per-color "weight" prop — confirmed against
+// the shader's own params), so it's approximated the same way the first
+// palette pass ended up working: alpha on the 8-digit hex (same underlying
+// brand color, not a substitution) roughly proportional to each color's
+// target share, over the SAME proven intensity/scale/softness combination
+// already confirmed stable across a full animation loop (not just frame
+// zero — see the prior pass's notes). White/Near-White together are the
+// ~65% base (colorBack + a full-opacity white in the array); Pale Mint is
+// its own ~20% zone at full opacity; Deep Forest/Forest Green/Lime step
+// down in both opacity AND array position for their ~10/~4/~1% shares.
+const LIGHT_COLOR_BACK = "#FAFCF9"; // Near White — Main canvas
+const LIGHT_COLORS = ["#FFFFFF", "#F2F8F3", "#083C2F80", "#0E5A434D", "#C6E83A1F"];
 
-// Same 5 approved hexes, rebalanced — Deep Green becomes the environment
-// (colorBack) instead of a subtle accent. Tried duplicating array entries
-// to bias Sage's share first — that pushed Lime into visibly-neon
-// territory instead (the array isn't "more entries = more area" the way
-// it first looked in the light-mode tuning; empirically confirmed by
-// screenshotting, not assumed). What actually works: 8-digit hex alpha on
-// Lime/White specifically (`#CCD00030`, `#FFFFFF40`) — same exact brand
-// hex underneath (not a substitution, just partial blend weight), so they
-// read as "influence"/"a glint" instead of a solid area. Dark-mode body
-// copy is light-colored, so a large bright-white patch drifting under it
-// (a live animation — no fixed "safe zone" to guarantee) would read as
-// broken contrast, not a highlight — the brief's own §17 rule against
-// relying on the shader alone for contrast is why this stays conservative
-// rather than matching light mode's fuller-opacity proportions.
-const DARK_COLOR_BACK = "#0F4F3B";
-const DARK_COLORS = ["#0F4F3B", "#557A6B", "#E7EFEA", "#CCD00030", "#FFFFFF40"];
+// Same palette, Deep Forest becomes the dark environment (colorBack)
+// instead of a ~10% accent. Pale Mint/Lime/White ALL stay low-alpha here —
+// dark-mode body copy is light-colored, so any large bright patch drifting
+// under it (a live animation, no fixed "safe zone" to guarantee) reads as
+// broken contrast, not a highlight. First attempt kept Pale Mint at full
+// opacity (matching its light-mode share) and hit exactly that: a bright
+// patch swallowing the subtitle. Faint across the board is what actually
+// holds legibility for the whole loop (confirmed the same way as the
+// light-mode pass — screenshotting across several seconds, not just frame
+// zero).
+const DARK_COLOR_BACK = "#083C2F"; // Deep Forest — dark environment
+const DARK_COLORS = ["#0E5A43", "#F2F8F340", "#C6E83A26", "#FFFFFF33"];
 
 /** Reactive to the `.dark` class on `<html>` — the same mechanism the
  *  admin dashboard's own theme toggle already uses (see
