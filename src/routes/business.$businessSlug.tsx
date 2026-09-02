@@ -29,6 +29,7 @@ import { savePendingBooking, readPendingBooking, clearPendingBooking } from "@/l
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { BottomNav } from "@/components/dallty/bottom-nav";
+import { useScrollDirection } from "@/hooks/use-scroll-direction";
 import { LanguageSwitcher } from "@/components/dallty/language-switcher";
 import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
@@ -276,6 +277,7 @@ function BookingFlow() {
   const { lang } = useLocale();
   const { t } = useTranslation("common");
   const { t: tb } = useTranslation("booking");
+  const scrollDirection = useScrollDirection();
 
   const {
     book: bookIntent,
@@ -1440,14 +1442,16 @@ function BookingFlow() {
           )}
           {cameFromApp && <LanguageSwitcher variant="icon" />}
         </div>
-
-        {tab !== "book" && (
-          <BusinessProfileNav
-            activeTab={tab === "reviews" ? "reviews" : "overview"}
-            onOpenReviews={() => setTab("reviews")}
-          />
-        )}
       </header>
+
+      {/* Deliberately NOT inside the sticky header above — scrolls away with the page like
+          any other content instead of staying pinned under the floating back/name/share bar. */}
+      {tab !== "book" && (
+        <BusinessProfileNav
+          activeTab={tab === "reviews" ? "reviews" : "overview"}
+          onOpenReviews={() => setTab("reviews")}
+        />
+      )}
 
       <main className="mx-auto max-w-3xl px-4">
         {businessQuery.isLoading && (
@@ -2503,9 +2507,15 @@ function BookingFlow() {
       {/* Persistent booking CTA (brief §15) — mobile only, sits directly above BottomNav
           rather than replacing it (brief §42: never a second competing bottom nav). Only
           appears when there's actually something bookable (brief §15: "do not show a booking
-          CTA if there are no bookable services"). */}
+          CTA if there are no bookable services"). Hides on scroll-down and reappears on
+          scroll-up/near the top — same shared `useScrollDirection` signal BottomNav uses, so
+          both collapse together rather than one lagging the other. */}
       {tab === "overview" && business && (servicesQuery.data?.length ?? 0) > 0 && (
-        <div className="fixed inset-x-0 bottom-20 z-40 px-4 md:hidden">
+        <div
+          className={`fixed inset-x-0 bottom-20 z-40 px-4 transition-transform duration-200 md:hidden ${
+            scrollDirection === "down" ? "translate-y-40" : "translate-y-0"
+          }`}
+        >
           <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-3xl glass glass-highlight px-4 py-3">
             <span className="text-sm font-semibold text-muted-foreground">
               {servicesQuery.data!.length} service{servicesQuery.data!.length === 1 ? "" : "s"}{" "}
