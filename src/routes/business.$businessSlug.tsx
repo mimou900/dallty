@@ -580,14 +580,25 @@ function BookingFlow() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextAvailableQueries.map((q) => q.dataUpdatedAt).join(","), eligibleStaff.length]);
 
-  /** Selecting a service resets the specialist, day and time, then advances. Releases any hold
-   * from a previously-chosen time — it no longer matches this selection. */
+  /** Selecting a service normally resets the specialist too (a service picked from scratch
+   * has no specialist context yet) — EXCEPT when a specialist was already chosen coming in
+   * (booking from that specialist's own profile drawer) and still actually performs this
+   * service: staying on that specialist is exactly what "Book with [name]" promised, so
+   * re-asking "choose a specialist" here would contradict the button the customer just
+   * pressed. Either way, day/time and any held slot are stale for a new selection and get
+   * cleared. */
   function selectService(id: string) {
     resetHold();
     setServiceId(id);
-    setStaffId(null);
+    const staffStillEligible =
+      staffId && (staffQuery.data ?? []).some((m) => m.id === staffId && (m.service_ids ?? []).includes(id));
     setSlot(null);
-    setStep(1);
+    if (staffStillEligible) {
+      setStep(2);
+    } else {
+      setStaffId(null);
+      setStep(1);
+    }
   }
 
   /** Selecting a specialist resets the time, then advances to the date step. */
