@@ -26,7 +26,7 @@ import { ProfessionalCTA } from "@/components/dallty/professional-cta";
 import { AppDownloadSection } from "@/components/dallty/app-download-section";
 import { Footer, type FooterColumnData } from "@/components/dallty/footer/footer";
 import { SectionHeader } from "@/components/dallty/section-header";
-import { HeroGrainGradient } from "@/components/ui/grain-gradient-hero-section";
+import { HeroVelarisBackground } from "@/components/dallty/hero-velaris-background";
 import { HomeSearchBar } from "@/components/dallty/home-search-bar";
 import { ServiceSearchSheet, ServiceSearchPanel } from "@/components/dallty/service-search-sheet";
 import {
@@ -388,7 +388,7 @@ function Index() {
           above a differently-colored hero. Nothing below this wrapper is affected —
           it's sized to its own content, not the viewport. */}
       <div className="relative isolate">
-        <HeroGrainGradient />
+        <HeroVelarisBackground />
 
         <SiteHeader lang={lang} />
 
