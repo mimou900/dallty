@@ -1296,7 +1296,25 @@ function BookingFlow() {
 
   return (
     <div className="relative min-h-dvh pb-nav-safe md:pb-12">
-      <StaffDetailDrawer staffId={staffDrawerId} onClose={() => setStaffDrawerId(null)} />
+      <StaffDetailDrawer
+        staffId={staffDrawerId}
+        serviceIds={
+          (staffQuery.data ?? []).find((s) => s.id === staffDrawerId)?.service_ids ?? []
+        }
+        services={(servicesQuery.data ?? []) as never}
+        currency={business?.currency ?? "DZD"}
+        location={business ? `${business.area}, ${business.city}` : ""}
+        onClose={() => setStaffDrawerId(null)}
+        onBook={(serviceId) => {
+          setStaffId(staffDrawerId);
+          setServiceId(serviceId);
+          setSlot(null);
+          setStep(serviceId ? 2 : 0);
+          setStaffDrawerId(null);
+          setTab("book");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
       {exitBlocker.status === "blocked" && (
         <div
           className="fixed inset-0 z-[100] grid place-items-center bg-foreground/50 px-6 backdrop-blur-sm animate-fade-up"
