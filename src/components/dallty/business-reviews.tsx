@@ -238,7 +238,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
 
   return (
     <section className="mt-7 animate-fade-up space-y-5">
-      <div className="rounded-3xl glass p-5">
+      <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-5">
           <div>
             <p className="text-4xl font-extrabold">{average ? average.toFixed(1) : "—"}</p>
@@ -292,7 +292,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
             e.preventDefault();
             saveReview.mutate();
           }}
-          className="rounded-3xl glass p-5"
+          className="rounded-2xl border border-border bg-card p-5"
         >
           <div className="flex items-center justify-between">
             <h3 className="text-base font-extrabold">
@@ -314,7 +314,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
             aria-label="Your review"
             className="mt-3 w-full rounded-2xl bg-card/70 p-4 text-base outline-none ring-ring focus:ring-2"
           />
-          <label className="press mt-3 flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl glass-soft text-sm font-bold">
+          <label className="press mt-3 flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-border text-sm font-bold">
             <ImagePlus className="size-4" />
             {files.length
               ? `${files.length} photo${files.length > 1 ? "s" : ""} selected`
@@ -342,7 +342,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
         {reviews.map((review) => {
           const mine = review.customer_id === user?.id;
           return (
-            <article key={review.id} className="rounded-3xl glass p-5">
+            <article key={review.id} className="rounded-2xl border border-border bg-card p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <Stars value={review.rating} size="size-4" />
@@ -364,7 +364,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
                           setBody(review.body);
                           setFiles([]);
                         }}
-                        className="press grid size-9 place-items-center rounded-xl glass-soft"
+                        className="press grid size-9 place-items-center rounded-xl border border-border"
                       >
                         <Pencil className="size-4" />
                       </button>
@@ -372,7 +372,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
                         type="button"
                         aria-label="Delete review"
                         onClick={() => deleteReview.mutate(review.id)}
-                        className="press grid size-9 place-items-center rounded-xl glass-soft"
+                        className="press grid size-9 place-items-center rounded-xl border border-border"
                       >
                         <Trash2 className="size-4 text-destructive" />
                       </button>
@@ -383,7 +383,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
                       type="button"
                       aria-label="Report review"
                       onClick={() => reportReview.mutate(review.id)}
-                      className="press grid size-9 place-items-center rounded-xl glass-soft"
+                      className="press grid size-9 place-items-center rounded-xl border border-border"
                     >
                       <Flag className="size-4 text-muted-foreground" />
                     </button>
@@ -395,7 +395,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
               <ReviewPhotos paths={review.photos ?? []} />
 
               {review.owner_reply && (
-                <div className="mt-4 rounded-2xl glass-soft p-4">
+                <div className="mt-4 rounded-2xl bg-muted p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-primary">
                     Reply from the business
                   </p>
@@ -429,7 +429,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
                     <button
                       type="button"
                       onClick={() => setReplyFor(review.id)}
-                      className="press min-h-10 w-full rounded-2xl glass-soft text-sm font-bold"
+                      className="press min-h-10 w-full rounded-2xl border border-border text-sm font-bold"
                     >
                       Reply as the business
                     </button>
@@ -441,7 +441,7 @@ export function BusinessReviews({ businessId, isOwner }: { businessId: string; i
         })}
 
         {!reviews.length && !reviewsQuery.isLoading && (
-          <p className="rounded-3xl glass p-6 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
             No reviews yet — be the first to share your experience.
           </p>
         )}

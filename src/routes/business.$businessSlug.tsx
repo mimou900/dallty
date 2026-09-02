@@ -13,6 +13,7 @@ import {
   Clock,
   CreditCard,
   Loader2,
+  Share2,
   ShieldAlert,
   Smartphone,
   Star,
@@ -33,8 +34,14 @@ import { useTranslation } from "@/lib/i18n/hooks";
 import type { NamespaceKeyMap } from "@/lib/i18n/keys.gen";
 import { FavoriteButton } from "@/components/dallty/favorite-button";
 import { BusinessReviews } from "@/components/dallty/business-reviews";
-import { BusinessOverview } from "@/components/dallty/business-overview";
-import { BusinessAbout } from "@/components/dallty/business-about";
+import { BusinessProfileHero } from "@/components/dallty/business-profile-hero";
+import { BusinessProfileNav } from "@/components/dallty/business-profile-nav";
+import { BusinessDescription } from "@/components/dallty/business-description";
+import { BusinessServices } from "@/components/dallty/business-services";
+import { BusinessTeam } from "@/components/dallty/business-team";
+import { BusinessPortfolio } from "@/components/dallty/business-portfolio";
+import { BusinessOtherInfo } from "@/components/dallty/business-about";
+import type { BranchHoursRow } from "@/lib/business-hours";
 import { StaffDetailDrawer } from "@/components/dallty/staff-detail-drawer";
 import { BusinessPageSkeleton } from "@/components/dallty/skeletons";
 import {
@@ -429,6 +436,24 @@ function BookingFlow() {
   }, [needsBranchChoice, branches, selectedBranchId]);
 
   const branchId = needsBranchChoice ? (selectedBranchId ?? undefined) : branches[0]?.id;
+  const activeBranch = branches.find((b) => b.id === branchId);
+
+  // Real per-day hours for the Business Profile page's Opening Hours section AND the hero's
+  // "Open until…" summary line — one query, shared by both (business-hours-location.tsx /
+  // business-profile-hero.tsx), not two independent fetches of the same table.
+  const branchHoursQuery = useQuery({
+    queryKey: ["branch-hours", branchId],
+    enabled: Boolean(branchId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("branch_hours")
+        .select("weekday, opens_at, closes_at")
+        .eq("branch_id", branchId!);
+      if (error) throw error;
+      return data as BranchHoursRow[];
+    },
+  });
+  const branchHours = branchHoursQuery.data ?? [];
 
   const servicesQuery = useQuery({
     queryKey: ["services", business?.id],
@@ -1360,13 +1385,10 @@ function BookingFlow() {
         </div>
       )}
 
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="glow-blob -top-32 start-[-10%] size-[34rem]" />
-        <div
-          className="glow-blob bottom-0 end-[-10%] size-[30rem]"
-          style={{ animationDelay: "-8s" }}
-        />
-      </div>
+      {/* No page-wide atmospheric glow-blob here (unlike the homepage/ClientShell default) —
+          explicit feedback was that the profile page read as "everything floating on a green
+          glass background." The page canvas is just the plain --background token; glass stays
+          reserved for the header, the sticky booking bar and BottomNav below. */}
 
       <header className="sticky top-0 z-40 px-4 pt-4">
         <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-3xl glass px-4 py-3">
@@ -1380,58 +1402,51 @@ function BookingFlow() {
           >
             <ArrowLeft className="size-5 rtl:rotate-180" />
           </button>
-          <div className="min-w-0">
-            <h1 className="flex items-center gap-1.5 truncate text-base font-extrabold">
-              <span className="truncate">{business?.name ?? "Loading…"}</span>
-              {business?.is_verified ? (
-                <BadgeCheck
-                  className="size-4 shrink-0 text-primary"
-                  aria-label="Verified by Dallty"
-                />
-              ) : null}
-            </h1>
-            <p className="truncate text-xs text-muted-foreground">
-              {business ? `${business.area} · ${business.city}` : ""}
-            </p>
-          </div>
+          <h1 className="flex min-w-0 items-center gap-1.5 truncate text-base font-extrabold">
+            <span className="truncate">{business?.name ?? "Loading…"}</span>
+            {business?.is_verified ? (
+              <BadgeCheck className="size-4 shrink-0 text-primary" aria-label="Verified by Dallty" />
+            ) : null}
+          </h1>
 
-          {business && cameFromApp && (
-            <span className="ms-auto flex shrink-0 items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-sm font-semibold">
-              <Star className="size-4 fill-gold text-gold" />
-              {Number(business.rating).toFixed(1)}
-            </span>
+          {business && (
+            <button
+              type="button"
+              onClick={async () => {
+                const url = window.location.href;
+                if (navigator.share) {
+                  try {
+                    await navigator.share({ title: business.name, url });
+                  } catch {
+                    /* customer cancelled the share sheet — not an error */
+                  }
+                  return;
+                }
+                try {
+                  await navigator.clipboard.writeText(url);
+                  toast.success("Link copied");
+                } catch {
+                  toast.error("Couldn't copy the link");
+                }
+              }}
+              aria-label="Share this shop"
+              className="press ms-auto grid size-11 shrink-0 place-items-center rounded-2xl glass-soft"
+            >
+              <Share2 className="size-4" />
+            </button>
           )}
           {business && user && (
-            <FavoriteButton
-              kind="business"
-              targetId={business.id}
-              label={business.name}
-              className={cameFromApp ? undefined : "ms-auto"}
-            />
+            <FavoriteButton kind="business" targetId={business.id} label={business.name} />
           )}
           {cameFromApp && <LanguageSwitcher variant="icon" />}
         </div>
 
-        <div
-          role="tablist"
-          aria-label="Business sections"
-          className="mx-auto mt-3 flex max-w-3xl gap-2 rounded-3xl glass p-2"
-        >
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
-              className={`press min-h-10 flex-1 rounded-2xl text-sm font-bold transition-colors ${
-                tab === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {tab !== "book" && (
+          <BusinessProfileNav
+            activeTab={tab === "reviews" ? "reviews" : "overview"}
+            onOpenReviews={() => setTab("reviews")}
+          />
+        )}
       </header>
 
       <main className="mx-auto max-w-3xl px-4">
@@ -1441,26 +1456,39 @@ function BookingFlow() {
           </div>
         )}
         {tab === "overview" && business && (
-          <BusinessOverview
-            business={business as never}
-            services={(servicesQuery.data ?? []) as never}
-            staff={(staffQuery.data ?? []) as never}
-            onOpenStaff={setStaffDrawerId}
-            categories={categories ?? []}
-            lang={lang}
-            onBook={(id) => {
-              if (id) {
-                setServiceId(id);
-                setStaffId(null);
-                setSlot(null);
-              }
-              setStep(id ? 1 : 0);
-              setTab("book");
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
+          <>
+            <BusinessProfileHero
+              business={business as never}
+              categories={categories ?? []}
+              lang={lang}
+              todayHours={branchHours}
+            />
+            <div className="mt-5 space-y-6 pb-40">
+              <BusinessDescription description={business.description} />
+              <BusinessServices
+                services={(servicesQuery.data ?? []) as never}
+                priceRange={business.price_range}
+                currency={business.currency}
+                onBook={(id) => {
+                  setServiceId(id);
+                  setStaffId(null);
+                  setSlot(null);
+                  setStep(1);
+                  setTab("book");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              />
+              <BusinessTeam staff={(staffQuery.data ?? []) as never} onOpenStaff={setStaffDrawerId} />
+              <BusinessPortfolio businessId={business.id} />
+              <BusinessOtherInfo
+                business={business as never}
+                hours={branchHours}
+                branchLat={activeBranch?.latitude}
+                branchLng={activeBranch?.longitude}
+              />
+            </div>
+          </>
         )}
-        {tab === "overview" && business && <BusinessAbout business={business as never} />}
         {tab === "reviews" && business && (
           <BusinessReviews businessId={business.id} isOwner={business.owner_id === user?.id} />
         )}
@@ -2468,6 +2496,32 @@ function BookingFlow() {
                 Confirm booking
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Persistent booking CTA (brief §15) — mobile only, sits directly above BottomNav
+          rather than replacing it (brief §42: never a second competing bottom nav). Only
+          appears when there's actually something bookable (brief §15: "do not show a booking
+          CTA if there are no bookable services"). */}
+      {tab === "overview" && business && (servicesQuery.data?.length ?? 0) > 0 && (
+        <div className="fixed inset-x-0 bottom-20 z-40 px-4 md:hidden">
+          <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-3xl glass glass-highlight px-4 py-3">
+            <span className="text-sm font-semibold text-muted-foreground">
+              {servicesQuery.data!.length} service{servicesQuery.data!.length === 1 ? "" : "s"}{" "}
+              available
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setStep(0);
+                setTab("book");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="press min-h-10 shrink-0 rounded-2xl bg-lime px-5 text-sm font-bold text-lime-foreground"
+            >
+              Book now
+            </button>
           </div>
         </div>
       )}
